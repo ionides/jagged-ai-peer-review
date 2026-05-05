@@ -35,13 +35,13 @@ jupyter: python3
 
 Despite their growing use in academic writing and statistical analysis, the performance of artificial intelligence (AI) tools in scientific peer review remains a largely unexplored area.
 A key challenge is *jagged AI*, a phenomenon where AI exhibits strong ability spikes in some domains while remaining deficient in others.
-To study this jaggedness in a practical data science context, we considered the task of reviewing Partially Observed Markov Process (POMP) data analyses.
+To study this jaggedness in a practical data science context, we considered the task of reviewing partially observed Markov process (POMP) data analyses.
 POMP models, also known as state-space models or hidden Markov models, are used to fit mechanistic dynamic models to time series data in diverse applications including disease transmission, ecological dynamics, and financial risk assessment.
-Quality peer review in this area entails assessment of scientific context, errors in implementing complex algorithms, and decisions concerning methodological best practices.
+Quality peer review in this area entails assessment of scientific context, identification of errors in implementing complex algorithms, and decisions concerning methodological best practices.
 We studied 72 POMP projects from four semesters of a University of Michigan graduate time series course for which the project reports, the source code, and student peer reviews are anonymized and open-access.
 We compared the human reviews with four AI reviewing agents, using Claude Code with differing instructions implemented as skill files. 
 We found that AI reviewers exhibited a jagged capability profile, proficiently catching human-overlooked technical errors and invalid inference methodology, while failing to match human standards in checking interpretive errors, narrative coherence, and domain-informed model critique.
-The jaggedness was found to be similar for all agents, consistent with it being primarily a property of the underlying model rather than the specific instructions.
+The jaggedness was found to be similar for all agents, consistent with it being primarily a property of the underlying AI model rather than the specific instructions.
 Skill file configuration shifted which weaknesses agents emphasized, without removing the jaggedness.
 
 **Keywords:** Peer review; Partially observed Markov process; jagged artificial intelligence.
@@ -49,14 +49,14 @@ Skill file configuration shifted which weaknesses agents emphasized, without rem
 # Introduction
 
 The use of large language models (LLMs) in academic contexts has grown substantially, raising important questions about where AI assistance enhances and where it degrades scientific outcomes [@vaccaro24].
-A foundational framework for understanding this boundary is the concept of the "jagged technological frontier" [@dellacqua26].
+A foundational framework for understanding this boundary is the concept of the *jagged technological frontier* [@dellacqua26].
 Tasks that appear equally demanding to human knowledge workers can fall on opposite sides of this frontier: where AI capabilities align with the task, AI complements and amplifies human performance; where they do not, AI output becomes unreliable and can actively degrade the quality of work.
 The benefit of AI assistance is therefore contingent on whether a given task lies within the current capability boundary—a boundary that is neither smooth nor predictable.
 
 Jaggedness is not a uniform capability ceiling but a pattern of uneven performance across domains.
 @morris26 characterize it as a tendency for AI to exhibit sharp ability spikes in certain areas while remaining persistently deficient in others, arguing that this unevenness fundamentally complicates any simple notion of AI generality.
 
-Scientific peer review represents a complex, multi-layered task that is particularly susceptible to jagged AI performance.
+Data science peer review represents a complex, multi-layered task that is susceptible to jagged AI performance.
 A reviewer must verify statistical correctness, evaluate model assumptions, critique scientific reasoning, assess presentation quality, and apply domain knowledge—capabilities that vary considerably in how well they lend themselves to LLM evaluation.
 Early empirical studies have begun to map where LLM reviewing succeeds and fails: @liu23 found that GPT-4 detects deliberately inserted errors in fewer than half of tested manuscripts, while @liang24 showed that AI-generated feedback on papers from major journals overlaps with human reviewers at rates comparable to inter-reviewer agreement, yet tends toward generic rather than targeted critique.
 
@@ -78,7 +78,7 @@ Winter 2021 ([W21, 16 projects](https://github.com/ionides/531w21/tree/main/fina
 Winter 2022 ([W22, 23 projects](https://github.com/ionides/531w22/tree/main/final_project)),
 Winter 2024 ([W24, 16 projects](https://github.com/ionides/531w24/tree/main/final_project)), and 
 Winter 2025 ([W25, 17 projects](https://github.com/ionides/531w25/tree/main/final_project)).
-For the final project, each group of 2-3 graduate students chose a scientific scenario relevant to POMP data analysis, found and analyzed data, and wrote a reproducible report.
+For each final project, a group of 2-3 graduate students chose a novel scientific scenario relevant to POMP data analysis, found and analyzed data, and wrote a reproducible report.
 All project reports are available online, anonymously, together with source code.
 Each project was subjected to blind peer review by approximately 5 students.
 The students had access to the report and source code.
@@ -215,18 +215,18 @@ Image("analysis/per_project_coverage.png", width=500)
 Despite low Human Overlap, AI agents generated a large and qualitatively consistent set of findings not raised by human reviewers.
 The findings divided along the axis of skill file configuration.
 The Baseline agent proficiently detected errors that required reading and executing code, rather than evaluating the statistical argument.
-This required the AI to understand particle filters, maximum likelihood via iterated particle filtering [@ionides15], and implementation via the pomp R package [@king16].
+This required the AI to understand particle filters, maximum likelihood via the iterated particle filtering algorithm IF2 [@ionides15], and implementation via the pomp R package [@king16].
 These technical issues fell into four recurring categories:
 
 **Code-level bugs that silently corrupt computation.**
 The most consequential class of Baseline-unique findings involved code that ran without error while computing the wrong quantity.
-Examples included: accumulator variables tracking the wrong quantity (e.g., H accumulating recoveries while the measurement model used it as a proxy for new infections), incorrect time-step specifications (e.g., `euler()` instead of `discrete_time()`, introducing spurious sub-steps), and particle filters inadvertently run on simulated rather than real data---rendering the reported benchmark log-likelihood meaningless.
+Examples included: accumulator variables tracking the wrong quantity (e.g., a compartment in a disease transmission model accumulating  recoveries while the measurement model used it as a proxy for new infections), incorrect time-step specifications (e.g., `euler()` instead of `discrete_time()`, introducing spurious sub-steps), and particle filters inadvertently run on simulated rather than real data---rendering the reported benchmark log-likelihood meaningless.
 
 **Data handling and series preparation errors.**
 The Baseline agent consistently caught data loaded in reverse chronological order, frequency parameters miscalibrated to the wrong periodicity (e.g., `frequency=365` for trading-day data with approximately 252 trading days per year), silently dropped observations, and discrepancies between parameter values stated in text versus implemented in code.
 
 **Search configuration failures.**
-The Baseline agent identified search boxes too narrow to contain the true MLE, circular search box designs derived from local search results, and ad hoc parameter choices lacking statistical justification.
+The Baseline agent identified search boxes too narrow to contain the true MLE, search box designs derived from local search results, and ad hoc parameter choices lacking statistical justification.
 
 **Attribution and reproducibility failures.**
 Near-verbatim replication of course materials without acknowledgment, undefined variables that would cause runtime errors on re-execution, and analysis sections suppressed via `eval=FALSE` in submitted documents.
@@ -235,10 +235,10 @@ In contrast to the baseline agent, the skill-equipped agents (531-References and
 
 **Missing or invalid benchmark comparisons.**
 The 531-References agent raised the absence of a non-mechanistic baseline comparison (ARIMA, ARMA, GARCH) as a standalone major finding in approximately 13 of 16 W21 projects.
-The Baseline agent raised this in effectively none.
+The Baseline agent raised this in none.
 
 **Profile likelihood validity.**
-The skill-equipped agents identified specific mechanisms rendering profile likelihood analyses invalid---parameters excluded from the IF2 random-walk perturbation specification (`rw.sd`), maximum likelihood estimates lying at search box boundaries, and confidence interval construction that conflated multiple search stages.
+The skill-equipped agents identified specific mechanisms rendering profile likelihood analyses invalid---parameters excluded from the IF2 random-walk perturbation specification, maximum likelihood estimates lying at search box boundaries, and confidence interval construction that conflated multiple search stages.
 
 **Global search initialization anti-pattern.**
 Both skill-equipped agents systematically flagged the practice of initializing global IF2 searches from prior mif2 results.
