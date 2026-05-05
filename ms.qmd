@@ -229,24 +229,24 @@ The Baseline agent consistently caught data loaded in reverse chronological orde
 The Baseline agent identified search boxes too narrow to contain the true MLE, search box designs derived from local search results, and ad hoc parameter choices lacking statistical justification.
 
 **Attribution and reproducibility failures.**
-Near-verbatim replication of course materials without acknowledgment, undefined variables that would cause runtime errors on re-execution, and analysis sections suppressed via `eval=FALSE` in submitted documents.
+Near-verbatim replication of course materials without acknowledgment, undefined variables that would cause runtime errors on re-execution, and analysis results that are not re-evaluated in submitted documents.
 
 In contrast to the baseline agent, the skill-equipped agents (531-References and Meta-Skill) shifted focus toward inference-methodology completeness, categorized as follows:
 
 **Missing or invalid benchmark comparisons.**
-The 531-References agent raised the absence of a non-mechanistic baseline comparison (ARIMA, ARMA, GARCH) as a standalone major finding in approximately 13 of 16 W21 projects.
+The 531-References agent raised the absence of a non-mechanistic baseline comparison time series models (ARIMA, ARMA, GARCH) as a standalone major finding in approximately 13 of 16 W21 projects.
 The Baseline agent raised this in none.
 
 **Profile likelihood validity.**
 The skill-equipped agents identified specific mechanisms rendering profile likelihood analyses invalid---parameters excluded from the IF2 random-walk perturbation specification, maximum likelihood estimates lying at search box boundaries, and confidence interval construction that conflated multiple search stages.
 
 **Global search initialization anti-pattern.**
-Both skill-equipped agents systematically flagged the practice of initializing global IF2 searches from prior mif2 results.
-This approach inherits a cooled perturbation schedule, defeating the purpose of a global search.
+Both skill-equipped agents systematically flagged the practice of initializing global likelihood searches from prior search results.
+This approach may be an acceptable practice in some situations, but risks overstatement when described as a global search.
 The Baseline agent missed this anti-pattern in the majority of cases.
 
 **IF2 configuration completeness.**
-The skill-equipped agents audited which parameters were actively perturbed during IF2 optimization, catching cases where key epidemiological parameters were excluded from `rw.sd` and therefore could not converge to their maximum likelihood estimates.
+The skill-equipped agents audited which parameters were actively perturbed during IF2 optimization, catching cases where key epidemiological parameters were left unperturbed and therefore could not converge to their maximum likelihood estimates.
 
 ## What Humans Found That AI Consistently Missed
 
