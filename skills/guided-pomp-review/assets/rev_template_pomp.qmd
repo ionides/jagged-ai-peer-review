@@ -1,0 +1,114 @@
+---
+title: "Review: [MANUSCRIPT-ID]"
+subtitle: "*[Paper Title]*"
+format: pdf
+---
+
+## Paper Metadata
+
+| Field | Details |
+|-------|---------|
+| **Inference method** | [e.g., IF2, PMCMC, ABC, least squares, other] |
+| **R packages used** | [e.g., pomp v2.x, spatPomp v0.x, other] |
+| **Code publicly available** | [Yes / No / Partial — note URL or archive DOI if yes] |
+| **Data publicly available** | [Yes / No / Partial — note restrictions if any] |
+| **Benchmark comparison included** | [Yes / No] |
+
+---
+
+## POMP Checklist Scorecard
+
+*✓ = satisfies practice, ~ = partially satisfies, ✗ = does not satisfy, N/A = not applicable*
+
+| # | Practice | Status | Notes |
+|---|----------|--------|-------|
+| 1 | Likelihood-based inference | | |
+| 2 | Benchmark comparison | | |
+| 3 | Quantitative goodness-of-fit reporting | | |
+| 4 | Model diagnostics | | |
+| 5 | Parameter identifiability and uncertainty | | |
+| 6 | Computational adequacy | | |
+| 7 | Forecast methodology | | |
+| 8 | Model variations and nested comparisons | | |
+| 9 | Stochasticity | | |
+| 10 | Reproducibility and extendability | | |
+| 11 | Corroboration with scientific knowledge | | |
+| 12 | Measurement model specification | | |
+| 13 | Initial conditions | | |
+
+*Checklist based on Wheeler et al. (2024), PLOS Computational Biology 20(4): e1012032.*
+
+---
+
+## Summary
+
+[2-3 sentence summary of paper's goals, methods, and claims]
+
+**Strengths:**
+[List key strengths: novel contributions, code availability, well-designed experiments, clear writing]
+
+**Weaknesses:**
+[List major weaknesses upfront: unsupported claims, missing comparisons, reproducibility issues, etc.]
+
+---
+
+## Major Issues
+
+### 1. [Descriptive Issue Title]
+
+[Detailed explanation citing specific pages, equations, figures, or code lines. Contrast with prior work. Propose actionable fixes.]
+
+### 2. [Descriptive Issue Title]
+
+[Continue pattern for each major issue]
+
+---
+
+## Computational and Diagnostic Assessment
+
+[Assess the computational adequacy and diagnostics reported in the paper. Address the following as applicable:]
+
+**Convergence:** [Are likelihood traces across IF2 iterations shown? Do multiple runs from different starting values reach consistent likelihoods?]
+
+**Particle filter:** [Is ESS monitored? Is the particle count reported and justified? Is there evidence of filter degeneracy?]
+
+**Conditional log-likelihoods:** [Are per-time-step log-likelihoods plotted? Do they identify specific periods of poor fit?]
+
+**Profile likelihoods:** [Are profiles computed for key parameters? Are confidence intervals reported (e.g., via MCAP)?]
+
+**Computational scale:** [Are CPU-hours or equivalent reported? Is the effort sufficient given model complexity?]
+
+---
+
+## Reproducibility Assessment
+
+[Evaluate the code and data supplement against reproducibility standards. Address the following as applicable:]
+
+**Code availability:** [Is source code archived with a DOI? Is the repository complete?]
+
+**Final parameters:** [Are MLE parameter vectors archived separately so results can be evaluated without re-running optimization?]
+
+**Model-code consistency:** [Does the measurement model in code match the mathematical description in the text?]
+
+**Package versions:** [Are pomp/spatPomp versions pinned (e.g., via renv)? Is sessionInfo() or equivalent provided?]
+
+**Auxiliary data:** [Are all inputs included — covariate matrices, spatial structure, population data?]
+
+**HPC reproducibility:** [For cluster-based analyses, are job submission scripts and environment specs included?]
+
+---
+
+## Minor Issues
+
+- [Notation issue, e.g., "ε and ϵ used interchangeably for errors (pp. 5, 12)"]
+- [Clarity issue, e.g., "Definition of X on p.7 is ambiguous"]
+- [Missing reference, e.g., "Related work by Smith (2020) not cited"]
+- [Figure issue, e.g., "Figure 3 axis labels illegible at print size"]
+- [Typo, e.g., "*inherint* → *inherent* (p.2)"]
+- [Code issue, e.g., "Inefficient loop in `analysis.R` line 145"]
+
+---
+
+## Recommendation
+
+[Overall assessment and recommendation to editors. Suggest Accept / Minor Revision / Major Revision / Reject with brief justification. For POMP papers, note whether the most critical checklist items — benchmark comparison, quantitative goodness-of-fit, computational adequacy — are satisfied before recommending acceptance.]

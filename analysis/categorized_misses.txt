@@ -1,0 +1,455 @@
+Theme definitions:
+1. Statistical interpretation — misreading or mischaracterizing statistical results
+2. Model improvement direction — what structural change would actually fix the problem
+3. Argumentation / narrative — coherence, motivation, logical consistency of the write-up
+4. Presentation / visualization — figures, tables, captions, formatting, numbers
+5. Domain / data context — subject-matter knowledge, data provenance, real-world meaning
+
+============================================================
+W21
+============================================================
+
+[W21_PROJECT02] None of the models can capture the multiple COVID waves; dynamics require additional modeling detail.
+→ 2. Model improvement direction
+
+[W21_PROJECT02] Appropriate model modifications exist; the project could have hypothesized what changes are needed before implementing additional compartments.
+→ 2. Model improvement direction
+
+[W21_PROJECT03] Flat SIR likelihood surface as a data property, not a maximization problem.
+→ 1. Statistical interpretation
+
+[W21_PROJECT03] Calculate and discuss R_0 values for fitted parameters.
+→ 1. Statistical interpretation
+
+[W21_PROJECT05] Model not fully described via math equations; eta undefined except by code.
+→ 3. Argumentation / narrative
+
+[W21_PROJECT05] Initializing to I=1 is a strong assumption.
+→ 2. Model improvement direction
+
+[W21_PROJECT05] Initial-guess likelihood is less important than post-estimation likelihood; better to report the latter.
+→ 1. Statistical interpretation
+
+[W21_PROJECT12] The returns are shown in reverse order in the EDA section. The ARMA model also fits them in reverse order.
+→ 4. Presentation / visualization
+
+[W21_PROJECT12] The returns show substantial negative autocorrelation at lag 1 — is this due to a few outliers or a robust finding?
+→ 1. Statistical interpretation
+
+[W21_PROJECT12] This is a fairly routine analysis; could be extended to ask better questions.
+→ 3. Argumentation / narrative
+
+[W21_PROJECT12] Follows many previous 531 final projects, finds similar conclusions. One could target a more specific question.
+→ 3. Argumentation / narrative
+
+[W21_PROJECT13] ODE skeleton / stochastic POMP relationship not explained; SE rate discrepancy presumably a typo.
+→ 3. Argumentation / narrative
+
+[W21_PROJECT13] Overdispersion in the process model might help — binomial process noise seems too small.
+→ 2. Model improvement direction
+
+[W21_PROJECT13] Not all references are cited in the project.
+→ 4. Presentation / visualization
+
+[W21_PROJECT13] There could have been more discussion of the presented results.
+→ 3. Argumentation / narrative
+
+[W21_PROJECT14] Global search finds two modes; multimodality not adequately discussed.
+→ 1. Statistical interpretation
+
+[W21_PROJECT14] A section on potential future work would be useful.
+→ 3. Argumentation / narrative
+
+[W21_PROJECT14] Phase should be reparameterized to (0, 2pi) to reduce clutter.
+→ 4. Presentation / visualization
+
+[W21_PROJECT15] Over-dispersed process noise might help with model fit.
+→ 2. Model improvement direction
+
+[W21_PROJECT15] A time-varying measurement model would make sense in the COVID context.
+→ 2. Model improvement direction
+
+[W21_PROJECT11] Unexplained shaded region around trend line in Section 2.
+→ 4. Presentation / visualization
+
+[W21_PROJECT11] ADF test not appropriate — null hypothesis of ARMA model not of interest.
+→ 1. Statistical interpretation
+
+[W21_PROJECT11] Concluding nonstationarity then fitting a stationary model is illogical.
+→ 1. Statistical interpretation
+
+[W21_PROJECT11] POMP model written as an ODE system even though it is not one.
+→ 3. Argumentation / narrative
+
+[W21_PROJECT11] Data variability much higher than simulations — warning sign of insufficient stochasticity.
+→ 1. Statistical interpretation
+
+[W21_PROJECT11] Project mentions trying additional variability but does not carry it out.
+→ 3. Argumentation / narrative
+
+[W21_PROJECT16] The analysis does not add much insight beyond previous cited projects.
+→ 3. Argumentation / narrative
+
+============================================================
+W22
+============================================================
+
+[W22_PROJECT03] No need to show raw R output for the ACF and PACF.
+→ 4. Presentation / visualization
+
+[W22_PROJECT03] A unit root is not usually described as a "stationary growth process."
+→ 1. Statistical interpretation
+
+[W22_PROJECT03] The requested source code file is not provided.
+→ 4. Presentation / visualization
+
+[W22_PROJECT03] Time limits the scope but does not need to limit the level of scholarship.
+→ 3. Argumentation / narrative
+
+[W22_PROJECT06] Analysis closely mirrors a prior course project; the explicit relationship was never discussed.
+→ 3. Argumentation / narrative
+
+[W22_PROJECT06] The process model does not include overdispersion as taught in Chapter 17.
+→ 2. Model improvement direction
+
+[W22_PROJECT06] Numbers are hard-coded in the Rmd rather than referenced via inline R expressions.
+→ 4. Presentation / visualization
+
+[W22_PROJECT09] The report closely follows a previous project; less is done here, conclusions are less carefully drawn.
+→ 3. Argumentation / narrative
+
+[W22_PROJECT09] The style of references is informal.
+→ 4. Presentation / visualization
+
+[W22_PROJECT12] Weekly periodicity must be modeled or cases summed over weeks in the mechanistic model.
+→ 2. Model improvement direction
+
+[W22_PROJECT12] ARIMA formula in the text is wrong.
+→ 4. Presentation / visualization
+
+[W22_PROJECT12] Fig 14 shows initial values inappropriately specified; model fails to capture weekday effect.
+→ 1. Statistical interpretation
+
+[W22_PROJECT12] The model has measurement overdispersion but no process noise.
+→ 2. Model improvement direction
+
+[W22_PROJECT14] ARMA models fitted to raw data rather than log returns.
+→ 1. Statistical interpretation
+
+[W22_PROJECT14] AR-GARCH model undefined, no written-out specification.
+→ 3. Argumentation / narrative
+
+[W22_PROJECT14] Brownian motion notation unclear (W should be bivariate BM).
+→ 3. Argumentation / narrative
+
+[W22_PROJECT14] Fixing mu=1 is a typo; mu=0 is more natural and matches the code.
+→ 4. Presentation / visualization
+
+[W22_PROJECT18] Too little data to fit a complex model; should start simpler or test whether leverage is needed.
+→ 2. Model improvement direction
+
+[W22_PROJECT18] Figure captions and numbers are missing.
+→ 4. Presentation / visualization
+
+[W22_PROJECT18] Numbers should not be hard-coded in the Rmd document.
+→ 4. Presentation / visualization
+
+[W22_PROJECT19] 7-day differencing as a simpler remedy for weekly periodicity.
+→ 2. Model improvement direction
+
+[W22_PROJECT19] Rejecting the null hypothesis then drawing a positive conclusion is logically inconsistent.
+→ 1. Statistical interpretation
+
+[W22_PROJECT01] Fig 1 caption says "Blue line" but should read "red line."
+→ 4. Presentation / visualization
+
+[W22_PROJECT01] Y_n notation issue.
+→ 4. Presentation / visualization
+
+[W22_PROJECT01] Weekly periodicity not captured by GARCH/SV models.
+→ 2. Model improvement direction
+
+[W22_PROJECT01] No rationale for stochastic leverage being suitable for game play data.
+→ 3. Argumentation / narrative
+
+[W22_PROJECT01] More details about Steam platform data needed.
+→ 5. Domain / data context
+
+[W22_PROJECT01] Decomposition unsuccessful/unexplained.
+→ 1. Statistical interpretation
+
+[W22_PROJECT01] Pairs plot for stochastic leverage section too sparse.
+→ 4. Presentation / visualization
+
+[W22_PROJECT01] Wrong conclusion on convergence.
+→ 1. Statistical interpretation
+
+[W22_PROJECT01] 95% CI in Fig 1 is unclear.
+→ 4. Presentation / visualization
+
+[W22_PROJECT02] Evidence of a strong nonlinear relationship between Beta and eta.
+→ 1. Statistical interpretation
+
+[W22_PROJECT02] Weak identifiability might suggest fixing one or more parameters at scientifically plausible values.
+→ 2. Model improvement direction
+
+[W22_PROJECT02] References at the end are not all cited when relevant during the main text.
+→ 4. Presentation / visualization
+
+[W22_PROJECT02] The connection to the Ebola SBIED notes was not made explicit.
+→ 5. Domain / data context
+
+[W22_PROJECT07] Try t distribution for epsilon_n; ESS plot suggests heavy tails.
+→ 2. Model improvement direction
+
+[W22_PROJECT07] Try a simpler stochastic volatility model before advancing to SV with leverage.
+→ 2. Model improvement direction
+
+[W22_PROJECT07] The claim that improvements moving from normal to t GARCH were not significant is wrong; a likelihood ratio test should be made.
+→ 1. Statistical interpretation
+
+[W22_PROJECT07] The claim that other ARMA models have roots inside the unit circle is implausible since arima() never fits such roots.
+→ 1. Statistical interpretation
+
+[W22_PROJECT10] Analyzing weekly total might be superior to a weekly moving average — moving average induces dependence.
+→ 2. Model improvement direction
+
+[W22_PROJECT10] SIR could have done much better if initial conditions were estimated rather than fixed.
+→ 2. Model improvement direction
+
+[W22_PROJECT10] Figure captions and numbers would be appreciated.
+→ 4. Presentation / visualization
+
+[W22_PROJECT10] The introduction could have been documented with more supporting references.
+→ 3. Argumentation / narrative
+
+[W22_PROJECT10] Authors apparently did not use caching for their results.
+→ 4. Presentation / visualization
+
+[W22_PROJECT10] The SEAPIRD model comes from a prior project but credit is given incorrectly.
+→ 3. Argumentation / narrative
+
+[W22_PROJECT23] Likelihood should not be reported to 4 decimal places.
+→ 4. Presentation / visualization
+
+[W22_PROJECT23] Measurement models have only binomial variability; no process over-dispersion.
+→ 2. Model improvement direction
+
+[W22_PROJECT23] SEIQR has been used in a previous STATS 531 project.
+→ 3. Argumentation / narrative
+
+[W22_PROJECT23] The initializer does not quite satisfy the constraint of summing to N.
+→ 1. Statistical interpretation
+
+[W22_PROJECT23] Authors manually override loglikelihood as -1000 when evaluated as infinite.
+→ 1. Statistical interpretation
+
+[W22_PROJECT23] Numbers should not be hard-coded; use inline R code.
+→ 4. Presentation / visualization
+
+============================================================
+W24
+============================================================
+
+[W24_PROJECT03] Plagiarism / intellectual debt — project very similar to W21 project 15; code and format directly taken without full credit.
+→ 3. Argumentation / narrative
+
+[W24_PROJECT03] Periodogram frequency units not specified; peak seems to be cycles per year, not per week.
+→ 1. Statistical interpretation
+
+[W24_PROJECT03] Root plot shows some ARMA roots very close to the unit circle.
+→ 1. Statistical interpretation
+
+[W24_PROJECT03] AIC table shows failures in maximization not pointed out; chosen model is rather large.
+→ 1. Statistical interpretation
+
+[W24_PROJECT03] Residual histogram wrongly described as nearly normal; it has long tails.
+→ 1. Statistical interpretation
+
+[W24_PROJECT03] ARMA forecasts anticipate a new peak due to heterogeneity through time.
+→ 1. Statistical interpretation
+
+[W24_PROJECT03] Time units on POMP time plot do not match dates; lag plot should specify units of time.
+→ 4. Presentation / visualization
+
+[W24_PROJECT11] ChatGPT-generated text, attribution required.
+→ 3. Argumentation / narrative
+
+[W24_PROJECT11] ADF test inappropriate for time-varying sample variance.
+→ 1. Statistical interpretation
+
+[W24_PROJECT11] Flawed reasoning about stationarity and independence leading to ARMA selection.
+→ 1. Statistical interpretation
+
+[W24_PROJECT11] ARMA(0,0) is iid Gaussian; reader should be reminded of this.
+→ 3. Argumentation / narrative
+
+[W24_PROJECT11] EMH explanation in conclusion is a logical flaw — applies equally to GARCH/SV.
+→ 1. Statistical interpretation
+
+[W24_PROJECT11] ARMA+GARCH is non-Gaussian ARMA; this equivalence is not noted.
+→ 3. Argumentation / narrative
+
+[W24_PROJECT11] The 2023/05/25 price jump is unexplained; its influence on model fitting not discussed.
+→ 5. Domain / data context
+
+[W24_PROJECT11] Authors could benefit from reviewing peer reviews of prior similar projects.
+→ 3. Argumentation / narrative
+
+[W24_PROJECT12] Vaccination not modeled.
+→ 2. Model improvement direction
+
+[W24_PROJECT12] Residuals centered around zero is a mathematical necessity, not a model validation result.
+→ 1. Statistical interpretation
+
+[W24_PROJECT15] Identify original data source rather than relying on Kaggle.
+→ 5. Domain / data context
+
+[W24_PROJECT15] Plot highly peaked count data on log(x+1) scale.
+→ 4. Presentation / visualization
+
+[W24_PROJECT01] The dataset must explain how it determines whether an election is free and fair.
+→ 5. Domain / data context
+
+[W24_PROJECT01] Possible error in Fig. 1 — Z(t) defined as non-negative makes delta Z(t) non-negative unusual.
+→ 4. Presentation / visualization
+
+[W24_PROJECT01] Delta Z(t) labeled as number of democracies vs. change in that number; graphs appear incorrectly labeled.
+→ 4. Presentation / visualization
+
+[W24_PROJECT01] P and R components not clearly defined; beta introduced without definition.
+→ 3. Argumentation / narrative
+
+[W24_PROJECT01] In Fig. 4, beta and mu_PR plots would be clearer with x-axis on log scale.
+→ 4. Presentation / visualization
+
+[W24_PROJECT01] "Moderate evidence" — p-values well above usual significance thresholds; needs explanation.
+→ 1. Statistical interpretation
+
+[W24_PROJECT01] In the profile, k is not identifiable.
+→ 1. Statistical interpretation
+
+[W24_PROJECT08] ARMA modeling would be more successful on the log scale.
+→ 2. Model improvement direction
+
+[W24_PROJECT08] Residual plot for ARMA shows dramatic heteroskedasticity; authors claim good fit.
+→ 1. Statistical interpretation
+
+[W24_PROJECT10] Too much R output in the final report.
+→ 4. Presentation / visualization
+
+[W24_PROJECT10] References should have titles, authors, and dates in APA format; more citations needed.
+→ 4. Presentation / visualization
+
+[W24_PROJECT10] The connection between COVID-19 in Malaysia and flu in the US is weak and unexplained.
+→ 5. Domain / data context
+
+[W24_PROJECT10] Initial values of latent state variables are fixed and not estimated; need more discussion.
+→ 2. Model improvement direction
+
+============================================================
+W25
+============================================================
+
+[W25_PROJECT02] Section/equation/figure numbers would be helpful.
+→ 4. Presentation / visualization
+
+[W25_PROJECT02] The form of the model is not given any justification; why one parameterization was chosen is not addressed.
+→ 3. Argumentation / narrative
+
+[W25_PROJECT05] One could consider detrending rather than concluding differencing will be needed.
+→ 2. Model improvement direction
+
+[W25_PROJECT05] Using a periodogram to infer seasonality is overkill.
+→ 1. Statistical interpretation
+
+[W25_PROJECT05] SARIMA residual diagnostics do not explain clearly that the analysis is fitted to the log of the data.
+→ 3. Argumentation / narrative
+
+[W25_PROJECT05] Two log-likelihoods both claimed to equal -332.02 are actually -331.077 and -331.386 — a numerical reporting error.
+→ 4. Presentation / visualization
+
+[W25_PROJECT11] Are the GARCH quantities called "likelihood" actually likelihoods?
+→ 1. Statistical interpretation
+
+[W25_PROJECT11] The conclusion that "ARMA modeling is crucial for capturing autocorrelation" is not supported given essentially no autocorrelation is found.
+→ 1. Statistical interpretation
+
+[W25_PROJECT11] The project is routine; the SV part is not well-developed.
+→ 3. Argumentation / narrative
+
+[W25_PROJECT11] Quite a long time is spent on ARMA analysis given that it is discarded.
+→ 3. Argumentation / narrative
+
+[W25_PROJECT11] Raw close price used instead of adjusted close price; stock split distorts the data.
+→ 5. Domain / data context
+
+[W25_PROJECT12] ARMA described as modeling "key autocorrelation patterns" but ACF and AIC show no evident patterns — misleading.
+→ 1. Statistical interpretation
+
+[W25_PROJECT12] Missed opportunity to add t-distribution to POMP measurement model.
+→ 2. Model improvement direction
+
+[W25_PROJECT12] Switching model attempt does not help much; longer tails more important.
+→ 2. Model improvement direction
+
+[W25_PROJECT12] ACF of squared residuals described as uninformative but this plot is never shown.
+→ 4. Presentation / visualization
+
+[W25_PROJECT12] SV log-likelihood stated as higher than all benchmarks, but t-GARCH exceeds it.
+→ 1. Statistical interpretation
+
+[W25_PROJECT13] GenAI presentation with incomplete sections.
+→ 3. Argumentation / narrative
+
+[W25_PROJECT13] DEoptim description reads like GenAI text.
+→ 3. Argumentation / narrative
+
+[W25_PROJECT13] Many repetitions of symbols in equations make the report harder to read.
+→ 4. Presentation / visualization
+
+[W25_PROJECT13] Only Figure 1 is numbered; references to Fig. 2, Fig. 3 are unnumbered.
+→ 4. Presentation / visualization
+
+[W25_PROJECT13] Technical terms like BKJD need clear explanations.
+→ 3. Argumentation / narrative
+
+[W25_PROJECT13] Redundant presentation of the transit model equation.
+→ 4. Presentation / visualization
+
+[W25_PROJECT13] Rappaport et al. (2012) reference does not exist (GenAI hallucination).
+→ 3. Argumentation / narrative
+
+[W25_PROJECT15] GARCH model selection by log-likelihood not AIC; whether software reports true likelihood unclear.
+→ 1. Statistical interpretation
+
+[W25_PROJECT15] Fig. 7 shows long tails not adequately described; t-distributed GARCH would substantially improve fit.
+→ 2. Model improvement direction
+
+[W25_PROJECT15] GARCH log-likelihoods do not satisfy nesting.
+→ 1. Statistical interpretation
+
+[W25_PROJECT17] ESS diagnostics show occasional crashes even with t-distributed tails; limitation not resolved.
+→ 1. Statistical interpretation
+
+[W25_PROJECT17] Computational requirements of the experiments are not discussed.
+→ 3. Argumentation / narrative
+
+[W25_PROJECT17] The project uses monthly data; volatility models are most commonly used for higher-frequency data.
+→ 5. Domain / data context
+
+[W25_PROJECT17] Language may imply causation without sufficient evidence.
+→ 1. Statistical interpretation
+
+============================================================
+SUMMARY
+============================================================
+
+Theme counts:
+1. Statistical interpretation:   52
+2. Model improvement direction:   26
+3. Argumentation / narrative:     34
+4. Presentation / visualization:  31
+5. Domain / data context:          9
+
+Total: 152

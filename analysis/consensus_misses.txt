@@ -1,0 +1,498 @@
+Total consensus misses: 152
+
+
+============================================================
+W21
+============================================================
+
+[W21_PROJECT02]
+None of the models can capture the multiple COVID waves; dynamics require additional modeling detail.
+
+[W21_PROJECT02]
+Appropriate model modifications exist; the project could have hypothesized what changes are needed before implementing additional compartments.
+
+[W21_PROJECT03]
+- Human Issue #1 (flat SIR likelihood surface as a data property, not a maximization problem): missed by Alex, Charlie, Doug, Evan
+
+[W21_PROJECT03]
+- Human Issue #6 (calculate and discuss R_0 values for fitted parameters): missed by Alex, Charlie, Doug, Evan
+
+[W21_PROJECT05]
+- Human Issue #3 (Model not fully described via math equations; eta undefined except by code): missed by all 4 reviewers. (4 out of 4)
+
+[W21_PROJECT05]
+- Human Issue #4 (Initializing to I=1 is a strong assumption): missed by all 4 reviewers. (4 out of 4)
+
+[W21_PROJECT05]
+- Human Issue #6 (Initial-guess likelihood is less important than post-estimation likelihood; better to report the latter): missed by all 4 reviewers. (4 out of 4)
+
+[W21_PROJECT12]
+The returns are shown in reverse order in the EDA section. The ARMA model also fits them in reverse order.
+
+[W21_PROJECT12]
+The returns show substantial negative autocorrelation at lag 1, which is somewhat surprising. Is this due to a few outliers? Or is it a robust finding?
+
+[W21_PROJECT12]
+This is a fairly routine analysis; could be extended to ask better questions — about alternative models, pandemic financial shocks, etc.
+
+[W21_PROJECT12]
+Follows many previous 531 final projects, finds similar conclusions. One could target a more specific question.
+
+[W21_PROJECT13]
+ODE skeleton / stochastic POMP relationship not explained; SE rate discrepancy (proportional to I in skeleton vs I+A+P in stochastic) — presumably a typo.
+
+[W21_PROJECT13]
+Overdispersion in the process model might help — binomial process noise seems too small. *(Note: Charlie covered this; the consensus miss is among Alex, Doug, and Evan only — see below.)*
+
+[W21_PROJECT13]
+Not all references are cited in the project.
+
+[W21_PROJECT13]
+There could have been more discussion of the presented results.
+
+[W21_PROJECT14]
+Global search finds two modes (~10% and ~100% reporting rate), with the second implying susceptible depletion has no dynamic importance, and a hint of a third mode; multimodality not adequately discussed.
+
+[W21_PROJECT14]
+A section on potential future work would be useful.
+
+[W21_PROJECT14]
+Phase should be reparameterized to (0, 2pi) to reduce clutter.
+
+[W21_PROJECT15]
+Over-dispersed process noise might help with model fit — missed by all 4 reviewers.
+
+[W21_PROJECT15]
+A time-varying measurement model would make sense in the COVID context — missed by all 4 reviewers.
+
+
+============================================================
+W22
+============================================================
+
+[W22_PROJECT03]
+No need to show raw R output for the ACF and PACF.
+
+[W22_PROJECT03]
+A unit root is not usually described as a "stationary growth process."
+
+[W22_PROJECT03]
+The requested source code file is not provided.
+
+[W22_PROJECT03]
+Time limits the scope but does not need to limit the level of scholarship.
+
+[W22_PROJECT06]
+Analysis closely mirrors a prior course project; the explicit relationship was never discussed. (missed by Alex, Charlie, Doug, Evan)
+
+[W22_PROJECT06]
+The process model does not include overdispersion as taught in Chapter 17. (missed by Alex, Charlie, Doug, Evan)
+
+[W22_PROJECT06]
+Numbers are hard-coded in the Rmd rather than referenced via inline R expressions. (missed by Alex, Charlie, Doug, Evan)
+
+[W22_PROJECT09]
+The report closely follows a previous project (cited); less is done here (no profile), conclusions are less carefully drawn, model less fully described.
+
+[W22_PROJECT09]
+The style of references is informal.
+
+[W22_PROJECT12]
+Weekly periodicity must be modeled or cases summed over weeks in the mechanistic model — missed by all 4 reviewers
+
+[W22_PROJECT12]
+ARIMA formula in the text is wrong — missed by all 4 reviewers
+
+[W22_PROJECT12]
+Fig 14 shows initial values inappropriately specified; model fails to capture weekday effect; model compensates with large noise — missed by all 4 reviewers
+
+[W22_PROJECT12]
+The model has measurement overdispersion but no process noise — missed by all 4 reviewers
+
+[W22_PROJECT14]
+ARMA models fitted to raw data rather than log returns — missed by all 4 reviewers
+
+[W22_PROJECT14]
+AR-GARCH model undefined, no written-out specification — missed by all 4 reviewers
+
+[W22_PROJECT14]
+Brownian motion notation unclear (W should be bivariate BM) — missed by all 4 reviewers
+
+[W22_PROJECT14]
+Fixing mu=1 is a typo; mu=0 is more natural and matches the code — missed by all 4 reviewers
+
+[W22_PROJECT18]
+Too little data to fit a complex model like stochastic volatility with leverage; should start simpler or test whether leverage is needed.
+
+[W22_PROJECT18]
+Figure captions and numbers are missing.
+
+[W22_PROJECT18]
+Numbers should not be hard-coded in the Rmd document; they should be referenced using inline R code.
+
+[W22_PROJECT19]
+7-day differencing as a simpler remedy for weekly periodicity (all four missed)
+
+[W22_PROJECT19]
+Rejecting the null hypothesis and then drawing a positive conclusion ("model can be represented by...") is logically inconsistent (all four missed)
+
+
+============================================================
+W24
+============================================================
+
+[W24_PROJECT03]
+Plagiarism / intellectual debt — project very similar to W21 project 15; code and format directly taken without full credit. (4 out of 4 reviewers missed)
+
+[W24_PROJECT03]
+Periodogram frequency units not specified; peak seems to be cycles per year, not per week; corresponds to trend-level behavior. (4 out of 4 reviewers missed)
+
+[W24_PROJECT03]
+Root plot shows some ARMA roots very close to the unit circle. (4 out of 4 reviewers missed)
+
+[W24_PROJECT03]
+AIC table shows failures in maximization not pointed out; chosen model SARMA(1,0,5)x(1,0,1) is rather large. (4 out of 4 reviewers missed)
+
+[W24_PROJECT03]
+Residual histogram wrongly described as nearly normal; it has long tails. (4 out of 4 reviewers missed)
+
+[W24_PROJECT03]
+ARMA forecasts anticipate a new peak due to heterogeneity through time; sample variance varies considerably. (4 out of 4 reviewers missed)
+
+[W24_PROJECT03]
+Time units on POMP time plot do not match dates; lag plot should specify units of time. (4 out of 4 reviewers missed)
+
+[W24_PROJECT11]
+ChatGPT-generated text, attribution required
+
+[W24_PROJECT11]
+ADF test inappropriate for time-varying sample variance
+
+[W24_PROJECT11]
+Flawed reasoning sentence about stationarity and independence leading to ARMA selection
+
+[W24_PROJECT11]
+ARMA(0,0) is iid Gaussian; reader should be reminded of this
+
+[W24_PROJECT11]
+EMH explanation in conclusion is a logical flaw — applies equally to GARCH/SV, not just iid model
+
+[W24_PROJECT11]
+ARMA+GARCH is non-Gaussian ARMA; this equivalence is not noted
+
+[W24_PROJECT11]
+The 2023/05/25 price jump is unexplained in EDA and its influence on model fitting not discussed
+
+[W24_PROJECT11]
+Authors could benefit from reviewing peer reviews of prior similar projects
+
+[W24_PROJECT12]
+- Human Issue #1 (vaccination not modeled): missed by all 4 reviewers
+
+[W24_PROJECT12]
+- Human Issue #2 (residuals centered around zero is mathematical necessity): missed by all 4 reviewers
+
+[W24_PROJECT15]
+Identify original data source rather than relying on Kaggle — missed by all 4 reviewers
+
+[W24_PROJECT15]
+Plot highly peaked count data on log(x+1) scale — missed by all 4 reviewers
+
+
+============================================================
+W25
+============================================================
+
+[W25_PROJECT02]
+Section/equation/figure numbers would be helpful. (missed by all 4 reviewers)
+
+[W25_PROJECT02]
+The form of the model is not given any justification; why one parameterization was chosen is not addressed. (missed by all 4 reviewers)
+
+[W25_PROJECT05]
+One could consider detrending rather than concluding "differencing the series will be advisable and possibly needed." — missed by all 4 reviewers
+
+[W25_PROJECT05]
+Using a periodogram to infer seasonality is overkill (the periodogram does not show anything surprising). — missed by all 4 reviewers
+
+[W25_PROJECT05]
+The SARIMA residual diagnostics do not explain clearly that the analysis is fitted to the log of the data. — missed by all 4 reviewers
+
+[W25_PROJECT05]
+Two log-likelihoods both claimed to equal -332.02 are neither equal to -332.01 (they are -331.077 and -331.386) — a numerical reporting error. — missed by all 4 reviewers
+
+[W25_PROJECT11]
+Are the GARCH quantities called "likelihood" actually likelihoods?
+
+[W25_PROJECT11]
+The conclusion that "ARMA modeling is crucial for capturing autocorrelation" is not supported given essentially no autocorrelation is found.
+
+[W25_PROJECT11]
+The project is routine (could have been a midterm project); the SV part is not well-developed.
+
+[W25_PROJECT11]
+Quite a long time is spent on ARMA analysis given that it is discarded.
+
+[W25_PROJECT11]
+Raw close price used instead of adjusted close price; stock split on August 28, 2020 distorts the data.
+
+[W25_PROJECT12]
+ARMA described as modeling "key autocorrelation patterns" but ACF and AIC table show no evident patterns — misleading characterization.
+
+[W25_PROJECT12]
+Missed opportunity to add t-distribution to POMP measurement model.
+
+[W25_PROJECT12]
+Switching model attempt does not help much; longer tails more important — POMP novelty did not deliver.
+
+[W25_PROJECT12]
+ACF of squared residuals described as uninformative but this potentially informative plot is never shown.
+
+[W25_PROJECT12]
+SV log-likelihood stated as higher than all benchmarks, but t-GARCH exceeds it — t-distribution should be added to SV model.
+
+[W25_PROJECT13]
+GenAI presentation with incomplete sections ("let me know if your bounds differ") — missed by Alex, Charlie, Doug, Evan
+
+[W25_PROJECT13]
+DEoptim description reads like GenAI text ("This method is perfect...," "It's fantastic...") — missed by Alex, Charlie, Doug, Evan
+
+[W25_PROJECT13]
+Many repetitions of symbols in equations make the report harder to read — missed by Alex, Charlie, Doug, Evan
+
+[W25_PROJECT13]
+Only Figure 1 is numbered; references to Fig. 2, Fig. 3, etc., are unnumbered — missed by Alex, Charlie, Doug, Evan
+
+[W25_PROJECT13]
+Technical terms like BKJD need clear explanations — missed by Alex, Charlie, Doug, Evan
+
+[W25_PROJECT13]
+Redundant presentation of the transit model equation — missed by Alex, Charlie, Doug, Evan
+
+[W25_PROJECT13]
+Rappaport et al. (2012) reference does not exist (GenAI hallucination) — missed by Alex, Charlie, Doug, Evan
+
+[W25_PROJECT15]
+GARCH model selection by log-likelihood not AIC; whether software reports true likelihood or approximation — missed by all 4 reviewers.
+
+[W25_PROJECT15]
+Fig. 7 shows long tails not adequately described; t-distributed GARCH would substantially improve fit — missed by all 4 reviewers.
+
+[W25_PROJECT15]
+GARCH log-likelihoods do not satisfy nesting — missed by all 4 reviewers.
+
+[W25_PROJECT17]
+ESS diagnostics show occasional crashes even with t-distributed tails; report notes this limitation without resolving it.
+
+[W25_PROJECT17]
+Computational requirements of the experiments are not discussed.
+
+[W25_PROJECT17]
+The project uses monthly data, whereas volatility models are most commonly developed and used for higher-frequency data.
+
+[W25_PROJECT17]
+The language may imply causation (e.g., government policies causing leverage effects) without sufficient evidence.
+
+
+============================================================
+W21
+============================================================
+
+[W21_PROJECT11]
+Unexplained shaded region around trend line in Section 2
+
+[W21_PROJECT11]
+ADF test not appropriate — null hypothesis of ARMA model not of interest
+
+[W21_PROJECT11]
+Concluding nonstationarity then fitting a stationary model is illogical
+
+[W21_PROJECT11]
+POMP model written as an ODE system even though it is not one
+
+[W21_PROJECT11]
+Data variability much higher than simulations — warning sign of insufficient stochasticity
+
+[W21_PROJECT11]
+Project mentions trying additional variability but does not carry it out
+
+[W21_PROJECT16]
+The analysis does not add much insight beyond previous cited projects; the framing does not go beyond comparing GARCH vs stochastic volatility with leverage.
+
+
+============================================================
+W22
+============================================================
+
+[W22_PROJECT01]
+Fig 1 caption says "Blue line" but should read "red line." — missed by all 4 (4 out of 4)
+
+[W22_PROJECT01]
+Y_n notation issue — missed by all 4 (4 out of 4)
+
+[W22_PROJECT01]
+Weekly periodicity not captured by GARCH/SV models — missed by all 4 (4 out of 4)
+
+[W22_PROJECT01]
+No rationale for stochastic leverage being suitable for game play — missed by Alex (missed), Charlie (missed), Doug (missed), Evan (missed) — missed by all 4 (4 out of 4)
+
+[W22_PROJECT01]
+More details about Steam platform data needed — missed by all 4 (4 out of 4)
+
+[W22_PROJECT01]
+Decomposition unsuccessful/unexplained — missed by all 4 (4 out of 4)
+
+[W22_PROJECT01]
+Pairs plot for stochastic leverage section too sparse — missed by all 4 (4 out of 4)
+
+[W22_PROJECT01]
+Wrong conclusion on convergence — contradicted by all 4 (not "missed" but universally contradicted; all reviewers agreed convergence failed, while human says it succeeded) (4 out of 4 contradictions)
+
+[W22_PROJECT01]
+95% CI in Fig 1 is unclear — missed by all 4 (4 out of 4)
+
+[W22_PROJECT02]
+Evidence of a strong nonlinear relationship between Beta and eta.
+
+[W22_PROJECT02]
+The weak identifiability might suggest exploring the possibility of fixing one or more parameters at scientifically plausible values.
+
+[W22_PROJECT02]
+References at the end are not all cited when relevant during the main text.
+
+[W22_PROJECT02]
+The connection to https://kingaa.github.io/sbied/ebola/ was not made explicit.
+
+[W22_PROJECT07]
+Suggestion to try t distribution for epsilon_n in the POMP/SV model; effective sample size plot suggests heavy tails. (4 out of 4 reviewers missed)
+
+[W22_PROJECT07]
+Suggestion to try a simpler stochastic volatility model before advancing to stochastic volatility with leverage. (4 out of 4 reviewers missed)
+
+[W22_PROJECT07]
+The claim "improvements of log likelihood were not significant" moving from normal to t GARCH is wrong; a likelihood ratio test should be made. (4 out of 4 reviewers missed)
+
+[W22_PROJECT07]
+The claim that other ARMA models have roots inside the unit circle is implausible since arima() never fits such roots. (4 out of 4 reviewers missed)
+
+[W22_PROJECT10]
+Analyzing weekly total might be superior to a weekly moving average — the moving average induces dependence between observations.
+
+[W22_PROJECT10]
+SIR could have done much better if initial conditions (especially I) were estimated rather than fixed; big mismatch with data for first 20 timepoints.
+
+[W22_PROJECT10]
+Figure captions and numbers would be appreciated by the readers.
+
+[W22_PROJECT10]
+The introduction could have been documented with more supporting references.
+
+[W22_PROJECT10]
+The authors apparently did not use caching (e.g., bake and stew) for their results.
+
+[W22_PROJECT10]
+The SEAPIRD model comes from a prior project (reference [5]) but credit is given incorrectly to [6].
+
+[W22_PROJECT23]
+Likelihood should not be reported to 4 decimal places.
+
+[W22_PROJECT23]
+Measurement models have only binomial variability; no process over-dispersion.
+
+[W22_PROJECT23]
+SEIQR has been used in a previous STATS/DATASCI 531 project.
+
+[W22_PROJECT23]
+The initializer does not quite satisfy the constraint of summing to N.
+
+[W22_PROJECT23]
+Authors manually override loglikelihood as -1000 when evaluated as infinite.
+
+[W22_PROJECT23]
+Numbers should not be hard-coded; use inline R code.
+
+
+============================================================
+W24
+============================================================
+
+[W24_PROJECT01]
+The dataset must explain how it determines whether an election is free and fair, since autocracies claim democratic mandates.
+
+[W24_PROJECT01]
+Possible error in Fig. 1 — Z(t) defined as non-negative makes delta Z(t) non-negative unusual.
+
+[W24_PROJECT01]
+Delta Z(t) labeled as number of democracies vs. change in that number; graphs for Z(t) and delta Z(t) appear incorrectly labeled.
+
+[W24_PROJECT01]
+P and R components not clearly defined; beta introduced without definition.
+
+[W24_PROJECT01]
+In Fig. 4, beta and mu_PR plots would be clearer with x-axis on log scale.
+
+[W24_PROJECT01]
+"Moderate evidence" probe p-values well above usual significance thresholds; needs explanation.
+
+[W24_PROJECT01]
+In the profile, k is not identifiable.
+
+[W24_PROJECT08]
+ARMA modeling would be more successful on the log scale — missed by all 4 reviewers.
+
+[W24_PROJECT08]
+Residual plot for ARMA shows dramatic heteroskedasticity, authors claim good fit — missed by Doug and Evan; covered (partially) by Alex and Charlie via related residual diagnostic concerns.
+
+[W24_PROJECT10]
+Too much R output in the final report.
+
+[W24_PROJECT10]
+References should have titles, authors, and dates in APA format; more citations needed in text.
+
+[W24_PROJECT10]
+The connection between COVID-19 in Malaysia and flu in the US is weak and unexplained.
+
+[W24_PROJECT10]
+Initial values of latent state variables are fixed and not estimated; need more discussion.
+
+
+============================================================
+W25
+============================================================
+
+[W25_PROJECT08]
+ARIMA cannot explain volatility dynamics — the assertion that ARIMA captures volatility dynamics is unsupported.
+
+[W25_PROJECT08]
+ARMA models not compared against white noise null; larger ARMA models likely have near-canceling roots.
+
+[W25_PROJECT08]
+More contrast needed between the different GARCH models.
+
+[W25_PROJECT08]
+The NFLX vs. SPY volatility comparison is trivially expected — the aggregate (SPY) should almost necessarily have lower variance.
+
+[W25_PROJECT08]
+Section 7 is unrelated to course material and does not contribute to model development.
+
+[W25_PROJECT08]
+Figure numbers and captions would help the reader.
+
+[W25_PROJECT08]
+Too much time spent on ARMA; additional time should be spent on GARCH and POMP instead.
+
+[W25_PROJECT08]
+Points with low ESS may indicate a longer-tailed distribution is needed.
+
+[W25_PROJECT09]
+The project is light on diagnostic investigations (outliers, over-dispersion, other model misspecification possibilities).
+
+[W25_PROJECT09]
+The report does not place the project in the context of other 531 projects or explain what was learned from previous projects.
+
+[W25_PROJECT09]
+Classic Elo already adds ~100 points for home court — this relevant context is not mentioned.
+
+[W25_PROJECT09]
+BPM (Box Plus-Minus) is not defined at first use.
+

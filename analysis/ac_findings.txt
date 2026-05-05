@@ -1,0 +1,3099 @@
+
+============================================================
+Baseline (Alex)
+============================================================
+
+[A] Degenerate normal in SEIR dmeas; sd set equal to mean rather than sqrt(mean)
+[A] SECSDR rprocess double-deduction / population conservation violation
+[A] Cooling fraction and rw.sd essentially zero for SECSDR and SEIQR; optimizer never explored parameter space
+[A] SEIQR N=32,000,000 instead of US population (~328M)
+[A] No local search for SECSDR or SEIQR
+[A] No likelihood comparison across three models
+[A] Missing data file; reproducibility broken
+[C] SEIR local search rw.sd omits mu_EI and mu_IR
+[C] SEIR simulation uses hard-coded parameters inconsistent with global MLE
+[C] SEIR dmeas/rmeas sd inconsistency (dmeas uses sd=mean; rmeas uses sd=sqrt(mean))
+[C] run_level=1 (toy-level computation) for SECSDR global search
+[C] SECSDR rinit hard-codes population sizes not connected to parameter estimation
+[C] Profile likelihood and confidence intervals absent for all three models
+[C] Introduction lacks quantitative epidemiological motivation
+[A] MAJOR, human missed
+[A] MAJOR, human missed
+[A] MAJOR, human issue #2 already matched by finding 3
+[A] MAJOR, human missed
+[C] MODERATE treated as Minor, human missed
+[C] MODERATE treated as Minor, human missed
+[C] MODERATE treated as Minor, human missed
+[C] MODERATE treated as Minor, human missed
+[C] MINOR, human missed
+[C] MINOR, human missed
+[C] MINOR, human missed
+[A] invalid direct comparison due to differing parameter counts and model structures, no AIC/BIC adjustment
+[A] no trace plots of log-likelihood or parameters across iterations
+[A] only a log-likelihood is reported; no parameter re-estimation on simulated data shown
+[A] no posterior predictive checks or visual overlay of simulated paths
+[A] no profile likelihood intervals or Monte Carlo standard errors for point estimates
+[A] enormous discrepancy vs -25.71 for real data, suggests coding error or dataset substitution
+[A] x-axis shifted ~28 years to the left
+[A] spurious March 2021 data point manufactured from February value
+[C] full GARCH summary hidden from reader
+[C] minimal justification for applying equity-volatility model to interest rate data
+[C] constraint borrowed from equity application without motivation
+[C] HP filter introduces serial correlation that distorts chi-squared distribution of LRT
+[C] minor timing noise up to one week per month
+[C] proofreading error
+[C] raw log-likelihood comparison without complexity penalty
+[A] no global search; analysis terminates prematurely
+[A] copy-paste error prints SIR1 likelihood for SIR2
+[A] 0.7 multiplier fixed, not learned from data
+[A] measurement model accumulates wrong flow
+[A] five seasons in EDA, only one fitted
+[C] 50 iterations and Np=2000 insufficient
+[C] no formal criterion for model selection
+[C] best loglik is SIR2 but text says SEIR is better
+[C] testing intensity confounds raw count observable
+[C] N and 0.7 multiplier fixed without checks
+[C] biologically implausible values not discussed
+[C] caption scope mismatches modeling scope
+[A] AI major, human did not raise this
+[A] AI major, human did not raise this
+[A] AI major, human did not raise this
+[A] AI major, same error type as H4 but H4 already matched; human did not separately raise this specific CI-extraction aspect
+[A] AI major, human did not raise this
+[C] AI minor, human did not raise this
+[C] AI minor, human did not raise this
+[C] AI minor, human did not raise this
+[C] AI minor, human did not raise this
+[C] AI minor, human did not raise this
+[C] AI minor, human did not raise this
+[C] AI minor, human did not raise this
+[C] AI minor, human did not raise this
+[A] models use different probability spaces, Heston/AR(1) use covariate trick
+[A] 12 sub-steps per observation introduced
+[A] equation in report inconsistent with code
+[A] "poor man's profile" not a valid profile
+[C] code bug in pairs() call
+[C] Monte Carlo variance too high for global search
+[C] underpenalized AIC
+[C] no sensitivity analysis
+[C] interpretation of p0/p1 may be reversed
+[C] unusual coding pattern for give_log
+[C] dead code leftover
+[C] insufficient for predictive envelope
+[C] no PIT, ACF of residuals, or ESS plots
+[C] duplicate [4] entries
+[A] POMP mif2 and particle filter section entirely commented out; no likelihood-based results shown
+[A] no log-likelihood values, standard errors, or principled basis for parameter selection
+[A] deterministic RSS-based ODE bypasses the stochastic POMP framework
+[A] `s` not declared in statenames or paramnames; would cause runtime error
+[A] no confidence intervals, profile likelihoods, or standard errors for any model
+[C] Np=20 too few particles; rw.sd values on inconsistent scales
+[C] text claims "no clear lag pattern" but ACF shows strong persistent autocorrelation
+[C] d=2 not justified; MA roots computed for only 2 of 4 MA terms
+[C] death compartment promised in introduction but absent from implementation
+[C] mu_IR fixed by lag2.plot inspection without formal cross-correlation or uncertainty
+[C] eta=0.05 implies 5–7% of Utah already recovered at pandemic start
+[C] only local searches (commented out); no parameter box or global optimization
+[C] multiple typos, incorrect legend mapping, missing differencing operator in ARIMA equation
+[A] human did not raise no-estimation as a distinct concern beyond general POMP failure
+[A] human did not raise this
+[A] human did not raise this
+[A] human did not raise this
+[A] human did not raise this
+[A] human did not raise this
+[A] human did not raise this
+[C] human did not raise this
+[C] human did not raise this
+[C] human did not raise this
+[C] human did not raise this
+[C] human did not raise this
+[C] human did not raise this
+[C] human did not raise this
+[A] estimated mu_h far outside the specified search box; convergence not achieved
+[A] simulated data particle filter result (L.pf1) not shown
+[A] global search inherits cooling schedule from local result rather than fresh start
+[A] two different demeaned return series used across model sections without explanation
+[A] ts object constructed with frequency=365 for trading-day data (~252 per year)
+[A] text describes phi=0.95 but code sets phi=0.995 in params_test
+[C] POMP parameter estimates reported but never interpreted financially
+[C] ARMA, GARCH, and POMP AICs compared without verifying same normalization convention
+[C] only point estimates reported, no profile likelihoods or confidence intervals
+[C] AIC table favors ARMA(4,5) by ~34 units but ARMA(3,1) chosen without showing MA roots numerically
+[C] conclusion and references incorrectly call the index "Nasdaq-500"
+[C] doy set to 2016-11-04 in data-cleaning code but data starts April 2016; discrepancy unexplained
+[C] reference [2] points to course lecture notes, not the Breto (2014) journal paper
+[A] measurement model fundamentally misspecified
+[A] rmeasure generates cases = X + D, dmeasure evaluates density of cases - deaths
+[A] D grows unboundedly, misrepresents daily death count
+[A] improper search box for a reporting probability
+[A] day-index thresholds never mapped to actual policy events
+[A] different observation models and data transformations; no complexity penalty
+[A] insufficient for 16-parameter model
+[A] "presymptomatic case portion" label is opposite of what code implements; estimated values conflict with cited literature
+[A] violates population conservation
+[C] potential near-cancellation noted but not pursued
+[C] 150-day cycle identified but not incorporated or rigorously assessed
+[C] visual inspection only, no quantitative diagnostics
+[C] epidemiological justification absent
+[C] disconnect between text description and implementation
+[A] AI major, human missed (deeper parameterization flaw, distinct from HI3's text/code discrepancy)
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[A] invalid log-likelihood comparison due to differing observation models and scales
+[A] both transition rates fixed at 0.1 with no sensitivity analysis or profile likelihood
+[A] only three points above chi-squared threshold; CI unreliable
+[A] local search table and pairs plots not rendered; key diagnostics missing
+[A] no estimation or sensitivity analysis for initial conditions
+[A] overdispersion parameter value not discussed in context of measurement model
+[C] text has positive exponent in binomial probability; code correctly has negative sign
+[C] no formal convergence metric; local search pairs plots suppressed
+[C] date boundaries for beta regimes not linked to documented policy events
+[C] parallelization negated; reproducibility impaired
+[C] model selection results hidden; reader cannot verify SARMA(3,3)x(1,1)_7 choice
+[C] estimated beta values not translated into epidemiologically interpretable reproduction numbers
+[C] no comparison to seroprevalence or ascertainment studies
+[C] semantic mismatch between accumulator and observed case definition
+[C] no effective sample size plots or particle filter diagnostics presented
+[A] process model never increments/decrements state variable S
+[A] measurement model uses a random draw instead of a deterministic density
+[A] no trace plots, no evidence of optimizer convergence
+[A] undefined variable causes global search to fail silently
+[A] likelihoods computed on different scales and observation spaces
+[A] log of negative numbers is undefined; not disclosed
+[A] d=1 applied to already-differenced series produces double differencing
+[A] no effective sample size, no filter mean trajectories
+[A] no mathematical formulation, no diagram, no scientific justification
+[A] R² is not a standard or meaningful ARIMA diagnostic
+[C] no Ljung-Box test; several lags near 95% confidence bound
+[C] reversal and data cleaning step not documented
+[C] only log-likelihood reported; no fitted parameter values
+[C] periodogram labeled "Series: x"; variable not tied to actual data
+[A] truncating zero-count contributions biases the filter
+[A] 1966-1967 claim vs. 105-week code window inconsistency
+[A] transition rates fixed at biologically implausible values with no citation
+[A] b2 amplitude lacks non-negativity constraint in parameter_trans
+[A] profile is flat; reported CI bounds are meaningless
+[A] cooling schedule inherited from a single local run biases global search
+[C] profile range not verified to bracket CI cutoff on both sides
+[C] data predates MMR vaccine by at least one year
+[C] L/A heuristic used instead of SEIR-derived R0=beta/mu_IR
+[C] draft section title and commented-out code left in rendered HTML
+[C] text states (0.19%, 0.24%) but table shows (0.24%, 0.25%)
+[C] cascading imputation bias if consecutive missing values occur
+[C] b1-b2 ridge indicates structural identifiability issue, not mere correlation
+[A] major, human missed
+[A] major, human missed
+[A] major, human missed
+[A] major, human missed
+[A] major, human missed
+[A] major, human missed
+[C] minor, human missed
+[C] minor, human missed
+[C] minor, human missed
+[C] minor, human missed
+[C] minor, human missed
+[C] minor, human missed
+[C] minor, human missed
+[A] structural mis-specification of accumulator; human did not raise
+[A] loglik gap flagged as under-discussed; human did not raise as standalone issue
+[A] recovery rate fixed without citation or sensitivity; human did not raise
+[A] inadequate convergence for global search; human did not raise
+[A] date arithmetic error; human did not raise
+[A] biologically implausible reporting rate; human did not raise
+[A] comparison validity questioned; human did not raise
+[C] editing error; human did not raise
+[C] misspelling in chunk headers; human did not raise
+[C] notational ambiguity; human did not raise
+[C] model limitation not discussed; human did not raise
+[A] recovered compartment updated via population-balance identity rather than differential flow
+[A] iota allowed to go negative; force of infection becomes undefined
+[A] R0 and gamma far outside chickenpox biological range
+[A] global search range [6,14] excludes local MLE of ~83; searches incoherent
+[A] contradiction between estpars exclusion of alpha and rw.sd including alpha
+[A] nsim=1 in both evaluate calls; no uncertainty characterization
+[A] vaccination flows only from newborns, biological justification weak
+[C] same parameter set appears multiple times, inflating apparent search breadth
+[C] cooling.fraction.50=0.1 very aggressive; perturbations decay too fast
+[C] sigma, gamma, amplitude etc. borrowed from measles without chickenpox-specific justification
+[C] rho computed as cases/births rather than cases/true infections
+[C] gamma=922 and iota=-0.43 presented without comment in global evaluation table
+[C] school-term windows for England used for Hungary without adaptation
+[A] unjustified hard-coded transmission switch threshold, human did not raise
+[A] fixed transition rates not estimated, human did not raise
+[A] measurement model code inconsistency, human did not raise
+[A] search box miscalibration, human did not raise
+[A] large Monte Carlo SE at initial values, human did not raise
+[A] no uncertainty quantification for SEIR parameters, human did not raise
+[A] insufficient IF2 iterations, human did not raise
+[C] ARIMA diagnostics failure not addressed, human did not raise
+[C] proofreading artifact, human did not raise
+[C] mislabeled figure caption, human did not raise
+[C] loglik filter threshold of 100000 is useless, human did not raise
+[C] dual data source reproducibility concern, human did not raise
+[A] reproducibility failure not raised by human
+[A] pseudo-profile approach not raised by human
+[A] specific inconsistency between accumvars reset and factor-of-14 not raised by human
+[A] convergence diagnostic omission not raised by human
+[A] copy-paste error in rw.sd not raised by human
+[C] Moderate, not raised by human
+[C] Moderate, not raised by human
+[C] Moderate, not raised by human
+[C] Moderate, not raised by human
+[C] Moderate, not raised by human
+[C] Minor, not raised by human
+[A] Critical code/model mismatch; human missed
+[A] Major reproducibility concern; human missed
+[A] Code infrastructure inconsistency; human missed
+[A] Invalid cross-model comparison; human missed
+[A] Code bug; human missed
+[A] Search box misspecification; human missed
+[A] Missing formal model comparison; human missed
+[A] Missing/flawed diagnostic; human missed
+[C] Factual error in narrative; human missed
+[C] Missing bibliography; human missed
+[C] Unacknowledged boundary artifact; human missed
+[C] Computational asymmetry; human missed
+[C] Missing sensitivity discussion; human missed
+[C] Incomplete attribution; human missed
+[C] Diagnostic inconsistency; human missed
+[A] SIR-CDR code all set to eval=FALSE, no results produced
+[A] double-counting flows in Sy compartment
+[A] systematic under-counting in Sy
+[A] inflated transmission from sequential draws
+[A] non-standard measurement structure, zero-sensitivity when D=0
+[A] inadequate exploration of 4-dimensional parameter space
+[A] profile excludes observed optimum, no inferential value
+[A] presentation error indicating insufficient proofreading
+[C] self-contradictory text
+[C] LaTeX transcription error introduces ambiguity
+[C] C scoping bug producing incorrect dynamics
+[C] biased per-capita rate estimates
+[C] missing standard validation diagnostic
+[C] no empirical basis for the claim
+[A] column-ordering bug in oilprice_params.csv invalidates profile likelihood
+[A] authors misread their own profile plot, compounded by CSV bug
+[A] garch.jpg breaks reproducibility; kable line is commented out
+[A] code and structure copied from W21 Shanghai project without adaptation
+[A] log-likelihood of -65.07 on simulated data is presented but never interpreted
+[A] 20 replicates all from same start does not constitute local search
+[A] circular derivation of global box from local search results
+[C] optimizer is artificially constrained; phi concentrates at 0.99 boundary
+[C] GARCH logLik from fGarch may be per-observation; cross-model AIC comparison not made consistently
+[C] non-convergence noted but no corrective action taken
+[C] no simulated trajectories compared to observed data after fitting
+[C] hard-coded oil[120:160,] not verified against intended years
+[C] "Can we use time series analysis?" is trivially answered
+[A] human did not raise eta implausibility (human raised E/I initial values, a distinct concern)
+[A] human did not raise convergence issues
+[A] human did not raise this
+[A] human did not raise this
+[A] human did not raise this
+[A] human did not raise this
+[C] human did not raise data truncation asymmetry (human #8 is about waning immunity, a different concern)
+[C] human did not raise this
+[C] human did not raise this
+[C] human did not raise this
+[C] human did not raise this
+[C] human did not raise this
+[C] human did not raise this
+[A] code bug in accumvars usage
+[A] wrong seasonal period used for model selection
+[A] parameter identifiability unassessed
+[A] model choice unjustified
+[A] biologically implausible estimates not discussed
+[A] unjustified data restriction
+[C] premature fixing of parameters
+[C] dataset scoping observation
+[C] epidemiological basis of measurement equation questioned
+[C] perturbation scale concern
+[C] internal inconsistency in profiling
+[C] notation/code mismatch
+[C] unused phantom parameter
+[C] reproducibility concern
+[A] global search inherits state from local mif2 object; human missed
+[A] benchmark log-lik evaluated on simulated data, not real AAPL data; human missed
+[A] reported log-likelihoods of ~2650 not sanity-checked; human missed
+[A] 4000-unit discrepancy unexplained; human missed
+[A] low-order models excluded from grid search; human missed
+[A] sigma_nu and phi non-convergence not addressed; human missed
+[A] mu_h, G_0, H_0 unconstrained; phi near boundary; human missed
+[A] sigma_eta 0–30 range not flagged; human missed
+[A] lag 0.07 misread; human missed
+[A] local_results undefined; human missed
+[A] no novel contribution; human missed
+[A] profile uses if.box[[i]] instead of if.prof[[i]], invalidating the CI
+[A] ARIMA, GARCH, and POMP log-likelihoods not directly comparable
+[A] Np=2000 likely too few particles; no ESS diagnostics
+[A] profile loop starts from if1[[1]] not guesses[i,]
+[A] no posterior predictive check for full Breto model
+[A] nested comparison lacks formal test or AIC adjustment
+[A] sigma_eta upper bound of 60 is physically unreasonable
+[C] text reports values that differ from rendered output
+[C] ACF of raw returns uninformative for volatility clustering
+[C] all mif2 chains start from same params_test vector
+[C] simplified model run at much lower computational effort with no explanation
+[C] pfilter applied to sim1.filt, not ndx.filt
+[C] no trace or pair plots for if.prof runs
+[C] parameterization difference between the two models not discussed
+[C] calling flawed profile output "validation" overstates finding
+[A] inverted null/rejection logic for ADF; human raised test inapplicability (#2), not this inverted-logic point
+[A] sigma_eta and mu_h convergence values outside box boundaries
+[A] notation conflates conditional SD with iid innovation
+[C] misleading section label
+[C] no numerical evidence shown for hypothesis test
+[C] defeats purpose of global search
+[C] likelihoods on different scales; human raised indistinguishability of models (#5), not this specific point
+[C] standard conventions reversed
+[C] t_{t-1} typo and incorrect first equality
+[C] human issue #6 already matched to Finding 2; this is additional detail on same topic
+[C] no justification for restricting phi to [0.95, 0.99]
+[C] describes SD of returns, not log volatility
+[A] global search results truncated before profile box construction
+[A] overdispersion parameter at boundary; search region too restrictive
+[A] too few profile points, upper CI bound hits parameter boundary at 1.0
+[A] mechanistic model substantially worse than benchmark
+[A] waning immunity rate implies ~32-year immunity period
+[A] ~72,000 people modeled as recovered before COVID spread in US
+[C] systematic lag introduced between epidemic curve and fitted observations
+[C] covariate linear interpolation causes inexact equality at sub-integer time steps
+[C] single transmission rate covers two substantially different variants
+[C] ESS collapse and particle filter failures not quantified
+[C] profiles absent for key parameters b1, b2, b3, mu_RS, eta
+[C] global search box and profile box inconsistent due to head(6) issue
+[C] convergence warning suppressed and not mentioned
+[C] frequency 0 dominance reflects trend, not absence of seasonality
+[C] running accumulator tracked but never used in measurement or diagnostics
+[A] H compartment semantic mismatch
+[A] systematic bias in transmission parameters
+[A] mu_EI ~3 days, mu_RS ~11 days
+[A] elaboration of accumvar semantic mismatch
+[A] ARIMA applied to tb_num but caption says "incidence rate"
+[C] undefined helper functions
+[C] diag(var.coef) instead of sqrt(diag(var.coef))
+[C] plot(mif_out) not discussed
+[C] actual data vs simulated not clearly labeled
+[C] seir_step defined twice
+[C] "1974 2" and "1979 3" year fields silently dropped
+[A] Major, human missed
+[A] Major, human missed
+[A] Major, human missed
+[A] Major, human missed
+[A] Major, human missed
+[A] Major, human missed
+[C] Minor, human missed
+[C] Minor, human missed
+[C] Minor, human missed
+[C] Minor, human missed
+[C] Minor, human missed
+[C] Minor, human missed
+[C] Minor, human missed
+[C] Minor, human missed
+[A] epidemiologically incoherent model; vaccinated and unvaccinated branches fully isolated
+[A] fundamental mismatch between measurement model and data
+[A] measurement model doubly incorrect
+[A] no visual check that model can reproduce observed data
+[A] scatter plots from global search, not true profiles; CIs invalid
+[A] no quantitative evidence of local search convergence
+[A] text misidentifies the reported log-likelihood
+[C] no sensitivity analysis or rationale for k=10
+[C] hard-coded row indices not validated against ORIGIN_SOURCE column
+[C] susceptible pool orders of magnitude too large for sentinel observations
+[C] model diagram misleading relative to code parameterization
+[C] conclusion unsupported given model structural flaws
+[C] cluster script and Rmd read different file paths; non-reproducible
+[A] redundant H reset creates non-deterministic behavior
+[A] data inconsistency breaks reproducibility and likelihood comparability
+[A] double-filtering causes silent data truncation risk
+[A] gamma=6.95 implies ~19-day immunity; model acknowledges but does not resolve
+[A] profile grid too narrow to cover true MLE
+[A] Nmif, Np, rw.sd not described; convergence not established
+[A] duplicate named argument may silently restrict perturbation
+[C] t_end=333 documented inconsistently across files
+[C] starting all individuals as susceptible in January 2015 is implausible
+[C] frequency axis label may be cycles/week not cycles/year
+[C] sigma_mut fixed without checking against known antigenic data
+[C] imported cases added to H inconsistently bypass E compartment
+[C] "mathematical inconsistency" language imprecise
+[A] Major; AI finds the writeup incorrectly states negative gamma means less scoring against stronger pitching, when the correct sign is positive
+[A] Major; AI finds profile is seeded from local search region (~40 log-likelihood units below global MLE), making the profile and its CI uninformative
+[A] Major; AI finds phi≈-0.02 and sigma≈0.58 means the latent state is essentially i.i.d. noise (random effects), not momentum
+[A] Major; AI finds the Poisson model is 41 log-likelihood units worse than NB static, so the primary inference is drawn from a poorly-fit model
+[A] Major; AI finds AR1 NB MLL (-396.461) is slightly below static NB (-396.458), indicating convergence failure in the NB global search
+[C] Minor (Moderate); AI finds code cannot reproduce stored results because nseq=5 vs stored nseq=500
+[C] Minor (Moderate); AI finds figure in Local Search section uses global search results
+[C] Minor (Moderate); AI finds sigma=0 is a boundary condition and chi-squared(2) is an approximation
+[C] Minor (Moderate); AI finds EDA shows only time series plot and five-number summary, no ACF
+[C] Minor (Moderate); AI finds comment conflates mu with log(mu) in parameterization
+[C] Minor; AI finds partrans differs between blinded.Rmd and Full_Code.Rmd initial object
+[C] Minor; AI finds no simulation from fitted model at MLE estimates for adequacy check
+[C] Minor; AI finds Z_n constructed using full-season data including post-game-n observations
+[C] Minor; AI finds incorrect code that happens to work in this context but is fragile
+[A] methodologically invalid profile likelihood procedure; human did not raise this
+[A] different data transformations make comparison invalid; human did not raise this
+[A] reproducibility failure from wrong path; human did not raise this
+[A] underpowered global search; human did not raise this
+[A] amp convergence near logit boundary not discussed; human did not raise this
+[A] noisy likelihood selection; human did not raise this
+[A] 10 grid points with single noisy evaluation; human did not raise this
+[A] modular equivalence not recognized; human did not raise this
+[A] S0,E0,I0,R0 fixed during optimization; human did not raise this
+[A] sequential selection procedure not rigorous; human did not raise this
+[A] Critical/Major; human did not raise
+[A] Major; human did not raise
+[A] Major; human did not raise
+[A] Major; human did not raise
+[A] Major; human did not raise
+[A] Major; human did not raise
+[C] Moderate/Minor; human did not raise
+[C] Moderate/Minor; human did not raise
+[C] Moderate/Minor; human did not raise
+[C] Moderate/Minor; human did not raise
+[C] Moderate/Minor; human did not raise
+[C] Minor; human did not raise (different from Human #16's time axis typo)
+[C] Minor; human did not raise
+[C] Minor; human did not raise
+[A] immigration rproc/paramnames updated but no second pomp() call; model ran without immigration dynamics
+[A] Euler step for dSE uses 1-exp(-lambda) not 1-exp(-lambda*dt), model is step-size dependent
+[A] sigma_M in paramnames and par_trans but absent from rmeas/dmeas; measurement remains Poisson
+[A] C accumulates rho*dEI but dmeas observes rho*I; C never used in measurement model
+[A] Florida population ~18-20M; N_0 inflates force of infection by ~200x
+[A] 13.5% monthly birth rate is biologically impossible; parameter not explored in local search
+[A] c(base_params, c(...)) appends rather than overrides named entries; global search unreliable
+[A] no profile likelihoods, CIs, or uncertainty quantification for any parameter
+[A] splines::bs() does not enforce boundary periodicity; pomp's periodic_bspline_basis() should be used
+[A] mathematical exposition shows stochastic differential form without dt; inconsistent with Euler code
+[A] mu_H governs mortality across all compartments but is labeled "immunity loss duration"
+[A] p_max=1, q_max=1, P=1, Q=1 only; no rationale for excluding higher orders
+[C] additive decomposition used on untransformed series despite noting non-constant variance
+[C] only visual inspection; no Ljung-Box or Shapiro-Wilk applied
+[A] POMP measurement model critical bug; human did not raise
+[A] measurement model internal inconsistency; human did not raise
+[A] model labeling error; human did not raise
+[A] biased force-of-infection; human did not raise
+[A] partrans override bug; human did not raise
+[A] model description vs implementation mismatch; human did not raise
+[A] pseudo-profile and invalid CI; human did not raise
+[A] information asymmetry in comparison; human did not raise
+[A] feature-level data leakage; human did not raise
+[C] missing SARIMA; human did not raise
+[C] in-sample vs out-of-sample comparison inconsistency; human did not raise
+[C] filter too loose; human did not raise
+[C] reproducibility issue; human did not raise
+[C] cosmetic redundancy; human did not raise
+[C] implausible parameter range not discussed; human did not raise
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[A] physically impossible Heston parameter estimates dismissed without justification
+[A] likelihood comparison not penalized for parameter count
+[A] inconsistency between stated ARMA order and code labels
+[A] profile likelihood for Heston does not fix kappa in rw.sd
+[A] only a single particle filter evaluation per replicate for likelihood scoring
+[A] data file contains observations past stated end date
+[A] regime-switching plot based on single simulation not filtered states
+[A] no confidence intervals or uncertainty quantification for profile likelihoods
+[C] inconsistent figure numbering (duplicate Figure 3)
+[C] log-likelihood values in Table 5 are hardcoded rather than computed at runtime
+[C] no effective sample size diagnostics reported
+[C] discussion references prior course projects as if published studies
+[C] Heston model lacks a leverage effect despite discussion of asymmetry
+[C] typos and language issues including misspelling in section header
+[A] SIRS LL is impossible positive value due to wrong best_index
+[A] wrong population size for Nova Scotia
+[A] measurement model mismatch
+[A] best-fit selection ignores stored results
+[A] profile CI inconsistency not investigated
+[A] ARIMA order mislabeling
+[A] biologically implausible recovery rate
+[C] two versions with different safety clamps
+[C] accumulator tracks recoveries not incidence
+[C] spurious low-frequency peak risk
+[C] too few replicates per chain
+[C] numerical instability risk
+[C] cases_obs vs cases naming
+[C] unexplained discrepancy
+[C] inappropriate citation for standard topics
+[A] stew cache collision silently reuses first search results
+[A] search box disjoint from the mode identified as superior
+[A] phi*sqrt(V) in code vs. phi*V in stated model
+[A] independent API subset may differ in row count from merged dataset
+[A] no LRT, profile likelihood, or CI for gamma; conclusion unsupported
+[A] potential model misspecification or degenerate solution not explored
+[C] no log-likelihoods shown across tested df values
+[C] positive vs. negative gamma, no resolution
+[C] narrative written based on expected rather than actual outputs (consequence of stew collision)
+[C] normal-distribution results silently destroyed
+[C] no ADF/KPSS test; interpretive shift not discussed
+[C] missing leading "V"
+[C] copy-paste error in global search pairs plot label
+[C] "Stuent's", "aerbecause", "Chapte-15", HTML tag errors in references
+[A] Major, human did not raise this
+[A] Major, human did not raise this
+[A] Major, human did not raise this
+[A] Major, human did not raise this
+[C] Minor, human did not raise this
+[C] Minor, human did not raise this
+[C] Minor, human did not raise this
+[C] Minor, human did not raise this
+[C] Minor, human did not raise this
+[C] Minor, human did not raise this
+[C] Minor, human did not raise this
+[C] Minor, human did not raise this
+[C] Minor, human did not raise this
+[A] fundamental measurement model misspecification
+[A] no profile likelihood or confidence intervals
+[A] post hoc filtering with unjustified wide window and parameter cutoffs
+[A] code inconsistent with narrative (covariates not removed)
+[A] no convergence traces or particle filter diagnostics
+[A] beta multipliers not statistically justified
+[A] initial conditions not estimated, introduce circular reasoning
+[A] inconsistent with IF2 estimate of rho ~ 0.2
+[C] correlation of cases with deaths/recoveries does not prove reliability
+[C] smooth.spline applied without validation plot
+[C] visual inspection only, no quantitative goodness-of-fit
+[C] 10,000-unit window still too wide
+[C] contradicts the paper's own convergence failures
+[A] no human equivalent
+[A] no human equivalent
+[A] no human equivalent
+[A] no human equivalent
+[A] no human equivalent
+[A] no human equivalent
+[A] no human equivalent
+[C] no human equivalent
+[C] no human equivalent
+[C] no human equivalent
+[C] no human equivalent (different from max-vs-median concern)
+[C] no human equivalent
+[A] Major; H initialization error not raised by human
+[A] Major; measurement model semantic error not raised by human
+[A] Major; profile likelihood absence not raised by human
+[A] Major; parameter transformation error not raised by human
+[A] Major; global search setup issue not raised by human
+[A] Major; data reproducibility issue not raised by human
+[C] Moderate (treated as Minor); data stream inconsistency not raised by human
+[C] Moderate (treated as Minor); HP filter lambda not raised by human
+[C] Moderate (treated as Minor); rho fixed not raised by human
+[C] Moderate (treated as Minor); initial conditions not raised by human
+[C] Moderate (treated as Minor); convergence diagnostics not raised by human
+[C] Moderate (treated as Minor); ARMA code-text inconsistency not raised by human
+[C] Minor; weekly seasonality not raised by human
+[C] Minor; no posterior predictive simulation not raised by human
+[A] POMP pfilter on simulated data, not Shanghai returns
+[A] likelihoods on different footings (exact vs MC estimate)
+[A] precludes finding true MLE; profile shows higher likelihoods outside this range
+[A] phi not in rw.sd but profile initialization has duplicate-name ambiguity
+[A] questionable data transformation not discussed
+[C] absence of linear autocorrelation does not imply independence
+[C] intercept missing from written model formula
+[C] plotted against integer index, not calendar time
+[C] log("y") applied to already-log-transformed values
+[C] only 2 restarts per phi grid point
+[C] simulator used only for pfilter check, not for goodness-of-fit
+[C] claim not supported by GARCH(1,1) analysis
+[C] citation error affecting four references
+[A] fundamental implementation bug invalidating reinfection pathway
+[A] individuals created or destroyed at each step
+[A] no justification or sensitivity analysis for breakpoints
+[A] mu_PR, mu_IR, alpha, Beta fixed with no source cited
+[A] global search inherits local optimum
+[A] no uncertainty quantification for any parameter
+[C] E=100, I=200, P=50 not estimated or justified
+[C] apparent 7-day period may be artifact
+[C] SE=78.32 at initial parameters
+[C] weak coverage of 9-dimensional space
+[C] seasonal MA and higher-order terms not explored
+[C] description does not match actual analysis window
+[A] the paper promises counterfactual vaccine simulations but never delivers them
+[A] `cases >= -10*sd` is always true for non-negative cases, making else branch unreachable
+[A] tol placed outside vs. inside sqrt produces different sd values in evaluation vs. simulation
+[A] written equations contradict implemented code
+[A] nu treated as fixed constant ignoring observed time-varying vaccination rates
+[A] 14 free parameters, no identifiability assessment
+[A] claimed failure cannot be verified by reader
+[C] third condition garbled; label inconsistencies between math and code
+[C] S(0) appears on both sides; code is correct but math is wrong
+[C] dramatically understates true recovered population
+[C] nonstandard threshold, no sensitivity analysis
+[C] exposition unclear about what the model is actually modeling
+[C] reproducibility issue on case-sensitive file systems
+[A] POMP vs GARCH comparison invalid because log-likelihoods are not comparable (Human Issue #5 already counted via Finding 1)
+[A] Bug in Tesla GARCH prediction plot: Ford's predicted volatility used for Tesla
+[A] Model equation for R_n algebraically equals 1 due to typographical error
+[A] Ford global search references missing file and uses wrong run_level object
+[A] Ford and Tesla POMP run at different computational scales (sequential vs parallel)
+[C] Tesla POMP section duplicates figure captions from a different project ("Apple")
+[C] GARCH model selection criteria inconsistently applied across model variants
+[C] Weak identifiability of mu_h and H_0 rationalized rather than addressed
+[C] Ford global search convergence discussion references wrong figure number
+[C] Decomposition applied to non-stationary log returns and interpreted as meaningful trend
+[C] References section labeled "Scholarships" instead of "References"
+[C] YAML header contains typo disabling table of contents numbering
+[A] broad population-size inconsistency between the two model families (N=500K vs N=50M)
+[A] missing uncertainty quantification for all parameters
+[A] invalid cross-family log-likelihood comparison
+[A] exposed-class split produces non-integer compartment sizes
+[A] particle count far too small for reliable inference
+[A] 50-day windows not tied to epidemiological events
+[C] accumulator initialized incorrectly
+[C] population conservation violated at t0
+[C] spectrum identifies 7-day cycle but neither model accounts for it
+[C] data preprocessing inconsistency across models
+[C] extreme parameter values suggest poor identifiability
+[C] log-likelihood trace plots not rendered
+[C] logic not explained and may trim valid data
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[A] major, human missed
+[A] major, human missed
+[A] major, human missed
+[A] major, human missed
+[A] major, human missed
+[A] major, human missed
+[C] minor, human missed
+[C] minor, human missed
+[C] minor, human missed
+[C] minor, human missed
+[C] minor, human missed
+[C] minor, human missed
+[A] critical coding bug in b-profile trace visualization
+[A] mathematical description contradicts code implementation
+[A] core scientific question left unanswered despite profiles being computed
+[A] IF2 non-convergence and poor log-likelihood
+[A] parallelization inconsistency in local search
+[A] measurement model boundary condition coding error
+[A] unexplained gap in section numbering
+[C] parameter specification inconsistency
+[C] same as Minor 10; Human Issue #3 already claimed
+[C] minor description inaccuracy in training window
+[C] missing conditional log-likelihood and ESS analysis
+[C] hardcoded threshold not documented in mathematical writeup
+[A] incomparable log-likelihood scales across models (Critical)
+[A] SEIQR force of infection missing N normalization (Critical)
+[A] weekly Euler step mismatched with daily observations (Major)
+[A] copy-paste error in SEIR likelihood surface plot (Major)
+[A] parameter transformation inconsistency in SEIR (Major)
+[A] wrong transformation for bounded parameters rho and eta (Major)
+[C] computationally wasteful sequential global search (Minor)
+[A] no parameter uncertainty assessment (Major)
+[A] population description inconsistency 18M vs 1.9M (Major)
+[C] no ESS or residual analysis (Minor)
+[C] stated vs implemented initial value discrepancy (Minor)
+[C] asymmetric computational effort across models (Minor)
+[A] Major; human missed
+[A] Major; human missed
+[A] Major; human missed
+[A] Major; human missed
+[A] Major; human missed
+[A] Major; human missed
+[C] Moderate (not labeled Major); human missed
+[C] Moderate; human missed
+[C] Moderate; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[A] measurement model uses wrong parameterization; I as size, rho as prob; no overdispersion parameter k
+[A] final SEIR parameters chosen by manual inspection with no justification
+[A] global search overwrites rmeas with nearbyint(I), making pomp object structurally incoherent
+[A] data preprocessing applies cumulative-to-incident differencing twice
+[A] no LRT, AIC, or quantitative comparison between ARIMA and SEIR
+[A] AIC selects ARIMA(2,1,3) but all diagnostics and fitted plot use ARIMA(3,1,1)
+[C] population N optimized without biological constraint; GenSA returns N exceeding actual WA population
+[C] no confidence intervals or uncertainty quantification for any model parameter
+[C] discrepancy between stated 1500 data points and actual weekly aggregate count
+[C] main.R is unmodified course measles SIR example with no connection to the project
+[C] time axis labels say "Day" but time variable represents sequential weeks
+[C] model description states time-varying beta (b1/b2) but code uses single constant beta throughout
+[C] ChatGPT cited without specifying which parts were AI-assisted or what errors were corrected
+[A] global search box contradicts local search results
+[A] non-convergence acknowledged but left unresolved
+[A] pf1 computed on sim1.filt rather than NADQ.filt
+[C] time series frequency specification error
+[C] timing convention for beta not clarified in exposition
+[C] no uncertainty quantification for POMP parameters
+[C] unusual order not discussed for stationarity/positivity constraints
+[C] per-observation vs total log-likelihood conflated
+[C] no post-fit simulation diagnostic
+[C] data described as NASDAQ but ticker is for Nasdaq Inc., not the index
+[C] intermediate .rda files not included in submission
+[C] extremely permissive window obscures parameter structure
+[C] non-convergence framed as future improvement rather than fundamental flaw
+[A] SEIR section fitted to Washtenaw County data, not King County
+[A] SVEIPR log-likelihood ~182 units worse than SEIR, no discussion
+[A] data already once-differenced, ARIMA applies second difference, effectively ARIMA(3,2,3)
+[A] dN_RS drawn from I instead of R, corrupts reinfection mechanism
+[A] SVEIPR uses delta.t=1 (weekly), too coarse for rates as large as mu_EPI~1.3/week
+[A] local vs global SVEIPR improvement of ~20 units described as insignificant
+[C] H only counts I→R transitions, excluding P→R, making alpha unidentifiable
+[C] best-fit c4 reaches 207–316, biologically implausible vaccination rates
+[C] beta values spanning 0.16 to 114,712, 67/100 NA log-likelihoods
+[C] "poor man's profile" CIs described but not implemented correctly
+[C] mu_RS, alpha, Beta, mu_SV fixed in local search, novel features never compared to data
+[C] text states -1195.194 but stored data shows -1195.915
+[C] E=1000, I=500, P=500 at week 1 inconsistent with King County epidemiological context
+[C] several bib entries duplicated verbatim
+[A] critical bug in COVID process model
+[A] starting points grouped by rho, mu_SV not perturbed
+[A] flu Csnippet omits dN_RS transition
+[A] no likelihood-ratio test between SEIRV and SEIR
+[A] arbitrary population size with no justification
+[A] convergence may be spurious
+[A] inconsistent particle count undermines reported loglik
+[A] no quantitative measure of max loglik or null-model comparison
+[C] non-reproducible absolute paths on local machine
+[C] unstable URL with undocumented provenance
+[C] no uncertainty quantification for other parameters
+[C] non-standard level, no reason given
+[C] mathematical inconsistency with flu implementation
+[C] particle degeneracy not checked
+[C] logit(1) = +Inf, numerical instability risk
+[A] broken R prototype code; human did not raise
+[A] reproducibility failure; human did not raise
+[A] H tracks recoveries not quarantine entries; human did not raise
+[A] undocumented impulse; human did not raise
+[A] fixed parameters without justification; human did not raise
+[A] sequential instead of parallel local search; human did not raise
+[A] loglik window of 1000 is enormous; human did not raise
+[A] compartment labeling inconsistent with epidemiological narrative; human did not raise
+[C] post-fit simulations absent; human did not raise
+[C] orphaned parameter; human did not raise
+[C] terminology not formalized; human did not raise
+[C] data provenance not explained; human did not raise
+[A] epsilon_n distribution discrepancy between written model and code
+[A] severe parameter heterogeneity not corrected
+[A] near-unit-root solutions included in pairs plots without screening
+[A] c(0, diff(log(Close))) prepends artificial zero to filter
+[A] STL applied to prices with artificial frequency=252
+[C] sqrt(var(NFLX)/(n*var(SPY))) omits residual variance
+[C] Section 8.2 contains unresolved draft comment
+[C] best local-search solutions have phi 0.75–0.89, outside global box lower bound
+[C] holdout set defined but never used for any model
+[C] Ljung-Box p=0.03 noted but no corrective action taken
+[C] URL points to project07 instead of project11
+[C] block appears twice with identical code
+[A] no held-out test set, all accuracy figures computed on training data
+[A] POMP accuracy computed differently from logistic/ELO baselines, making comparisons invalid
+[A] attendance model evaluated using wrong pomp object
+[A] no justification for sigma=5, no sensitivity analysis
+[A] box far from apparent MLE
+[A] ELO is a derived deterministic quantity, not the true latent state
+[C] one-step misalignment between ELO covariate and POMP time index
+[C] rolling window initialization not verified
+[C] IF2 traces not analyzed; loglik.se not reported
+[C] inflates state dimension without benefit
+[C] paths tied to author's local machine
+[C] 64% baseline is in-sample fit, not predictive
+[C] IF2 for attendance model optimizes wrong likelihood
+[A] Invalid log-likelihood comparison between ARCH and SEIR
+[A] Missing data handled by interpolation with no sensitivity analysis
+[A] SEIR model fails to reproduce 2024 outbreak; root cause not diagnosed
+[A] k (overdispersion parameter) fixed throughout all POMP models without justification
+[A] H accumulator tracks recoveries (dN_IR), not infections; measurement model inconsistent
+[A] ADF stationarity test referenced in bibliography but never performed
+[A] ARCH vs ARMA(2,4) comparison uses mismatched sample sizes
+[C] Global SIR search box extremely wide; mu_IR unidentifiable; no likelihood profile
+[C] rw.sd for beta uses ifelse producing incorrect perturbation schedule
+[C] Vaccination data from Michigan extrapolated to five states without validation
+[C] SEIR model initializes H=1 rather than H=0; first measurement biased
+[C] Deaths plot y-axis mislabeled "Births"
+[C] Pairs plot for full SEIR global search commented out
+[C] Scholarship section cites incorrect URL for project2024-2
+
+============================================================
+531_Ref (Charlie)
+============================================================
+
+[A] Catastrophically misconfigured IF2 for SECSDR and SEIQR (rw.sd=2e-9, cooling.fraction.50=0.00005)
+[A] Missing data file prevents reproducibility
+[A] No non-mechanistic benchmark comparison
+[A] SEIR measurement model misspecified; zero variance when H=0; rmeas uses different variance form than dmeas
+[A] SECSDR conservation of individuals violated; S decremented by dN_ECa instead of dN_SE
+[A] No profile likelihood or confidence intervals for any parameter
+[A] SEIR local search excludes most parameters (mu_EI, mu_IR, tau not in rw.sd)
+[A] SEIR global search inherits rw.sd from local search without re-specifying
+[A] SEIQR N=32M instead of US population
+[A] No convergence diagnostics discussed despite non-convergent traces
+[A] SECSDR run_level=1 vs SEIQR run_level=2; inconsistent computational effort
+[C] No ARIMA or classical time series analysis before mechanistic modeling
+[C] Simulation uses hard-coded "best" parameters; second-best set used for SECSDR/SEIQR
+[C] References incomplete; only course notes and student projects cited
+[A] MAJOR, human missed
+[A] MAJOR, human missed
+[A] MAJOR, human missed
+[A] MAJOR, human missed
+[A] MAJOR, human missed
+[A] MAJOR, human missed
+[C] MINOR, human missed
+[C] MINOR, human missed
+[C] MINOR, human missed
+[C] MINOR, human missed
+[C] MINOR, human missed
+[C] MINOR, human missed
+[C] MINOR, human missed
+[C] MINOR, human missed
+[A] tseries package reports non-standard log-likelihood; direct comparison numerically meaningless
+[A] no ARMA fit to yield differences to test whether mechanistic complexity is warranted
+[A] pairs plot is not a substitute; no confidence intervals for phi, sigma_eta, sigma_nu
+[A] all 20 replicates begin at params_test, providing no diversity of starting points
+[A] no log-likelihood or parameter traces across mif2 iterations
+[A] inherits cooling schedule from if1[[1]]; replicates begin near-frozen rather than from fresh box samples
+[C] parameter count difference between POMP (6) and GARCH (3) not accounted for in comparison
+[C] span=0.5 and span=0.1 chosen without justification or sensitivity analysis
+[C] x-axis starts 28 years before actual data start of 1990
+[C] reports log-likelihood only; no parameter recovery (re-estimation) shown
+[C] duplicate of issue #9; same date misalignment described again
+[C] pomp API has changed substantially; reproducibility limited
+[C] failure to reject null does not establish absence of association; should say "no significant evidence" not "no association"
+[C] terminological error throughout
+[C] best log-likelihood -25.71 reported without MC SE
+[A] global search absent; convergence not demonstrated
+[A] no profiles computed for any model
+[A] 0.7 factor fixed, research question not answered by inference
+[A] sir_L_pf printed instead of sir2_L_pf
+[A] SEs up to 219 log units, estimates are noise
+[A] no ARMA or baseline comparison
+[A] wrong compartment flow accumulated
+[C] no preliminary ARIMA or spectral analysis
+[C] 52 observations likely insufficient
+[C] no ESS, no conditional log-likelihood traces
+[C] dead code reflects incomplete analysis plan
+[C] wide scatter not discussed as diagnostic
+[A] AI major, human did not raise this
+[A] AI major, human did not raise this
+[A] AI major, human did not raise this
+[A] AI major, human did not raise this
+[A] AI major, human did not raise this
+[A] AI major, human did not raise this
+[C] AI minor, human did not raise this
+[C] AI minor, human did not raise this
+[C] AI minor, human did not raise this
+[C] AI minor, human did not raise this
+[C] AI minor, human did not raise this
+[C] AI minor, human did not raise this
+[C] AI minor, human did not raise this
+[A] no constrained re-optimization at each fixed parameter value
+[A] Monte Carlo variance inflates reported MLE
+[A] different normalization conventions across estimators
+[A] leftover from prior model variant
+[A] common-likelihood-scale benchmark absent
+[A] observation density depends on past observation via covariate channel, not acknowledged
+[C] no sensitivity check vs. max/median
+[C] 12 sub-steps per observation period, non-comparable likelihoods
+[C] result included in comparison table without caveat
+[C] non-standard log-volatility mean-reversion term
+[C] perturbed parameters in diagnostics
+[C] MLE at boundary, may be box constraint artifact
+[C] minor typographical errors
+[C] reproducibility concern
+[A] all mif2/pfilter code commented out; no log-likelihood or convergence diagnostics
+[A] no quantitative comparison of ARIMA vs. SIR log-likelihoods
+[A] no RSS, R-squared, AIC, or log-likelihood reported for mechanistic model
+[A] POMP object uses daily new cases; ODE uses cumulative cases; different observable (Human Issue #4 already matched to Finding 3)
+[A] no profile likelihoods or confidence intervals for any parameter
+[A] mu_IR fixed by cross-correlation without uncertainty propagation; should be estimated via likelihood
+[A] no conditional log-likelihood plots, no ESS monitoring, no residual analysis for SIR
+[A] no probabilistic forecasts generated from filtering distribution
+[C] d=2 fixed throughout grid search without stationarity tests
+[C] `s` not in statenames or paramnames; defaults to zero in C, breaking negative binomial
+[C] R = round(N*(1-eta)) initializes ~95% of Utah as recovered in March 2020
+[C] text concludes "no clear lag pattern" but ACF shows strong persistent autocorrelation
+[C] multiple misspellings throughout
+[A] human did not raise this as a distinct concern
+[A] human did not raise this
+[A] human did not raise this
+[A] human did not raise this
+[A] human did not raise this
+[A] human did not raise this
+[A] human did not raise this
+[C] human did not raise this
+[C] human did not raise this
+[C] human did not raise this
+[C] human did not raise this
+[C] human did not raise this
+[C] human did not raise this
+[C] human did not raise this
+[A] tseries GARCH log-likelihood uses non-standard normalization; cross-model AIC comparison invalid
+[A] no profile likelihoods or confidence intervals computed for any parameter
+[A] cooling schedule inherited from local search, defeating purpose of global search
+[C] course standard for run_level=3 is Np=5000; choice not justified
+[C] no IID or simple AR model baseline computed on particle-filter likelihood scale
+[C] no conditional log-likelihoods, no ESS monitoring, no filtering-distribution simulation comparison
+[C] conclusion consistently calls index "Nasdaq-500"
+[C] reference [2] points to course notes, not Breto (2014) journal paper
+[C] logLik > max-30 threshold is much wider than Wilks 95% set; distinction not noted
+[C] course standard for run_level=3 is 40 replicates
+[C] estimated parameters not compared to published stochastic volatility estimates
+[C] conclusion claims model is "appropriate" based only on in-sample AIC with no out-of-sample validation
+[C] package versions not recorded; results may not reproduce on current CRAN releases
+[A] semantic mismatch between accumulator and observed data
+[A] cases - deaths compared to rho*H with no mechanistic justification
+[A] invalid probability starting values for logit-constrained parameter
+[A] ARIMA not a valid direct mechanistic benchmark; IID baseline absent
+[A] different data transformations and observation models
+[A] "x-x and x-x" never filled in; day indices never mapped to calendar dates
+[C] insufficient for 15-parameter model
+[C] not inline-generated; reproducibility gap
+[C] may slow exploration of weakly identified parameters
+[C] I_0=250 not justified; no sensitivity check
+[C] D cumulative added in rmeasure but daily deaths subtracted in dmeasure
+[C] no formal ADF test applied
+[C] Gaussian assumption violated for COVID count data
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[A] profile is statistically unreliable; CI not robustly determined
+[A] perturbation too small to bridge gap from starting value to MLE
+[A] optimizer pushed tau to its upper bound; true MLE not found
+[A] no formal justification; sensitivity not assessed
+[A] profile envelope built from all run types, not profile-specific runs
+[C] table and pairs plots set to eval=FALSE
+[C] no ESS, conditional log-likelihoods, or filtering distribution comparisons
+[C] not linked to documented policy events with citations
+[C] no LRT or AIC comparing alternative beta specifications
+[C] S+E+I at t=0 implies ~90% already recovered, which is implausible
+[C] AIC of 231.698 is on log-transformed scale, not original scale
+[C] degenerate normal distribution when accumulator is zero
+[C] total computation time not reported; adequacy cannot be assessed
+[C] no profile likelihoods for beta parameters, eta, or tau
+[A] stochastic draw violates POMP determinism requirement
+[A] no pfilter replication, no SE; course standard requires logmeanexp
+[A] likelihoods on different scales cannot be compared directly
+[A] no trace plots, no evidence of convergence or global optimum
+[A] undefined variable likely causes global search to fail
+[A] ad hoc floor prevents particle filter from downweighting implausible particles
+[A] S is supplied as covariate from observed data; no latent dynamics
+[A] denominator is nine orders of magnitude larger than initial subscriber count
+[A] no parameter identifiability assessment; five free parameters
+[C] log(diff(Subscribers)) undefined when differences are negative; not disclosed
+[C] R² is not a standard ARIMA goodness-of-fit measure
+[C] unusual y-axis range; possible misconfigured lag argument
+[C] "Subsciber" and "SATST531" typos; not proofread
+[A] text uses E in force of infection, code uses I; inconsistency in SEIR structure (Major)
+[A] single local template biases global search diversity (Major)
+[A] profile range too narrow; no valid CI can be constructed (Major)
+[A] mu_EI=0.08 implies 12.5-week latent period, biologically implausible (Major)
+[A] no ESS, conditional log-likelihood, or filtering distribution checks (Major)
+[C] 105-week subset from 501-week dataset not explained in text (Minor)
+[C] 0.69 percentage-point width suspicious given Monte Carlo noise (Minor)
+[C] trace plots show non-convergence; computational adequacy not established (Minor)
+[C] "1996-1975" should be "1966-1975" (Minor)
+[C] section header contains unresolved internal note (Minor)
+[C] conclusion not supported given unresolved profile and measurement model issues (Minor)
+[A] major, human missed
+[A] major, human missed
+[A] major, human missed
+[A] major, human missed
+[A] major, human missed
+[A] major, human missed
+[A] major, human missed
+[C] minor, human missed
+[C] minor, human missed
+[C] minor, human missed
+[C] minor, human missed
+[A] convergence inadequacy in global search; human did not raise
+[A] unjustified fixed parameter; human did not raise
+[A] Jacobian correction noted as actually correct but gap is understated; human did not raise
+[A] structural accumulator error; human did not raise
+[C] magnitude of loglik gap understated; human did not raise this as standalone issue
+[C] degenerate lower bound; human did not raise
+[C] split date sensitivity not explored; human did not raise
+[C] limited local search exploration; human did not raise
+[C] reproducibility gap; human did not raise
+[C] copy-paste error; human did not raise
+[A] R0=202, gamma=922, iota=-0.429, rho=0.968 presented without diagnosis
+[A] iota=-0.4295 in global MLE; pow(I+iota, alpha) undefined when iota<0
+[A] 77-unit gap acknowledged but not resolved
+[A] poor man's profile for vr is not a proper profile; no CIs for any parameter
+[A] perturbations decay to negligible size early; likely causes premature convergence
+[A] several runs have loglik.se values of 99.32, 14.31 etc.; estimates unreliable
+[C] R0=82.67 from local search far above literature range of 7-12
+[C] S_0, E_0, I_0, R_0 fixed at local MLE values in global search
+[C] nsim=1 in both local and global evaluation; not informative about model uncertainty
+[C] iota not log-transformed; optimizer can reach negative values silently
+[C] EDA shows time series and bar chart but no ACF/PACF or spectral analysis
+[C] code references objects from non-evaluated blocks; reproducibility undermined
+[C] R = pop - S - E - I + vac may not correctly track population balance
+[A] measurement model code inconsistency, human did not raise
+[A] structural accumulator misspecification, human did not raise
+[A] no identifiability analysis or CIs, human did not raise
+[A] inadequate IF2 computational budget, human did not raise
+[A] fixed transition rates not evaluated, human did not raise
+[A] unjustified structural break, human did not raise
+[C] distributional mismatch for count data, human did not raise
+[C] mislabeled figure caption, human did not raise
+[C] trivially permissive filter, human did not raise
+[C] terminology error, human did not raise
+[C] proofreading artifact, human did not raise
+[C] ARIMA(5,1,5) selection inadequately validated, human did not raise
+[C] unsupported claim of superiority, human did not raise
+[A] not raised by human
+[A] not raised by human
+[A] not raised by human
+[A] not raised by human
+[A] not raised by human
+[C] Minor, not raised by human
+[C] Minor, not raised by human
+[C] Minor, not raised by human
+[C] Minor, not raised by human
+[C] Minor, not raised by human
+[C] Minor, not raised by human
+[A] Major; human missed
+[A] Major; human missed
+[A] Major; human missed
+[A] Major; human missed
+[A] Major; human missed
+[A] Major; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[A] all SIR-CDR code at eval=FALSE
+[A] double-counting flows in Sy compartment
+[A] written model does not match code, reproducibility failure
+[A] profile never reaches MLE, 387 log-unit gap
+[A] convergence failure not investigated, bimodal global search distribution
+[A] R and D underestimated in overflow case
+[A] presentation discrepancy indicating proofreading failure
+[C] numerical concern in non-log mode
+[C] parametrization breaks when Mu_SyR is large
+[C] displayed threshold has no interpretive value
+[C] profile informationally void even if range were correct
+[C] no conditional log-likelihood, no filtering ESS analysis
+[C] persistent typographical error
+[C] reproducibility concern across R versions
+[A] all 100 profile runs return phi = 0.9928931; profile is degenerate
+[A] rows 1-120 and 121-220 in CSV are on different scales, producing a misleading figure
+[A] POMP has highest AIC (16.45); ARMA(0,0) has lowest (10.87)
+[A] tseries::garch vs. fGarch::garchFit; normalizations differ
+[A] no simulated trajectories vs. observed data; no ESS trace; no conditional log-likelihoods
+[A] r.if1 used instead of r.box in the pairs call
+[C] oil[120:160,] captures 2019-2020 return, contradicting stated exclusion
+[C] sigma_nu upper bound stated as 0.020 in text but coded as 0.015
+[C] kable() commented out; garch.jpg cannot be verified against current code
+[C] below course standard of 40 starts
+[C] Student-t GARCH not considered despite heavy tails in QQ plot
+[C] logLik of -65.07 reported but purpose not explained
+[C] cross-model comparison uses inconsistent normalizations
+[A] no benchmark comparison between ARMA and SEIR
+[A] pervasive convergence failure across global searches
+[A] global search box excludes the true MLE region
+[A] profile likelihood unreliable and covers only one parameter
+[A] no model diagnostics (ESS, conditional log-likelihoods)
+[A] data handling: subsampling instead of aggregating weekly counts
+[C] convergence not achieved in local search for b4, eta, tau
+[C] global search 2 misleadingly labeled as "not based on local search"
+[C] conceptual error: log-likelihood normalization misconception
+[C] auto-installing packages violates reproducibility norms
+[C] sparse quantitative reporting of SEIR fit quality
+[C] rho CI interpreted without considering model misspecification
+[A] wrong seasonal period in model selection
+[A] implausible parameter estimate not discussed
+[A] identifiability unaddressed
+[A] no valid benchmark comparison
+[A] direction of improvement confused
+[C] notation inconsistency
+[C] perturbation scale concern
+[C] parameters prematurely fixed
+[C] unused parameter in initial model
+[C] computational reporting inconsistency
+[C] validation limited to visual inspection
+[C] data restriction rationale weak
+[C] conceptual error in EDA interpretation
+[C] incomplete discussion of model constraints
+[C] reproducibility/effort assessment missing
+[A] phi and sigma_eta non-convergence not remediated; human missed
+[A] no profile likelihoods; identifiability unresolved; human missed
+[A] search box [0.5,1] inconsistent with results [0,30]; human missed
+[C] GARCH variants not in single table; human missed
+[C] no high-effort configuration; human missed
+[C] AI tool cited as reference; human missed
+[C] live Yahoo Finance download; human missed
+[C] "GARCH most effective" unsupported; human missed
+[C] package versions undocumented; human missed
+[C] phi scale in box vs. transform; human missed
+[C] non-peer-reviewed references for methods; human missed
+[A] if.box[[i]] used instead of if.prof[[i]]
+[A] different parameterization, observation count, and optimization precision
+[A] Np=2000 may cause particle degeneracy; no ESS diagnostics
+[A] starting-value diversity not utilized in profile optimization
+[A] run_level=2 vs run_level=3 confounds computational effort with model structure
+[A] no ESS, no conditional log-likelihood, no simulation-based checks
+[C] sensitivity to G_0 and H_0 initialization not assessed
+[C] silent reset to run_level=2 not explained
+[C] hardcoded 43483 threshold may not match actual maximum on re-run
+[C] package versions not pinned; reproducibility concern
+[C] readers cannot verify results without re-running expensive computation
+[C] typos and circular conclusion statement
+[A] POMP never compared to GARCH on common basis
+[A] all 80 chains inherit local IF2 state
+[A] mu_h and H_0 non-convergence acknowledged but unresolved
+[A] identifiability not assessed
+[A] inverted null/rejection logic; human raised test inapplicability (#2), not this specific point
+[C] optimization failure vs. genuine model deficiency not discussed
+[C] non-standard object will fail in fresh R session
+[C] initial PF log-likelihood not comparable to IF2 results
+[C] pomp API version not recorded
+[C] R_n = tanh(G_n) substitution not stated explicitly
+[A] search seeded entirely in wrong region; all downstream conclusions affected
+[A] rw.sd allows rho3 to drift; resulting profile and CI are invalid
+[A] piecewise parameters perturbed at wrong time steps
+[A] 32.5 log-unit gap indicates misspecification or optimization failure
+[A] coarse grid, boundary issue, and profiles absent for key parameters
+[A] particle filter collapse not quantified or addressed
+[A] mu_RS near zero left unexamined without formal identifiability test
+[C] minor verifiable inaccuracy in profile description
+[C] alpha appears in mathematical description but not in Csnippet
+[C] psi_1 used twice instead of psi_1 and psi_2
+[C] state variable tracked but never used in measurement or diagnostics
+[C] forward simulation used for validation; filtering-conditioned simulation not presented
+[C] fixed N may not reflect population during 2020-2024
+[C] peak at frequency 0 does not preclude annual seasonality at 1/52
+[C] no README, sessionInfo(), or renv lockfile
+[C] "converges around -1500" understates the 14 of 40 runs below that threshold
+[A] ARIMA and POMP never compared quantitatively
+[A] build_and_diagnose_model unused
+[A] undefined helper functions
+[A] accumvar semantic mismatch
+[C] implausible parameter values not flagged
+[C] same image path issue already captured in Major 6
+[C] no ARIMA adequacy checks shown
+[C] single log-likelihood without context
+[C] no ESS diagnostics reported
+[A] Major, human missed
+[A] Major, human missed
+[A] Major, human missed
+[A] Major, human missed
+[A] Major, human missed
+[A] Major, human missed
+[C] Minor, human missed
+[C] Minor, human missed
+[C] Minor, human missed
+[C] Minor, human missed
+[C] Minor, human missed
+[C] Minor, human missed
+[C] Minor, human missed
+[C] Minor, human missed
+[C] Minor, human missed
+[A] no cross-transmission between vaccinated and unvaccinated
+[A] mu_IR_v = 0.00151/week at MLE; sign of misspecification not flagged by authors
+[A] scatter-filter of global search presented as profile likelihood
+[A] mu_IR_v MLE two orders of magnitude below stated lower bound
+[A] no simulation overlaid on data, no ESS traces, no conditional log-likelihood plot
+[A] materially different optimization settings between scripts with no explanation
+[C] vaccine effectiveness inferred indirectly rather than via explicit efficacy parameter
+[C] some plots filter at -15, others at -10, with no explanation
+[C] absence of seasonality in one season is expected and trivial; conclusion misleading
+[C] run.r cannot be executed by any other user
+[C] no sensitivity analysis or rationale for k=10
+[C] local search results not reproducible across runs
+[C] "Forcast," "immunocompromized," "slighlty," "inmuen systems"; pairs plot axes not discussed
+[A] manual Csnippet reset conflicts with accumvars mechanism
+[A] rho profile range [0.02, 0.04] does not include MLE at 0.004
+[A] A=9% reduction insufficient for near-zero pandemic flu; r1, r2 fixed without sensitivity
+[A] no per-observation log-likelihood plot or ESS traces for final model
+[A] 16 parameters on single observable; gamma and rho entangled
+[C] duplicate named argument may silently restrict perturbation
+[C] column name typo in inline arima call
+[C] intermediate global search RDS files lack documentation of Nmif, Np, nseq
+[C] rho CI cannot be valid since grid excludes true MLE
+[C] eta uncertainty not propagated to other estimates via sensitivity analysis
+[C] simulations from MLE are not from filtering distribution
+[C] AI-generated parameter interpretation table not independently verified
+[A] Major; AI finds 40-unit log-likelihood spread across global search starting points, indicating non-convergence
+[A] Major; AI finds LRT reverses completely under NB model and sigma=0 is a boundary condition invalidating Wilks' theorem
+[A] Major; AI finds no profile likelihoods or confidence intervals for other key parameters
+[A] Major; AI finds blinded.Rmd and Full_Code.Rmd define partrans differently for the pomp object
+[A] Major; AI finds Z_n uses full-season pitcher statistics including post-game-n data
+[C] Minor; AI finds scatterplot labeled under Local Search actually plots global search results
+[C] Minor; AI finds incorrect parenthesis placement in fallback condition
+[C] Minor; AI finds model equation uses non-standard PMF notation and no argument is given for parameter search bounds
+[C] Minor; AI finds initial condition assumes neutral momentum without verification
+[C] Minor; AI finds limitations of the poor man's profile not described to readers
+[C] Minor; AI finds set.seed calls not shown in main report, preventing reproducibility verification
+[C] Minor; AI finds no parametric bootstrap to calibrate LRT null distribution for series of length 162
+[C] Minor; AI finds no sessionInfo() or pinned package environment in supplement
+[A] invalid profile procedure; human did not raise this
+[A] different data and distributional families; human did not raise this
+[A] insufficient for 13-parameter model; human did not raise this
+[A] no ESS, no conditional log-likelihoods; human did not raise this
+[A] no count-data benchmark; human did not raise this
+[A] S0,E0,I0,R0 frozen; human did not raise this
+[C] minor technical note; human did not raise this
+[C] not compared to independent estimates; human did not raise this
+[C] reproducibility failure; human did not raise this
+[C] rate parameters not profiled; human did not raise this
+[C] modular equivalence and profile boundary issue; human did not raise this
+[C] insufficient sample; human did not raise this
+[A] Major; human did not raise
+[A] Major; human did not raise
+[A] Major; human did not raise
+[A] Major; human did not raise
+[A] Major; human did not raise
+[A] Major; human did not raise
+[A] Major; human did not raise
+[A] Major; human did not raise
+[C] Minor; human did not raise
+[C] Minor; human did not raise (different from Human #16's time axis typo)
+[C] Minor; human did not raise
+[C] Minor; human did not raise
+[C] Minor; human did not raise
+[C] Minor; human did not raise
+[C] Minor; human did not raise
+[C] Minor; human did not raise
+[C] Minor; human did not raise
+[C] Minor; human did not raise
+[A] gap of 230+ LL units acknowledged but dismissed; no diagnostic follow-up provided
+[A] sigma_M in paramnames and par_trans but dmeas/rmeas implement plain Poisson; reproducibility failure
+[A] fundamental mismatch between accumvar tracking and measurement model; C is dead weight
+[A] global search scatter plots are not profile likelihoods; no CIs computable
+[A] 20 replicates sparse for 12-parameter model; local and immigration models both converge to -332.02, suggesting optimizer not exploring space
+[A] c() appends rather than overrides; global search effectively 20 replicates of local search
+[A] 162% annual birth rate impossible; inconsistent with global search initialization range
+[C] monthly reports are incidence not stock; rho*I conflates flow and stock
+[C] only 16 models searched; claim of "best model" valid only within restricted space
+[C] spec.pgram returns cycles/month not cycles/year as labeled; 0.0888 corresponds to ~11.26-month period
+[C] Mod(roots)>1 checked but proximity to boundary not assessed; sma1 may be near -1
+[C] no effective sample size reported; filter degeneracy not ruled out
+[C] no summary statistics computed; coverage of observed data by simulation envelope not quantified
+[C] no sessionInfo() or package versions; pomp API changes make reproducibility uncertain
+[A] global search anti-pattern; human did not raise
+[A] invalid profile and CI; human did not raise
+[A] model description vs implementation mismatch; human did not raise
+[A] biologically implausible parameter; human did not raise
+[A] measurement model inconsistency; human did not raise
+[A] reproducibility failure; human did not raise
+[C] omega not explored; human did not raise
+[C] incorrect test df; human did not raise
+[C] evaluation methodology gaps; human did not raise
+[C] cosmetic redundancy; human did not raise
+[C] dependency issue; human did not raise
+[C] reproducibility gap; human did not raise
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[A] regime-switching latent state plot uses forward simulation rather than filtering distribution
+[A] profile likelihoods use single IF2 restart and single particle filter evaluation with no confidence intervals
+[A] negative sigma and v0 in Heston MLE dismissed without model-misspecification consideration
+[A] log-likelihood comparison across model families is not AIC-adjusted
+[A] no benchmark comparison of POMP models against non-mechanistic alternatives
+[A] Heston profile likelihood evaluated against heston_model rather than constrained model object
+[C] log-likelihood comparison between ARIMA and POMP requires identical observation models and data
+[C] discussion references a common 2025 hold-out but no out-of-sample evaluation is performed
+[C] effective sample size not monitored; particle degeneracy cannot be ruled out
+[C] RS transition probability p11 ≈ 0.52 implies near-random switching, not persistence
+[C] two figures labeled "Figure 3"
+[C] rw.sd for mu equals starting value (100% perturbation), too large
+[C] no simulated trajectory overlays, conditional log-likelihoods, or summary-statistic comparisons
+[C] Section 2.2 "Stationairty" misspelling; ARMA(1,1) vs ARMA(2,2) inconsistency; "AMIRA" typo
+[A] impossible LL value
+[A] inconsistent with SIR/SEIRS NegBin
+[A] only 0.9 log-unit gain from 100 global starts
+[A] no profiles for Beta0, amp, phase, mu_EI, mu_IR, mu_RS
+[A] US population used instead of Nova Scotia
+[A] no pandemic in 2014-2019 data
+[C] unexplained discrepancy
+[C] dN_IR vs dN_SI semantics
+[C] reproducibility concern
+[C] inconsistent with rest of workflow
+[C] not cross-validated against surveillance data
+[C] copy-paste error in plot title
+[C] narrow profile CI not flagged as artifact
+[A] same filename causes cached first-search results to be reloaded
+[A] inherited cooling schedule means near-zero perturbations from random starts
+[A] multimodal structure acknowledged but not formally resolved
+[A] phi*sqrt(V) vs. phi*V in code
+[A] log-likelihood from simulated data not on same scale as real-data inference
+[C] no CI; local and global search sign discrepancy unresolved
+[C] non-convergence of initial condition parameter not diagnosed
+[C] no ADF/KPSS test; slowly decaying ACF alone insufficient
+[C] uniform 0.02/0.1 may impede convergence given sigma_nu near zero
+[C] no likelihood criterion or profile over df values
+[C] reproducibility reduced
+[C] missing "V"; redundant library calls; plan(multisession) mismatch
+[C] unclosed HTML tags; missing author/title on reference; duplicated footnote IDs
+[A] Major, human did not raise this
+[A] Major, human did not raise this
+[A] Major, human did not raise this
+[A] Major, human did not raise this
+[A] Major, human did not raise this
+[A] Major, human did not raise this
+[A] Major, human did not raise this
+[A] Major, human did not raise this
+[C] Minor, human did not raise this
+[C] Minor, human did not raise this
+[C] Minor, human did not raise this
+[C] Minor, human did not raise this (Human Issue #6 already covered by Major #5)
+[C] Minor, human did not raise this
+[C] Minor, human did not raise this
+[C] Minor, human did not raise this
+[C] Minor, human did not raise this
+[A] critical misspecification of accumulator variable
+[A] no log-likelihood or AIC comparison between ARIMA and POMP
+[A] no IF2 convergence traces shown
+[A] no formal identifiability assessment
+[A] reproducibility failure
+[A] computational allocation questioned
+[A] no guard preventing S < 0
+[A] narrative inconsistent with code
+[C] negative binomial more appropriate
+[C] not estimated from data
+[C] secondary manifestation of accumulator error
+[C] text and code disagree
+[C] LOCF + spline smoothing may introduce artifacts
+[C] stated goal not met
+[C] AIC not comparable across models
+[A] no human equivalent (human asks for more context, not technical invalidity)
+[A] no human equivalent
+[A] no human equivalent
+[A] no human equivalent
+[A] no human equivalent
+[A] no human equivalent
+[C] no human equivalent
+[C] no human equivalent
+[C] no human equivalent
+[C] no human equivalent
+[C] no human equivalent
+[C] no human equivalent
+[A] Major; measurement model semantic error not raised by human
+[A] Major; parameter fixing not raised by human
+[A] Major; profile likelihood absence not raised by human
+[A] Major; global search effort not raised by human
+[A] Major; benchmark comparison not raised by human
+[A] Major; mu_EI convergence interpretation not raised by human
+[C] Minor; rw.sd magnitudes not raised by human
+[C] Minor; HP filter lambda not raised by human
+[C] Minor; convergence diagnosis priority not raised by human
+[C] Minor; narrative ordering not raised by human
+[C] Minor; partrans omission not raised by human
+[C] Minor; URL dependency not raised by human
+[C] Minor; simulation diagnostics not raised by human
+[A] anti-pattern; cooling schedule inherited, global coverage not achieved
+[A] only 100 total profile runs across 50 grid points
+[A] placeholder result never filled in before submission
+[A] likelihood evaluated at potentially drifted parameters
+[A] no ESS, no conditional log-likelihood plots, no simulation comparison
+[C] particle filter section uses simulated data
+[C] ACF of squared returns not checked
+[C] AIC table and POMP comparison may not be on same scale
+[C] global search box forces phi near 1
+[C] no overlay of simulated vs observed trajectories
+[C] global box [0.9950, 0.9999] inconsistent with profile range [0.80, 0.99999]
+[C] no table of MLE values for all six parameters
+[C] "volatility should slightly shift positively" unsupported by stationary GARCH(1,1)
+[A] fundamental compartment bug
+[A] R grows monotonically
+[A] eta can escape [0,1] during perturbation
+[A] no identifiability assessment or confidence intervals
+[A] mu_PR, mu_IR, alpha, Beta, mu_RS fixed ad hoc
+[A] too few for 9-dimensional space
+[C] both likelihoods reported separately but not compared
+[C] 0.13 cycles/day inversion not documented
+[C] noted and ignored
+[C] E=100, I=200, P=50 arbitrary
+[C] non-normality dismissed; no Ljung-Box test
+[C] unassigned time step creates one-day anomaly
+[A] OR condition trivially true; else branch never reached; all log-likelihoods invalid
+[A] 14 free parameters; identifiability unassessed
+[A] counterfactual vaccine simulations absent
+[A] code correct but written math is wrong
+[A] mif2-reported likelihood unreliable due to final-iteration perturbations
+[A] Gaussian can assign positive probability to negative counts; negative binomial is standard
+[A] fragile rbind structure; fixed/estimated not explicitly separated
+[C] 0.01 vs. standard 0.02; compounds convergence problem
+[C] self-referential initial condition; code correct but math wrong
+[C] cannot identify which regime causes convergence failure
+[C] sparse plots indicate insufficient sampling, not model property
+[C] succeptible, Omnicron, preleminary, hetersokadasticity, etc.
+[A] Conclusion that POMP outperforms GARCH contradicted by Ford likelihoods (Human Issue #5 already counted via Major 1)
+[A] Ford global search actual computation does not match reported methodology
+[A] No profile likelihoods reported for any parameter
+[A] Typographical error in leverage function formula: R_n evaluates to 1 for all G_n
+[A] Normal GARCH and t-GARCH log-likelihoods compared without noting different normalization conventions
+[C] Tesla prediction plot (Figure 10) uses Ford forecast uncertainty, not Tesla's
+[C] Figure captions in Tesla POMP section misidentify stock as "Apple"
+[C] Tesla local and global POMP searches use sequential execution rather than parallel
+[C] No benchmark comparison for POMP models
+[C] Citation numbering internally inconsistent (Breto 2014 not in reference list)
+[C] Decomposition of log returns treated as revealing meaningful trends
+[C] Global search box for phi is overly narrow given bimodal behavior
+[A] accumulator variable incorrectly initialized
+[A] generative and evaluative measurement models differ
+[A] missing uncertainty quantification
+[A] log-likelihood trace plots not rendered
+[A] ARMA vs POMP comparison not explicitly quantified
+[A] perturbation magnitudes too small for adequate exploration
+[C] too few particles for reliable inference
+[C] first row taken instead of highest-loglik row
+[C] population conservation violated at t0
+[C] rounding error in exposed-class branching
+[C] unit labels and relationship between peaks unclear
+[C] cutoffs not tied to documented policy events
+[C] extreme values not compared to epidemiological literature
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[A] major, human missed
+[A] major, human missed
+[A] major, human missed
+[A] major, human missed
+[C] minor, human missed
+[C] minor, human missed
+[C] minor, human missed
+[C] minor, human missed
+[C] minor, human missed
+[C] minor, human missed
+[C] minor, human missed
+[C] minor, human missed
+[C] minor, human missed
+[A] measurement model boundary coding error
+[A] mathematical description contradicts code implementation
+[A] reporting rate fixed with inadequate justification
+[A] parallelization inconsistency
+[A] profile starting box anchored to biologically unreasonable parameter ranges
+[A] no trace plots for global search
+[A] additional framing of invalid benchmark (Human Issue #4 already claimed by Major 3)
+[C] AIC normalization not clarified
+[C] parameter specification inconsistency
+[C] minor description inaccuracy in training window
+[C] missing particle filter diagnostics
+[C] hardcoded threshold not documented
+[A] different distribution families make likelihoods incomparable (Major)
+[A] SEIQR force of infection missing N normalization (Major)
+[A] weekly Euler step mismatched with daily data (Major)
+[A] non-converged IF2 used to draw substantive conclusions (Major)
+[A] Gaussian measurement inappropriate for count data (Major)
+[A] no parameter identifiability assessment (Major)
+[A] computationally inefficient sequential global search (Major)
+[C] copy-paste error in SEIR likelihood surface plot (Minor)
+[C] accumulator variable incremented on wrong transition (Minor)
+[C] 18M stated vs 1.9M used in code (Minor)
+[C] no ESS or conditional log-likelihood plots (Minor)
+[C] conflicting parameter transformation override in local search (Minor)
+[A] Major; human missed
+[A] Major; human missed
+[A] Major; human missed
+[A] Major; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[A] no log-likelihood or AIC for SEIR; comparison purely visual
+[A] dmeas uses wrong NB parameterization; rmeas uses rbinom; third version in global search uses nearbyint
+[A] model conditions on current instantaneous I rather than accumulated incidence H; accumvars never specified
+[A] global optimization failure unexplained; final parameters set by eyeball calibration
+[A] no confidence intervals, profile likelihoods, or parameter uncertainty for SEIR
+[A] data preprocessing double-differences the series; final data has unclear epidemiological meaning
+[C] AIC selects ARIMA(2,1,3) but diagnostics and fitted plot use ARIMA(3,1,1)
+[C] no set.seed() for SEIR simulations; figures not reproducible
+[C] paper title says SEIR; EDA code builds SIR models without E compartment
+[C] N=5,000,000 implausible given WA population of 7.7M; global search returns N=8.83M
+[C] main.R contains measles SIR tutorial code; not referenced in Rmd
+[C] no pfilter used; no ESS plots or conditional log-likelihoods
+[C] ChatGPT cited for code optimization; no specifics on what was changed
+[A] failure to investigate why POMP underperforms GARCH
+[A] no uncertainty quantification for POMP parameters
+[A] pairs plot window too wide; IF2 convergence not demonstrated
+[A] model equations ambiguous between time-indexed and scalar beta
+[A] mu_h optimal near -10 but box restricted to (-1, 0)
+[A] no particle filter diagnostics after fitting
+[C] spelling error in section title
+[C] reserved keyword in export list
+[C] ADF p-value truncation not clearly explained
+[C] mu_h estimated on untransformed scale without justification
+[C] reproducibility gap for deterministic model fits
+[C] inappropriate citations for statistical methods
+[C] L.pf1 value unexplained and appears to use simulated data
+[C] 300-unit window obscures parameter structure near MLE
+[C] minor inconsistency in reported global maximum
+[A] SEIR section silently uses Washtenaw County, Michigan data
+[A] dN_RS drawn from I instead of R, wrong sign in state update
+[A] no quantitative comparison between ARIMA and POMP log-likelihoods
+[A] no profile likelihoods or formal CIs for any parameter
+[A] seven parameters fixed in SVEIPR global search without epidemiological justification
+[A] Np=200, Nmif=50 for SEIR global search, large loglik SEs
+[A] no quantitative GOF statistics for SVEIPR, only simulation plots
+[A] SEIR uses negative binomial, SVEIPR uses Gaussian approximation without justification
+[C] differenced cumulative counts produce some negative values, not handled
+[C] clearing workspace mid-document indicates poor code organization
+[C] sea_df$cases already differenced, arima(d=1) applies a second difference
+[C] (I+P)/N multiplier means no vaccination at pandemic start when I+P≈0
+[C] Beta and b_i individually unidentifiable since Beta is not optimized
+[C] parallel RNG stream state not recorded, reproducibility uncertain
+[C] range of global search results not equivalent to proper profile likelihood
+[C] model diagram referenced but file not found in submission
+[C] multiple citation keys repeated verbatim
+[A] critical coding bug in COVID process model
+[A] starting guesses grouped by rho, invalid CI
+[A] no AIC, no saturated model comparison
+[A] EDA figures cannot be reproduced
+[A] mu_RS estimated but inactive in flu model
+[A] no convergence traces shown for global search
+[A] local vs. global rw.sd dramatic and unexplained
+[C] reference list error
+[C] presentation errors
+[C] arbitrary population size
+[C] reporting invalid parameter estimate in table
+[C] reproducibility gap
+[C] non-standard confidence level
+[C] no model modifications attempted
+[A] broken code; human did not raise
+[A] orphaned parameter; human did not raise
+[A] epidemiologically backwards transmission; human did not raise
+[A] reproducibility failure; human did not raise
+[A] fixed parameters without justification; human did not raise
+[C] accumulator mismatch; human did not raise
+[C] undocumented ad hoc intervention; human did not raise
+[C] notation/documentation inconsistency; human did not raise
+[C] heteroskedasticity acknowledged but not addressed; human did not raise
+[C] filter extremely wide; human did not raise
+[C] diagnostic plots absent; human did not raise
+[A] code implements no sigma_nu in measurement density despite text stating epsilon_n ~ N(0, sigma_nu)
+[A] NFLX global best (4619.78) below local best (4622.77), attributed to surface shape rather than computational inadequacy
+[A] sigma_nu and sigma_eta show substantial variability; no MCAP intervals computed
+[A] different parameterizations, Monte Carlo error, and first-observation treatment make log-likelihoods non-comparable
+[A] no forward simulation plots, no ESS plots in text, no conditional log-likelihood plots
+[A] uniform draw in [0.9, 0.999] natural space is non-uniform in logit space, biasing toward high-persistence
+[C] seasonal component from frequency=252 has no economic interpretation and is not used in subsequent modeling
+[C] two paragraphs describe sigma_nu inconsistently
+[C] spy_local_mif save block appears twice, second block not corrected for global results
+[C] "most particles contribute effectively" stated but no ESS plots shown
+[C] draft instruction "Add direct discussions..." not removed before submission
+[C] same Bloomberg URL cited twice under different labels
+[C] URL points to project07 instead of project11
+[C] omits residual variance; OLS formula requires sigma_eps/(sqrt(n)*sd(SPY))
+[C] version-sensitive packages (pomp, rugarch) not pinned
+[C] data fetched live with fixed end date; subject to retrospective adjustments
+[C] total CPU/wall time for IF2 runs not reported
+[A] box [200,250] far from MLE at ~89
+[A] enormously large perturbations cause IF2 to diffuse rather than converge
+[A] inherits near-zero cooling schedule, undermining global exploration
+[A] logistic regression and ELO are not independent time-series benchmarks
+[A] paths tied to author's local machine
+[A] wrong pomp object and wrong ground truth used
+[C] no justification for sigma=5, role relative to ELO scale not discussed
+[C] deterministic function of current state, adds no information
+[C] text equation and code implementation mathematically different for away games
+[C] as.Date(10/24/2023) evaluates 10/24/2023 as division, not a date string
+[C] far below standard practice; perturbations have already decayed by final iteration
+[C] all accuracy figures computed on same 164-game training set
+[C] "there is there an underlying truth," "Attendence," "did due compared"
+[A] Invalid log-likelihood comparison between ARCH and SEIR
+[A] H accumulator tracks recoveries rather than new infections
+[A] Biologically implausible parameter estimates (mu_IR, eta, base_beta ≈ outbreak_beta) not discussed
+[A] Severe parameter non-identifiability not addressed with profile likelihoods
+[A] rw.sd argument uses data vector rather than time variable in SEIR local searches
+[A] No non-mechanistic benchmark comparison on count scale
+[C] Missing data interpolation not documented
+[C] ARMA log-likelihood inconsistency between sections (−1368 vs −1366)
+[C] ARMA(2,4) convergence failure not addressed
+[C] No formal stationarity test before differencing
+[C] ARCH(1) order not justified; GARCH not explored despite residual test failures
+[C] Omega parameter omitted from ARCH variance equation
+[C] SIR local search does not perturb mu_IR
+[C] Population assumed constant with no demographic processes
+
+============================================================
+Meta-Skill (Doug)
+============================================================
+
+[A] Negligible rw.sd renders IF2 inoperative for SECSDR and SEIQR
+[A] SEIR dmeasure uses variance = mean-squared; inconsistency between dmeas and rmeas
+[A] SEIQR N=32M wrong population size
+[A] No benchmark comparison against non-mechanistic model
+[A] No profile likelihoods; parameter identifiability not assessed
+[A] No quantitative goodness-of-fit or model comparison
+[A] SECSDR rprocess sequential binomial draws without compartment depletion accounting
+[A] Inconsistent run_level across models; cross-model log-likelihood comparison invalid
+[A] No model diagnostics (conditional log-likelihoods, ESS, filtering distribution)
+[A] SECSDR rinit does not include E compartment; statenames omit E
+[C] Ungrammatical URL embedded in running text
+[C] Tau declared in paramnames and partrans but appears nowhere in any Csnippet
+[C] SEIR global search inherits cooling schedule from local search via mf1
+[C] Second-best parameter set selected for SECSDR/SEIQR simulation without justification
+[C] Conclusion discusses temporal phase decomposition without supporting analysis
+[C] Reference list cites only student projects; no peer-reviewed literature
+[C] SEIR local search traces show tau even though tau not in rw.sd; constant parameter displayed as convergence trace
+[A] MAJOR, human missed
+[A] MAJOR, human missed
+[A] MAJOR, human missed
+[A] MAJOR, human missed
+[A] MAJOR, human missed
+[A] MAJOR, human missed
+[C] MINOR, human missed
+[C] MINOR, human missed
+[C] MINOR, human missed
+[C] MINOR, human missed
+[C] MINOR, human missed
+[C] MINOR, human missed
+[C] MINOR, human missed
+[C] MINOR, human missed
+[A] -539.67 is from filtering simulated data, not real Treasury yield data; two likelihoods not comparable
+[A] tseries normalization non-standard; different measurement model conditioning
+[A] neither local nor global search shows log-likelihood or parameter traces
+[A] pairs plots not a substitute; key parameters phi, sigma_eta, sigma_nu not assessed for identifiability
+[A] inherits cooling from if1[[1]]; not true fresh box starts
+[A] no simulated trajectories compared to observed data, no conditional log-likelihood plots
+[A] no ARMA log-likelihood to establish baseline
+[C] includes parameter configurations far from MLE
+[C] live URL fetch at render time; data not archived
+[C] triple-colon access to internal function; normalization ambiguity should be acknowledged
+[C] span choices not justified or tested
+[C] under-smoothing monthly series; choice not discussed
+[C] no axis labels for economically meaningful frequencies; no significance threshold overlaid
+[C] proofreading error
+[C] H_0 varies substantially across global search; G_0 and H_0 sensitivity never discussed
+[A] wrong compartment flow in all three models
+[A] copy-paste error; SIR2 initial likelihood unreported
+[A] local search only from single starting point
+[A] research question not answered by inference
+[A] no ARIMA or baseline fitted
+[A] no identifiability assessment for any model
+[C] "lowest loglikelihood" should be "highest"
+[C] mu_EI excluded from parameter transformations in initial fluSEIR object
+[C] total Michigan population used without sensitivity check
+[C] no external event documented or sensitivity tested
+[C] no ESS, no conditional log-likelihood plots
+[C] insufficient computational effort not assessed
+[C] contact-rate change imposed, not estimated
+[A] AI major, human did not raise this
+[A] AI major, human did not raise this
+[A] AI major, human did not raise this
+[A] AI major, human did not raise this
+[A] AI major, human did not raise this
+[C] AI minor, human did not raise this
+[C] AI minor, human did not raise this
+[C] AI minor, human did not raise this
+[C] AI minor, human did not raise this
+[C] AI minor, human did not raise this
+[C] AI minor, human did not raise this
+[C] AI minor, human did not raise this
+[C] AI minor, human did not raise this
+[A] cooled schedule from if1[[1]] means global search is not truly global
+[A] scatter plot of global search results, not profile likelihood
+[A] L.pf1 is likelihood on simulated not observed data
+[A] parameter not in heston_paramnames
+[A] no common-scale ARMA or AR baseline for comparison
+[A] Np=2000 may be insufficient for 9-dimensional model; SE not reported
+[A] different observation models, data transformations, and likelihood definitions
+[A] listed under Major Issues
+[C] eta not given logit transform
+[C] one trajectory insufficient
+[C] heuristic not a standard estimator (distinct from Issue 7 which is the primary match)
+[C] conditional log-likelihoods not interpreted
+[C] 97.5th percentile not compared to alternatives
+[C] reproducibility concern
+[C] exp(-Z) in mean-reversion term not derived from standard Ito
+[A] deterministic SIR parameters described as "best" but no objective function, criterion, or algorithm specified
+[A] no particle count, IF2 iterations, trace plots, or measurement model stated
+[A] no log-likelihood or AIC comparison between ARIMA and SIR models
+[A] d=2 on skewed count data without log/sqrt transform or unit-root test
+[C] p-value 8.578e-08 rejects white noise but text characterizes fit as "okay"
+[C] all ACF lags near 1.0 indicates non-stationarity but text says "no clear lag pattern"
+[C] recovery rate 1/15 fixed using cross-correlation; sensitivity to 1/10 vs. 1/20 not examined
+[C] I(0) not stated for either model
+[C] S declines by ~2.25M but only ~400K cumulative cases observed; discrepancy not discussed
+[C] beta and phi used inconsistently for AR coefficients; standard notation not followed
+[C] vaccination began in late 2020/early 2021 but no vaccinated compartment modeled
+[C] SIR adapted from statsandr.com but specific functions not documented
+[C] multiple typographical errors throughout
+[A] human did not raise this
+[A] human did not raise this
+[A] human did not raise this
+[A] human did not raise this
+[A] human did not raise this
+[A] human did not raise this
+[A] human did not raise this
+[A] human did not raise this
+[A] human did not raise this
+[C] human did not raise this
+[C] human did not raise this
+[C] human did not raise this
+[C] human did not raise this
+[C] human did not raise this
+[C] human did not raise this
+[C] human did not raise this
+[C] human did not raise this
+[A] ARMA, GARCH, and POMP AICs compared without verifying same normalization; Monte Carlo variance in POMP likelihood not quantified
+[A] per-chain logLik estimates noisy; max() selects chain with largest MC noise realization, creating optimistic bias
+[A] cooling schedule inherited from local search if1[[1]] rather than fresh start from ndx.filt
+[A] no profile likelihoods or confidence intervals; pairs plot is not a substitute
+[A] GARCH is not a non-mechanistic baseline; no IID or EGARCH model provided
+[A] 109-unit AIC difference claimed without accounting for Monte Carlo variance in POMP likelihood
+[C] conclusion uses "Nasdaq-500" three times
+[C] text and code inconsistent on phi value
+[C] potential for optimizer to drift outside search box for G_0 and H_0
+[C] effective sample size not reported; particle degeneracy during COVID-19 period not assessed
+[C] split between simulation and filter process not explained for readers unfamiliar with the template
+[C] only 20 local replicates used to construct box; phi box (0.95, 0.99) may be too narrow
+[C] package versions not documented; reproducibility at risk
+[C] estimated parameters not interpreted or compared to published stochastic volatility literature
+[A] different observation models and data transformations; no complexity penalty
+[A] rho absorbs biologically meaningless ratio
+[A] insufficient diversity for 16-parameter space
+[A] text uses R_t, D_t as rates where source compartment should appear; code correct
+[A] logit(1.5) undefined; invalid starting values
+[A] no conditional log-likelihood, ESS, or simulation comparison
+[A] I_0=250 not justified; no sensitivity analysis
+[A] D cumulative in state vs daily deaths in data
+[C] would cause read error if file renamed
+[C] 150-day cycle identified but no seasonal component added
+[C] "x-x" intervals never filled in
+[C] substantive conclusion accidentally correct
+[C] near-cancellation noted but simpler model not pursued
+[C] no one-step-ahead simulation from filtering distribution
+[C] point estimates only, no CI
+[C] exact reproduction impossible
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[A] cooling schedule inherited from local search; global search not genuinely exploring parameter space
+[A] different observation models and data scales; comparison is not a valid model selection exercise
+[A] fixes inflate precision of other estimates; collinearity not assessed
+[A] CI statistically unreliable; profile curve noisy near maximum
+[A] profile guesses drawn from all run IDs (local, global, profile combined)
+[A] no particle filter diagnostics or filtering distribution comparisons
+[C] semantic mismatch between dN_IR and confirmed case definition
+[C] implementation appears consistent but should be verified against zero-count observations
+[C] hard-coded values not profiled over; early dynamics may be sensitive
+[C] code should filter to id==2 before computing reference maximum
+[C] loglik.se up to 0.62 for MLE; doubling NP not tested
+[C] AIC grid search hidden; reproducibility not guaranteed
+[C] tau near box boundary not noted; no profile for tau
+[C] low-bar benchmark; SARMA is the informative comparison
+[C] SEIR outperformed by SARMA by 47 log-units; conclusion does not acknowledge this failure
+[A] different observation scales; cannot compare numerically
+[A] clamping at -100 distorts particle weights and biases likelihood estimate
+[A] non-deterministic density makes particle filter weights theoretically invalid
+[A] dmeas evaluates density for Subs+D-S while rmeas produces Subs directly
+[A] S never incremented; growth driven entirely by covariate
+[A] latent state pinned to observed data; no latent dynamics
+[A] no trace plots, no ESS diagnostics, no comparison across replicates
+[A] inherits local cooling schedule; not a genuine global search
+[A] five free parameters, 60 observations; identifiability in doubt
+[A] ARIMA fit on different scale cannot serve as benchmark
+[A] mifs_local[[1]] as template exhausts cooling before new starts can explore (Major)
+[A] profile searches find solutions 2.7–5.2 log-likelihood units better than global max (Major)
+[A] H accumulates recoveries rather than new infections; systematic mismatch with surveillance data (Major)
+[A] fitted b1, b2, mu_IR imply biologically implausible R0 with no discussion (Major)
+[A] profile is noisy, two points above cutoff are non-contiguous, text CI contradicts table (Major)
+[A] noisy profile max used instead of robustly estimated global max (Major)
+[A] mu_EI=0.08 implies 12.5-week latent period; no citation or sensitivity analysis (Major)
+[C] text writes E, code uses I in force of infection (Minor)
+[C] stated calculation yields 0.0023 but actual arithmetic gives 0.00159 (Minor)
+[C] reproducibility depends on external repository stability (Minor)
+[C] Np=1000 insufficient for reliable likelihood evaluation at MLE (Minor)
+[C] eta box (0.002, 0.0026) narrower than local search range found (Minor)
+[C] discussion of trace plots is qualitative only (Minor)
+[C] no ESS, conditional log-likelihood, or filtering distribution comparisons (Minor)
+[C] draft note "(not sure if we need to inclue this part)" not removed (Minor)
+[A] major, human missed
+[A] major, human missed
+[A] major, human missed
+[A] major, human missed
+[A] major, human missed
+[A] major, human missed
+[A] major, human missed
+[A] major, human missed
+[C] minor, human missed
+[C] minor, human missed
+[C] minor, human missed
+[C] minor, human missed
+[C] minor, human missed
+[C] minor, human missed
+[A] faulty global search init pattern; human did not raise
+[A] comparison on incompatible scales; human did not raise
+[A] structural accumulator error; human did not raise
+[A] Jacobian correction invalid; human did not raise (note: Doug and Major 3 both address SARIMA comparison; assigned separately)
+[A] benchmark choice inadequate; human did not raise
+[C] unjustified fixed parameter; human did not raise
+[C] diagnostic gap; human did not raise as distinct from local search issue
+[C] visual-only assessment insufficient; human did not raise
+[C] copy-paste error; human did not raise
+[C] potential silent mismatch; human did not raise
+[C] version documentation absent; human did not raise
+[A] R = pop - S - E - I + vac causes total population to grow by vac at each step
+[A] box sets R0 in [6,14] but MLE drifts to R0=202; only 1 of 400 replicates near global best
+[A] mf1 passed as first argument inherits near-expired cooling schedule; cannot genuinely explore parameter space
+[A] result of box misalignment and anti-pattern initialization; global parameters not reliable MLEs
+[A] 71 of 400 global replicates have negative iota; pow(negative, non-integer) yields NaN in C
+[A] poor man's profile for vr not a genuine profile likelihood; no CIs for any parameter
+[A] R0=82.7 approximately 8x literature value; sigma=113 implies 3.2-day incubation vs. 10-21 days known
+[A] English school-term windows used for Hungary without verification or adaptation
+[C] global and local searches optimize different objectives; log-likelihoods not directly comparable
+[C] dmeasure uses pnorm rather than dnbinom_mu; inaccurate for small expected counts
+[C] rho computed as cases/births, not cases/true infections; initialization rationale is wrong
+[C] cooling.fraction.50=0.1 causes perturbations to decay to 0.1^8 of initial size by final iteration
+[C] gamma=922 (0.4-day recovery) and vr=0.62 (62% vaccination) presented without caveats
+[A] global search anti-pattern, human did not raise
+[A] binding box constraint on beta1, human did not raise
+[A] boundary MLE signals misspecification, human did not raise
+[A] measurement model code inconsistency, human did not raise
+[A] no uncertainty quantification, human did not raise
+[A] structural accumulator misspecification, human did not raise
+[C] unjustified structural break, human did not raise
+[C] mislabeled figure caption, human did not raise
+[C] large Monte Carlo SE at initial values, human did not raise
+[C] ARIMA(5,1,5) for both windows not discussed, human did not raise
+[C] insufficient particle filter diagnostics, human did not raise
+[C] fixed transition rates not evaluated, human did not raise
+[C] no probabilistic forecast, human did not raise
+[A] not raised by human
+[A] not raised by human
+[A] not raised by human (Human #2 is about H initial value, distinct concern)
+[A] not raised by human
+[A] not raised by human
+[C] not raised by human
+[C] not raised by human
+[C] not raised by human
+[C] not raised by human
+[C] not raised by human
+[C] not raised by human
+[A] Major; human missed
+[A] Major; human missed
+[A] Major; human missed
+[A] Major; human missed
+[A] Major; human missed
+[A] Major; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[A] same individual counted as confirmed and recovered simultaneously
+[A] notation error obscures model structure
+[A] sets Sy to zero whenever Sy+H > Cap
+[A] global replicates anchored near local optimum
+[A] no valid confidence interval can be extracted
+[A] no log-likelihood, no simulation, no visual diagnostics
+[A] conclusions derived from acknowledged non-converged results
+[A] R and D systematically underestimated in overflow cases
+[C] text-code mismatch about identifiability structure
+[C] risk of inconsistency if one copy updated
+[C] substantial Monte Carlo error in likelihood comparisons
+[C] only 5 trajectories, no quantile envelope
+[C] framing should reflect exploratory failure modes
+[A] if1[[1]] passed to mif2() instead of base pomp object; cooling schedule already decayed
+[A] profile block runs before global search writes to CSV; profile seeded from local-only results
+[A] c() concatenation creates duplicate phi names; grid value may be silently overridden by params_test
+[A] POMP vs. GARCH/ARMA comparison uses inconsistent log-likelihood scales; no unified table
+[A] phi and sigma_eta do not stabilize; no corrective action taken despite self-acknowledgment
+[A] fGarch logLik may be per-observation vs. total; scale not clarified
+[A] maximum over replicates from non-converged search may be spurious
+[A] points above threshold are inside CI, not outside; text reverses this; phi < 0 description impossible given logit transform
+[A] no per-time-step ESS, no conditional log-likelihood plot, no forward simulation from filtering distribution
+[C] oil[120:160,] should use year-based filtering
+[C] kable() commented out; garch.jpg not verifiable
+[C] logLik of -65.07 applies to simulated not real data
+[C] only 2 starts per profile grid value on volatile likelihood surface
+[C] pomp API changes across versions; analysis may not reproduce
+[C] should cite 531w22 course notes
+[A] global searches perform worse than local search; best MLE never identified
+[A] tau severely constrained in all searches except the profile
+[A] no benchmark comparison between SEIR and SARIMA
+[A] profile CI for rho rests on only three grid points
+[A] b4 and b2 unidentifiable at likelihood optimum
+[A] no model diagnostics (ESS, conditional log-likelihoods)
+[A] misspecified SARIMA model selection
+[A] flat likelihood surface, unidentifiable parameters
+[A] identifiability and uncertainty unaddressed
+[A] unreliable likelihood estimates used for selection
+[C] biologically implausible estimate not discussed
+[C] phantom parameter
+[C] Monte Carlo standard error omitted
+[C] parameter fixing undocumented
+[C] reproducibility concern
+[C] convergence unverifiable
+[A] anti-pattern; human missed
+[A] benchmark vs MIF2 values ~4000 units apart; human missed
+[A] parameter identifiability unaddressed; human missed
+[A] Np=1000 and Nmif=100 too low; human missed
+[A] Gaussian assumption implicit; human missed
+[A] local_results undefined; human missed
+[A] ESS collapses not connected to market events; human missed
+[A] mu_h and sigma_eta box too narrow; human missed
+[A] H_0=G_0=0 sensitivity not tested; human missed
+[C] GARCH variants not in single table; human missed
+[C] no high-effort particle count; human missed
+[C] AI tool cited as reference; human missed
+[C] live Yahoo Finance download; human missed
+[C] package versions undocumented; human missed
+[C] phi scale in box vs. transform; human missed
+[C] non-peer-reviewed references; human missed
+[A] log-likelihood of ~-17965 computed against sim data, not NASDAQ returns
+[A] if.box inherits near-zero perturbation magnitude from if1[[1]]
+[A] coef(if.box[[i]]) used instead of coef(if.prof[[i]])
+[A] GARCH and POMP likelihoods differ in parameterization and observation model
+[C] peak frequency not converted to interpretable cycles-per-year
+[C] narrative figures differ from rendered HTML output
+[C] G process may be unidentifiable but not flagged
+[C] LRT not performed for the 203 log-likelihood unit difference
+[C] .system.time artifact may be out of scope
+[C] no ESS trace, no conditional log-likelihood, no simulation comparison
+[C] ^IXIC is the Composite, not NASDAQ 100
+[A] cooling schedule depleted; starting values from box have no effect
+[A] log-likelihood not comparable to IF2 results on real data
+[A] identifiability not assessed despite non-convergence evidence
+[A] inverted null/rejection logic; human raised test inapplicability (#2), not this specific point
+[A] GARCH constitutes natural non-mechanistic benchmark
+[C] log(X_t/X_{t-1}) is 1-period return, not k-period
+[C] same underlying reproducibility issue as Human #10, already matched
+[C] Human #6 already matched to Finding 3
+[C] beta_1 implausibly small; different specific claim from Human #5 (indistinguishability)
+[C] test statistic and p-value not reported
+[C] ARMA(0,0) has no AR or MA polynomial; plot unnecessary
+[C] boundary estimate indicating absent leverage; scientifically important
+[C] pomp API version not recorded
+[A] cooling schedule inherited; global search effectively re-evaluates local region
+[A] rw.sd allows rho3 to drift; 452 distinct values in saved artifact instead of 11
+[A] ESS collapse and log-likelihood spikes indicate model-data mismatch not addressed
+[A] near-zero waning rate should prompt nested SEIR comparison or identifiability analysis
+[A] latent state trajectories and filtering simulations absent
+[A] cutoff raised by ~0.89 units, making CI anticonservative
+[A] broad ridges for most parameters; no remedial action taken
+[C] psi_1 written twice in MA polynomial
+[C] fixed_params N appended redundantly in c(guess, fixed_params)
+[C] alpha in math specification absent from code without clarifying note
+[C] 32.5-unit gap attributed to pandemic difficulty without deeper examination
+[C] formal LRT comparing mu_RS=0 restricted model not performed
+[C] breakpoint at week 125 vs. week 72 not biologically motivated
+[C] eta alone determines compartment initialization; E(0) and I(0) fixed at minimum
+[C] reproducibility compromised by absent version information
+[A] dN_IR used instead of dN_SE or dN_EI
+[A] ARIMA and POMP never compared
+[A] systematic bias; population was ~160M in 1953
+[A] Rate vs Number mismatch between code versions
+[A] written difference equations do not match Csnippet implementation
+[C] implausible mu_EI and mu_RS not flagged
+[C] no ARIMA adequacy checks; near unit-circle root
+[C] no AIC, no comparison to ARIMA likelihood
+[C] no ESS diagnostics
+[A] Major, human missed
+[A] Major, human missed
+[A] Major, human missed
+[A] Major, human missed
+[A] Major, human missed
+[A] Major, human missed
+[C] Minor, human missed
+[C] Minor, human missed
+[C] Minor, human missed
+[C] Minor, human missed
+[C] Minor, human missed
+[C] Minor, human missed
+[C] Minor, human missed
+[C] Minor, human missed
+[C] Minor, human missed
+[A] H += dN_IR fits recovery counts against detection data; rho ~ 0.003 implausibly low
+[A] force of infection uses only same-group I; no mixing between vaccinated and unvaccinated
+[A] no profile IF2 run; chi-squared CI cutoff has no statistical justification
+[A] inherits terminal cooling schedule; effectively few functional iterations from random starts
+[A] fixed at 10 with no rationale or sensitivity analysis
+[A] paper calls -193.66 a "likelihood minimum" but this is logmeanexp of log-likelihoods
+[C] run.r generates simulation plot but it does not appear in rendered output
+[C] Rmd traces use Nmif=300 but global search uses Nmif=1000; inconsistency unexplained
+[C] author-specific absolute path prevents reproduction
+[C] "Forcast," "computationally intesive," "inmuen," "slighlty"
+[C] no conditional log-likelihood per time point, no ESS plot, no filtering distribution
+[C] sensitivity to this assumption not discussed
+[C] log-likelihood quoted without context; no AIC, no model comparison table
+[A] Csnippet reset conflicts with accumvars; off-by-one measurement error
+[A] profile [0.02, 0.04] excludes global MLE at rho=0.0042
+[A] A=9% too small; t_end inconsistently documented; r1/r2 fixed without sensitivity
+[A] no per-observation log-likelihood or ESS traces presented
+[A] gamma, rho entangled; nested LRT not conducted
+[C] column name typo in inline arima call
+[C] dN_EI vs dN_IR choice not fully justified; accumvars correct here
+[C] filter applied twice; silent truncation risk on re-render
+[C] constant-within-season assumption not assessed for sensitivity
+[C] ranges [0.02, 0.08] vs [0.02, 0.04] inconsistent for comparison
+[C] pomp API changes; reproducibility uncertain
+[C] CPU-hours, workers, walltime not stated
+[C] 5 IF2 runs per point with 150 total starts is modest for 16-parameter model
+[C] AI-generated parameter table not independently verified
+[C] SARIMA(2,0,1)(0,0,2)[52] with regression component notation may cause confusion
+[A] Major; AI finds phi≈-0.012 and sigma≈0.574 mean the latent AR(1) is absorbing overdispersion, confirmed by NB sensitivity analysis
+[A] Major; AI finds Poisson LRT p<0.001 reverses to p=1 under NB, and NB is the more credible observation model
+[A] Major; AI finds profile sigma box is [0.003, 0.010], far from global MLE sigma=0.574, making the profile invalid
+[A] Major; AI finds mif2 called on a previous mif2 result object inheriting a cooled perturbation schedule, making global search effectively local
+[A] Major; AI finds sigma=0 on boundary violates Wilks' theorem conditions
+[C] Minor; AI finds MLE values for phi, sigma, gamma, mu never stated in paper
+[C] Minor; AI finds Np, Nmif, number of global starts not reported
+[C] Minor; AI finds Z_n uses full 2024 season data including games after game n
+[C] Minor; AI finds element-wise comparison applied to full data frame inside nrow()
+[C] Minor; AI finds same vector concatenated with itself twice in max() call
+[C] Minor; AI finds partrans differs between blinded.Rmd display and Full_Code.Rmd execution
+[C] Minor; AI finds phi≈-1 in local search vs phi≈-0.012 in global search discrepancy not resolved
+[C] Minor; AI finds scatterplot in Local Search section uses global search results
+[A] dN_IR instead of dN_EI; human did not raise this
+[A] different data transformations; human did not raise this
+[A] not true profile likelihood; human did not raise this
+[A] underpowered; human did not raise this
+[A] cannot detect identifiability issues; human did not raise this
+[A] no count-data benchmark; human did not raise this
+[A] no ESS, no per-step log-likelihoods; human did not raise this
+[C] no formal stationarity tests; human did not raise this
+[C] minor technical note; human did not raise this
+[C] 52-week periodicity issue in profile; human did not raise this
+[C] rate parameters not profiled; human did not raise this
+[C] rho and rates not compared to literature; human did not raise this
+[C] reproducibility failure; human did not raise this
+[C] single noisy evaluation; human did not raise this
+[A] Major; human did not raise
+[A] Major; human did not raise
+[A] Major; human did not raise
+[A] Major; human did not raise
+[A] Major; human did not raise
+[A] Major; human did not raise
+[A] Major; human did not raise
+[C] Minor; human did not raise
+[C] Minor; human did not raise
+[C] Minor; human did not raise
+[C] Minor; human did not raise
+[C] Minor; human did not raise
+[C] Minor; human did not raise (different from Human #16's time axis typo)
+[C] Minor; human did not raise
+[A] C declared in accumvars and updated via dEI but dmeas observes I; C never read by measurement
+[A] SARIMA comparison invalid; no Poisson/NB benchmark on raw counts fitted
+[A] 20 starting points insufficient for 14+ parameter model; standard practice requires 200-400 replicates
+[A] global scatter plots are not profiles; no identifiability assessment possible
+[A] parameter trace plots shown but no LL traces across iterations; convergence not demonstrated
+[A] sigma_M in paramnames/par_trans but absent from dmeas/rmeas; Poisson underestimates uncertainty
+[A] C resets to 0 at each observation time but measurement links to I; C is dead code
+[A] 200-fold population error; birth rate of 100%+ per year; transmission parameters uninterpretable
+[A] c(base_params, c(...)) creates duplicate parameter entries; random initialization silently ignored; global search is effectively local search
+[C] (1+theta_1)(1+Theta_1*B^12) should be (1+theta_1*B)(1+Theta_1*B^12)
+[C] p,q in {0,1} only; optimal order not guaranteed
+[C] visual ACF inspection only; autocorrelation may be missed near significance threshold
+[C] epsilon/N may dominate force of infection when I~0 in non-endemic setting; not discussed
+[C] trace plots shown only for global search; local search convergence unverifiable
+[C] slicing by index rather than name is fragile; may accidentally include loglik columns
+[C] constant immigration rate may be poor approximation for heterogeneous travel-linked importation
+[A] critical accumvars bug; human did not raise
+[A] biased force-of-infection; human did not raise
+[A] global search anti-pattern; human did not raise
+[A] partrans override bug; human did not raise
+[A] invalid profile and CI; human did not raise
+[A] model description vs code discrepancy; human did not raise
+[C] model labeling error; human did not raise
+[C] this is elaboration of Doug-5 already classified as A; treating as additional minor elaboration on a separately listed point. C — CI threshold wrong; human did not raise (note: this is the same concern as Doug-5 but listed as a separate minor bullet)
+[C] constraint not enforced; human did not raise
+[C] biologically implausible parameter bounds; human did not raise
+[C] measurement model inconsistency (minor restatement of Doug-1 aspect); human did not raise
+[C] evaluation methodology gaps; human did not raise
+[C] cosmetic redundancy; human did not raise
+[C] coding best practice violation; human did not raise
+[C] portability issue; human did not raise
+[C] missing justification for N; human did not raise
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[A] negative estimates for sigma and v0 dismissed; no parameter transformations imposed
+[A] profile uses single restart and single pfilter evaluation; no confidence interval derived
+[A] regime sequence plot uses forward simulation not filtering distribution
+[A] no proper non-mechanistic benchmark for POMP models
+[A] RS transition probability p11 ≈ 0.52 implies near-random regime switching, not persistence
+[C] figure numbering inconsistent, duplicate "Figure 3"
+[C] inconsistency between ARMA(2,2), ARMA(1,1), and ARMA(2,0,2) descriptions across sections
+[C] RS global search rw.sd magnitudes too small relative to initialization box width
+[C] ESS trajectories claimed as monitored but no ESS plot or numerical summary provided
+[C] Heston profile pfilter called on heston_model not constrained object
+[C] no conditional log-likelihood plots, simulated trajectory overlays, or summary-statistic comparisons
+[C] sigma and v0 not constrained positive; no partrans argument
+[C] final MLE parameter vectors not archived; reproducibility requires full re-run
+[A] force of infection scaled to wrong population
+[A] "lowest" used where "highest" is correct
+[A] Poisson vs NegBin plus different N values
+[A] inherited cooling schedule prevents exploration
+[A] degenerate CI from single mif2 per profile point
+[A] global search failed to find MLE region
+[A] redundant call with decayed cooling schedule
+[C] unexplained discrepancy
+[C] acknowledged but not diagnosed as misspecification
+[C] dN_IR vs dN_SI for surveillance data
+[C] no per-observation LL or latent state plots
+[C] no profiles for Beta0, amp, mu_IR
+[C] inconsistent with other models
+[C] no pandemic in 2014-2019
+[C] instability in trace plots not discussed
+[C] secondary to positive LL error
+[C] execution order dependency
+[A] inherited cooling leaves effectively no exploration from random starts
+[A] log-likelihood from simulated data not comparable to real-data inference
+[A] phi*sqrt(V) instead of phi*V; materially different dynamics
+[A] sigma_nu and H_0 non-convergence signals unresolved
+[A] narrowed-box search never executed; first-search results reloaded
+[A] different data objects and transformations across model families
+[C] informal experimentation without likelihood criterion
+[C] results will shift as API returns most recent 2000 days
+[C] no formal unit-root test (ADF, KPSS)
+[C] degenerate leverage process not investigated
+[C] "olatility" missing leading "V"
+[C] non-convergence of initial log-volatility not diagnosed
+[C] estimates reported only inline via print() calls
+[C] initial pfilter log-likelihoods misrepresented as fitted model performance
+[A] Major, human did not raise this
+[A] Major, human did not raise this
+[A] Major, human did not raise this
+[A] Major, human did not raise this
+[A] Major, human did not raise this
+[A] Major, human did not raise this
+[A] Major, human did not raise this
+[A] Major, human did not raise this
+[C] Minor, human did not raise this
+[C] Minor, human did not raise this
+[C] Minor, human did not raise this
+[C] Minor, human did not raise this
+[C] Minor, human did not raise this (Human Issue #2 already covered by Major #6)
+[C] Minor, human did not raise this
+[C] Minor, same underlying issue as Major #10
+[A] fundamental accumulator misspecification
+[A] no formal identifiability assessment
+[A] no IF2 trace plots shown
+[A] ARIMA and POMP log-likelihoods never compared
+[A] reproducibility failure
+[A] computational allocation questioned
+[A] no bounding guard
+[A] visual assessment only
+[C] negative binomial more appropriate
+[C] not estimated
+[C] secondary accumulator issue
+[C] June 10 vs June 20
+[C] LOCF + spline artifacts
+[C] stated goal unmet
+[C] likelihoods not comparable
+[A] no human equivalent
+[A] no human equivalent
+[A] no human equivalent
+[A] no human equivalent
+[A] no human equivalent
+[C] no human equivalent (different from H8's two-clusters concern)
+[C] no human equivalent
+[C] no human equivalent
+[C] no human equivalent
+[C] no human equivalent
+[A] Major; measurement model semantic error not raised by human
+[A] Major; smoothed data in measurement model not raised by human
+[A] Major; global search initialization error not raised by human
+[A] Major; benchmark comparison not raised by human
+[A] Major; profile likelihood absence not raised by human
+[A] Major; mu_EI convergence interpretation not raised by human
+[A] Major; rho fixed not raised by human
+[C] Minor; HP filter lambda not raised by human
+[C] Minor; ARMA-POMP comparison invalidity not raised by human
+[C] Minor; URL dependency not raised by human
+[C] Minor; partrans omission not raised by human
+[C] Minor; forecast absence not raised by human
+[C] Minor; initial condition estimation not raised by human
+[A] replicates inherit cooling schedule of local chain; global coverage not achieved
+[A] only 100 total runs for 50 grid points
+[A] phi value at profile maximum missing from text
+[A] comparison ignores MC noise, global search initialization flaw
+[A] no ESS, no conditional log-likelihood, no simulation comparison
+[A] profile analysis contributes no interpretable scientific content
+[C] visual ACF inspection only; no ADF/KPSS
+[C] simpler submodels excluded from comparison
+[C] attributes heavy tails to sample bias rather than leptokurtosis
+[C] no AIC comparison adjusting for parameter count difference (3 vs 6)
+[C] 570 observations stated but 569 returns used in model
+[C] uniform 0.02 perturbation across parameters on very different scales
+[C] no simpler non-mechanistic benchmark for squared/absolute returns
+[A] fundamental compartment error
+[A] different observation models on different data scales
+[A] pairs plots cannot substitute for profile likelihood
+[A] no sources cited, no sensitivity analysis
+[A] 10 replicates too few; mu_EPI shows convergence problem
+[A] systematic mismatch between observation model and data
+[A] particle degeneracy when H=0
+[A] unresolved identifiability suppressed by fixing
+[C] one-day anomaly in transmission schedule
+[C] fitted model not used to project forward
+[C] sensitivity not assessed
+[A] 14 free parameters; pairs plot sparse; identifiability unassessed
+[A] vaccine scenario simulations entirely absent
+[A] `cases >= -10*sd` trivially true; else branch dead code
+[A] tol inside vs. outside sqrt produces different sd values
+[A] reader cannot determine whether 50 or 500 particles were used; no Monte Carlo SE reported
+[A] six parameters held fixed via single-value runif(1, x, x) without disclosure
+[A] no conditional log-likelihood plots, ESS, or latent state reconstructions
+[C] N_SV instead of N_VE; code correct but math wrong
+[C] self-referential; code correct but math wrong
+[C] weekly reporting cycles in COVID data unaddressed; only non-seasonal models considered
+[C] non-invertible Hessian cause not investigated; inference that POMP is necessary unsupported
+[C] Stack Overflow posts and student project URLs cited as sources
+[A] Initial particle-filter benchmark evaluated on simulated data, not real data
+[A] Tesla global IF2 search incorrectly initialized from previous mif2 result
+[A] Claim that POMP outperforms GARCH is not supported (Human Issue #5 already counted via Major 2)
+[A] Non-convergence acknowledged but results interpreted as substantively meaningful
+[A] No benchmark comparison between POMP and non-mechanistic baseline
+[A] No profile likelihoods or confidence intervals for any parameter
+[A] Particle count and computational settings inadequate; archived files contradict reported methodology
+[A] generative and evaluative measurement models are inconsistent
+[A] missing parameter identifiability assessment
+[A] different distributional families make comparison invalid
+[A] particle count and replicate count too low
+[A] no common-scale non-mechanistic baseline
+[A] accumulator semantics misalign with observed data meaning
+[C] spectrum identifies 7-day cycle but neither model accounts for it
+[C] population conservation violated at t0
+[C] accumulator incorrectly initialized
+[C] best parameters not guaranteed to be highest-loglik
+[C] SIR convergence plots not rendered
+[C] no comparison with published Omicron epidemiological estimates
+[C] -Inf values distort axes
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[A] major, human missed
+[A] major, human missed
+[A] major, human missed
+[A] major, human missed
+[A] major, human missed
+[A] major, human missed
+[C] minor, human missed
+[C] minor, human missed
+[C] minor, human missed
+[C] minor, human missed
+[C] minor, human missed
+[C] minor, human missed
+[C] minor, human missed
+[A] inherited cooled IF2 state prevents genuine global exploration
+[A] profile optimization compromised by same anti-pattern
+[A] absence of any proper quantitative benchmark (Human Issue #4 already claimed by Major 3)
+[A] reporting rate fixed with inadequate derivation
+[A] measurement model accumulates wrong compartment transition
+[C] parallelization inconsistency
+[C] no RMSE or CRPS for held-out interval
+[C] mathematical description contradicts code
+[C] denominator confusion in rho derivation
+[C] exploratory profile contaminated by local-search results
+[C] a_ci and b_ci computed but not stated
+[C] uncitable source used for scientific claim
+[C] analysis version unclear from Rmd
+[C] no particle filter diagnostics shown
+[A] SEIQR force of infection missing N (Major)
+[A] incomparable likelihood scales across models (Major)
+[A] non-converged IF2 used to support conclusions (Major)
+[A] weekly Euler step mismatched with daily data (Major)
+[A] copy-paste error in SEIR likelihood surface plot (Major)
+[A] no parameter identifiability assessment (Major)
+[C] 18M stated vs 1.9M used in code (Minor)
+[C] sequential global search wastes computation (Minor)
+[C] mu_IR omitted from log-transform in mif2 override (Minor)
+[C] no ESS or conditional log-likelihood diagnostics (Minor)
+[C] Nmif and Np choices underjustified (Minor)
+[C] restriction to 58-day window not evaluated (Minor)
+[A] Major; human missed
+[A] Major; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[A] no log-likelihood or AIC for SEIR; comparison purely visual
+[A] wrong NB parameterization; dmeas/rmeas inconsistency; three different specifications in one document
+[A] ARIMA evaluated by AIC; SEIR evaluated only visually; no bridging metric
+[A] no profile likelihoods, CI, or uncertainty for any SEIR parameter
+[A] single Nelder-Mead from one starting point; no likelihood traces; no evidence of convergence
+[A] final parameters eyeball-fitted; differ from both optimized results with no justification
+[A] data wrangling applies second difference to cumulative confirmed cases
+[A] paper title says SEIR; EDA chunks define SIR without E compartment
+[A] no pfilter run; no ESS plots; no per-time-step conditional log-likelihoods
+[A] cost function calls simulate(nsim=1) and computes SSE; objective is stochastic; optimizer results non-reproducible
+[C] AIC selects (2,1,3); diagnostics and fitted plot use (3,1,1)
+[C] N optimized freely; biologically implausible results not discussed
+[A] broader comparison invalidity argument beyond H10 scope
+[A] convergence failure acknowledged but no action taken
+[A] pairs plot threshold 300 units too wide; no CIs
+[A] subtle misuse of mif2 anchors global search near local solution
+[A] inconsistency not explained
+[C] spelling error in section title
+[C] risk of overfitting relative to simpler GARCH(1,1) not commented on
+[C] possible model misspecification or parameter degeneracy
+[C] 300-unit window vs standard ~2-unit window for 95% CI
+[C] minor inconsistency in variable names
+[C] URLs and partial citations rather than peer-reviewed sources
+[C] treats data as annual, makes axis labels misleading
+[C] reference line plotted incorrectly
+[C] inconsistency between text notation and code implementation
+[A] SEIR fitted on Washtenaw County, Michigan data
+[A] SVEIPR global search inherits exhausted cooling schedule from local IF2 result
+[A] SVEIPR ~182 LL units worse than SEIR, not acknowledged
+[A] reinfection drawn from I instead of R, R compartment does not conserve mass
+[A] ARIMA LL never compared to POMP LL quantitatively
+[A] c4 ranges 0.28–316.9, b7/b8 orders of magnitude wide, flat likelihood
+[A] accumulator H only tracks I→R, P→R invisible to likelihood
+[A] severe particle degeneracy, only 33/100 runs produce plausible results
+[C] data already once-differenced, d=1 in arima() creates double-differencing
+[C] SVEIPR measurement model uses Gaussian with no justification vs SEIR negative binomial
+[C] loglik.se up to 10.69, estimates too noisy for reliable optimization
+[C] mu_PR, mu_IR, mu_RS, alpha fixed without biological references
+[C] range of global search runs not equivalent to profile likelihood
+[C] no conditional log-likelihoods or ESS plots for best-fit model
+[C] stated goal of prediction not addressed, no out-of-sample evaluation
+[C] E=1000, I=500, P=500 at week 1 inconsistent with King County context
+[A] wrong compartment draws break model conservation
+[A] mu_RS has no effect on flu dynamics
+[A] no coverage guarantee over mu_SV axis
+[A] 90% level unjustified and reference loglik may be wrong
+[A] COVID terminated with only visual trace inspection
+[A] no profiles for Beta, mu_EI, mu_IR
+[C] non-reproducible paths
+[C] arbitrary effective population size
+[C] extremely large perturbations likely contributed to convergence failure
+[C] purpose and effect undocumented
+[C] question of whether mu_SV is correctly fixed
+[C] non-standard level without motivation
+[C] reproducibility gap
+[C] refs 4 and 6 identical, angle-bracket citation format non-standard
+[C] typographic error
+[C] no projection discussion given stated public health motivation
+[A] undefined variables, wrong argument signatures; human did not raise
+[A] reproducibility failure; human did not raise
+[A] accumulator variable mismatch; human did not raise
+[A] separate from Finding 1; human #7 already matched; human did not separately raise non-mechanistic benchmark comparison
+[A] no ESS, no conditional loglik plots; human did not raise
+[A] orphaned parameter; human did not raise
+[C] labeling inconsistency; human did not raise
+[C] sequential local search; human did not raise
+[C] best loglik not stated in prose; human did not raise
+[C] typos and duplicate parameter definitions; human did not raise
+[A] phi box [0.9, 0.999] excludes the highest-likelihood local-search region (phi 0.62–0.89)
+[A] blinded.rmd states epsilon_n ~ N(0, sigma_nu) but code implements epsilon_n ~ N(0,1)
+[A] pairs plots show IF2 endpoints, not profiles; identifiability unquantified
+[A] diagnostics mentioned in text but no figures shown in submitted document
+[A] nflx_holdout and spy_holdout defined but no RMSE, MAPE, or coverage metrics reported
+[A] global best 4619.8 vs. local best 4622.8; only 5 of 20 global replicates escape the phi=1 trap
+[C] text says exp(-5) but code uses exp(-6)
+[C] placeholder text not removed before submission
+[C] inaccurate citations
+[C] model fitted on log-returns; residuals of -100 impossible at that scale
+[C] residual variance omitted from OLS formula
+[C] closing prices decomposed with frequency=252 without genuine seasonal cycle
+[C] c(0, diff(log(Close))) introduces spurious zero observation
+[A] home_court_avd box [200,250] vs best value ~89
+[A] nba_pomp used instead of nba_pomp_att
+[A] inherits decayed cooling schedule, not genuine global search
+[A] logistic regression and ELO are not independent time-series benchmarks
+[A] insufficient iterations; loglik.se computed but not reported
+[A] in-sample accuracy not a valid predictive metric
+[A] arbitrary value; conditional MLE unreliable
+[A] perturbation SD equal to starting value; causes IF2 diffusion
+[C] paths tied to author's local machine
+[C] deterministic derived quantity; unnecessary in statenames
+[C] silent error in Model 2 evaluation
+[C] unclear whether elo column is used in model or only for plotting
+[C] mean(pred_win_att == bpm$Win) should use bpm_att$Win
+[C] no profile likelihoods; no basis for concluding parameters are reliably estimated
+[C] "drastically improved predictive power" unsupported given measurement inconsistency and in-sample evaluation
+[A] Invalid log-likelihood comparison between ARCH and POMP models
+[A] Global search initialized from previous mif2 result objects, not base pomp object
+[A] Accumulator variable H tracks recoveries (dN_IR), not new infections
+[A] SIR global search box upper bound for Beta (250) is below the MLE found at 259
+[A] SEIR model fails to distinguish outbreak from endemic transmission (base_beta ≈ outbreak_beta)
+[A] No benchmark comparison for mechanistic models
+[C] Deaths plot y-axis labeled "Births" (copy-paste error)
+[C] Potential off-by-one alignment between differenced series and lagged external regressor
+[C] Global SIR search computational parameters inherited from local mif object, never explicitly stated
+[C] E=15, I=25 hardcoded initial conditions; no sensitivity analysis
+[C] Interpolation method for ARMA analysis not documented
+[C] Pairs plot for SEIR global search commented out; critical given poor convergence (5/500 replicates within 5 LL units)
+[C] SEIR MLE has mu_IR = 64 per week and eta = 0.787; biological implausibility not discussed
+[C] Neither SIR nor SEIR reports profile likelihoods; point estimates have unknown uncertainty
+
+============================================================
+Orchestrator (Evan)
+============================================================
+
+[A] SEIR dmeas/rmeas inconsistency; dmeas uses variance=mean^2, rmeas uses variance=mean
+[A] Phantom parameter tau declared but never used in any Csnippet
+[A] E compartment absent from SECSDR statenames and rinit; latency period collapsed
+[A] SEIQR N=32M inconsistent with US scale; exhausts susceptibles unrealistically
+[A] No non-mechanistic benchmark
+[A] Numerically absurd log-likelihood values (~-1e14) in SEIQR diagnostics; numerical overflow
+[A] No profile likelihoods or confidence intervals
+[C] Np and Nmif not reported anywhere in manuscript
+[C] SECSDR rinit hardcodes S=328M with no E initialization
+[C] No EDA or preliminary time-series analysis; ACF, log-transform absent
+[C] Data description incomplete; what "Infected" represents not stated (Human Issue #2 already covered by 21.02.5)
+[C] Reference list minimal; only course notes and student projects cited
+[A] MAJOR, human missed
+[A] MAJOR, human missed
+[A] MAJOR, human missed
+[A] MAJOR, human missed
+[C] MINOR, human missed
+[C] MINOR, human missed
+[C] MINOR, human missed
+[C] MINOR, human missed
+[C] MINOR, human missed
+[A] no trace plots of log-likelihood or parameters across iterations; convergence of MLE -25.71 unverifiable
+[A] phi clustered near upper boundary (0.99), sigma_nu shows substantial spread; consistent with ridge; no CIs reported
+[A] only GARCH compared; no linear baseline for yield differences
+[C] parameter count difference not accounted for; SE for best POMP log-likelihood not reported
+[C] no QQ-plot of standardized residuals; excess kurtosis not checked
+[C] filtered H_t not plotted or annotated against known financial events
+[C] standard is 14400; choice not justified
+[C] reproducibility limited
+[C] proofreading error
+[A] no ARMA or baseline log-likelihood for comparison
+[A] all runs from single starting point
+[A] research question unanswered by inference
+[A] sir_L_pf printed instead of sir2_L_pf
+[A] identifiability of Beta, eta, rho unassessed
+[C] "lowest loglikelihood" inverts correct direction
+[C] reproducibility concern
+[C] funs() and guides(color=FALSE) deprecated
+[A] AI major, human did not raise this
+[A] AI major, human did not raise this
+[A] AI major, human did not raise this
+[C] AI minor, human did not raise this
+[C] AI minor, human did not raise this
+[C] AI minor, human did not raise this
+[C] AI minor, human did not raise this
+[C] AI minor, human did not raise this
+[A] selecting maximum over binned search results is not a profile
+[A] rho = 0.9993 at boundary, traces do not stabilize
+[A] equations describe V_n but code implements Z = log(V_n)
+[A] text reports p0=0.0920, p1=0.241; code shows p0=0.007, p1=0.994
+[C] noisy likelihood estimates may misrank parameter sets
+[C] distributional properties of 97.5th percentile order statistic not Gaussian in general
+[C] higher likelihood does not confirm physical interpretation
+[C] silently ignored or causes error
+[C] perturbed run does not represent final model
+[A] deterministic SIR parameters called "best" but no objective function specified; tutorial-based ad hoc calibration
+[A] no Np, Nmif, trace plots, or measurement model documented; failure not diagnosable
+[A] ARIMA has AIC 4269.03 but no comparable metric for SIR; conclusion of SIR superiority unsubstantiated
+[A] d=2 on right-skewed count-like data without variance stabilization or unit-root test
+[C] p-value 8.578e-08 rejects white noise; text says "okay fit"
+[C] ACF near 1.0 at many lags indicates non-stationarity; text says "no clear lag pattern"
+[C] recovery rate 1/15 fixed; sensitivity to alternative values not reported
+[C] I(0) not stated for pomp or deterministic SIR
+[C] S declines by ~2.25M but only ~400K cumulative cases; factor-of-5 discrepancy not discussed
+[C] beta and phi used inconsistently for AR vs. MA coefficients
+[C] vaccination not modeled despite beginning late 2020
+[C] external tutorial source not fully documented
+[C] multiple typographical errors throughout
+[A] human did not raise this
+[A] human did not raise this
+[A] human did not raise this
+[A] human did not raise this
+[C] human did not raise this
+[C] human did not raise this
+[C] human did not raise this
+[C] human did not raise this (H8 is about non-English captions and typos, a distinct concern)
+[C] human did not raise this
+[A] no profile likelihoods or confidence intervals; point estimates only; pairs plot is not a substitute
+[C] effective sample size not reported; particle degeneracy during COVID-19 period not assessed
+[C] ARMA, GARCH, and POMP AICs compared without noting potential normalization differences; brief note recommended
+[C] Gaussian measurement model inappropriate given heavy-tailed residuals; Student-t extension noted as standard in financial SV literature
+[C] "appropriate for Nasdaq-500 data" too strong given unverified convergence, unassessed identifiability, and unaddressed tail issues
+[C] some IF2 replicates produce sigma_eta near ~300; outlier runs not commented on; may indicate numerical issues
+[C] conclusion refers to "Nasdaq-500" three times
+[C] Figure 5 labeled "Nasdaq-100 Index return" but appears in ARMA(3,1) residual diagnostics context; label ambiguous
+[A] mean_cases = rho*H tracks wrong quantity; D (cumulative) added to simulated cases
+[A] insufficient diversity; convergence not established
+[A] different observation models and data transformations
+[A] text draws dN_IR and dN_ID independently from full I; code correctly draws dN_ID from residual I - dN_IR
+[C] mu_EAP vs mu_EI vs mu_EI in code
+[C] "x-x and x-x" never filled; day indices not mapped to calendar dates
+[C] suggests model-data tension during early onset and December surge
+[C] count-appropriate model (NegBin/Poisson) would be more appropriate
+[C] QQ-plot heavy tails; no remediation pursued
+[C] R and pomp versions not reported
+[C] references [6]–[11] missing author/journal/volume/page information
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed (mechanistic elaboration of 21.14.2 already matched; separate minor note)
+[C] AI minor, human missed
+[C] AI minor, human missed
+[A] only 3 points above threshold; CI bounds determined by single observations
+[A] no trace plots for global search runs; convergence to MLE not verifiable
+[C] correction is applied in code but not described; readers may question validity
+[C] defensible given external evidence but no sensitivity runs reported
+[C] narrative justification only; no sensitivity or estimation
+[C] Np, Nmif, NREPS_EVAL not stated; computational adequacy cannot be assessed
+[C] particle degeneracy not monitored; early epidemic dynamics may produce low ESS
+[C] negative binomial is standard; no comparison or explicit justification provided
+[C] five contact-rate parameters are central scientific result but have no CIs
+[C] figures show unconditional forward simulations, not filtering-distribution-conditioned diagnostics
+[C] b3 reaching ~100 in some chains not acknowledged in text
+[A] POMP LL is -866.06 but ARIMA LL never reported on comparable scale
+[A] two combined errors: non-deterministic density and inverted weighting via clamping
+[A] no trace plots; cannot assess whether MLE found
+[A] fitted values of Beta_sigma, mu_VS, mu_SB, Beta_0 not reported
+[C] which series is passed to arima() not explicitly stated
+[C] AR root of 1.01363 noted but not discussed
+[C] R² not a standard metric for ARIMA estimated by MLE
+[C] entire platform user base used as denominator for single channel model
+[C] multiple lags near 95% band; Ljung-Box test absent
+[C] prominent spike at Nyquist frequency uncommented
+[A] profile flat, no visible peak; reported CI contradicts paper's own acknowledgment (Major)
+[A] no citation for fixed values; no sensitivity analysis conducted (Major)
+[A] no ESS plots or conditional log-likelihood traces provided (Major)
+[C] profile max slightly below global max; gap may reflect Monte Carlo noise (Minor)
+[C] paper claims 1966-1967 data covers MMR program start, but MMR began in 1969 (Minor)
+[C] text reports (0.19%, 0.24%) while table shows (0.24%, 0.25%) (Minor)
+[C] negative binomial parametrization means rho governs both mean and variance simultaneously (Minor)
+[C] only two epidemic cycles; limitation not discussed in paper (Minor)
+[A] major, human missed
+[A] major, human missed
+[A] major, human missed
+[A] major, human missed
+[C] minor, human missed
+[C] minor, human missed
+[C] minor, human missed
+[A] biologically implausible rho; human did not raise
+[A] structural accumulator error; human did not raise
+[C] numerical diagnostic gap; human did not raise
+[C] comparison scale subtlety; human did not raise
+[C] unjustified fixed parameter; human did not raise
+[C] large spread not discussed; human did not raise
+[A] R0=82.67 local, R0=202 global; sigma implies 3-day latent period vs. known 10-21 days
+[A] poor man's profile for vr is scatter plot, not formal profile; no CIs for any parameter
+[A] gap acknowledged; computational explanation incomplete; global results exploratory only
+[A] nsim=1 in figs. 10 and 13; single stochastic draw not informative about goodness-of-fit
+[A] mu, S_0, E_0, I_0, R_0 fixed from local MLE; may partly explain 77-unit gap
+[C] force-of-infection undefined when I+iota<0 with non-integer alpha; no log transform in partrans
+[C] text never states which run_level was used for final reported results
+[C] dmeasure uses normal approximation; negative binomial more appropriate; choice not discussed
+[C] estimated vr absorbs any misspecification of fixed 0.92; quantities not separately identified
+[A] measurement model code inconsistency, human did not raise
+[A] no uncertainty quantification, human did not raise
+[A] fixed transition rates not evaluated, human did not raise
+[C] insufficient Nmif iterations, human did not raise
+[C] particle filter collapse near t=120-134, human did not raise
+[C] unjustified structural break, human did not raise
+[C] boundary MLE signals misspecification, human did not raise
+[A] not raised by human
+[A] not raised by human
+[A] not raised by human
+[C] Minor, not raised by human
+[C] Minor, not raised by human
+[C] Minor, not raised by human
+[C] Minor, not raised by human
+[A] Major; human missed
+[A] Major; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[A] optimizer inflates Mu_SyR to increase death probability, causing implausible estimates
+[A] entire profile outside likelihood ridge, uninformative
+[A] clipping is not equivalent to proper Euler-Multinomial step
+[C] unclear if fixed, estimated, or ignored
+[C] whether intentional should be clarified
+[C] identifiability concern reinforced
+[C] typographical error on p. 6
+[C] cannot distinguish computational inadequacy from model misspecification
+[A] ARMA(0,0) AIC = 10.87; POMP AIC = 16.45; conclusion is inverted
+[A] logLik ≈ 0.0 in profile is numerical failure, not genuine likelihood; CI threshold invalid
+[A] 180x the upper bound of local search range; uninvestigated numerical artifact
+[A] profile is malformed; no MCAP or likelihood-ratio CIs reported
+[A] logLik = -3.33 may be per-observation; direct comparison to POMP total logLik is unverified
+[C] diverging logLik traces and non-converged mu_h at iteration 200; Nmif not increased
+[C] copy-paste artifact from referenced W21 project; crude oil analysis mislabeled
+[C] Student-t extension exists and is more realistic for financial returns
+[C] computational adequacy cannot be assessed by reader
+[A] misspecified SARIMA model selection
+[A] unidentifiable parameters, flat likelihood
+[A] identifiability and uncertainty unaddressed
+[A] unreliable likelihood estimates used for selection
+[C] biologically implausible parameter estimate
+[C] phantom parameter
+[C] Monte Carlo standard error omitted
+[C] parameter fixing undocumented
+[C] reproducibility concern
+[C] convergence unverifiable
+[A] profile likelihoods absent; human missed
+[A] same Np at run levels 2 and 3; human missed
+[C] closely related to M2 but HI #7 already matched; human missed as standalone
+[C] sensitivity analysis absent; human missed
+[C] diagnostic used as selection tool; human missed
+[C] data not archived; human missed
+[C] ACF axis scaling misread; human missed
+[A] mif2-internal likelihood is perturbed and not a valid estimate for model comparison
+[A] few profile points; particle filter SE non-negligible relative to chi-squared threshold
+[A] fGARCH vs tseries discrepancy not explained; observation model alignment not verified
+[C] difference between full and simplified model notation not explained
+[C] less preferred than AIC-based selection
+[C] particle filter effective sample size never mentioned
+[C] log-likelihood and parameter count table would improve readability
+[C] run level settings stated inline, not in consolidated specification
+[C] parameterization choice not justified
+[C] not connected to any methodological claim
+[C] multiple typos throughout manuscript
+[A] sigma_nu collapses to 0, sigma_eta extreme spread, phi fails to converge
+[A] no uncertainty quantification for POMP parameters
+[C] inverted null/rejection logic; human raised test inapplicability (#2), not this point
+[C] AIC difference ~2 units; LRT not conducted
+[C] log(X_t/X_{t-1}) should be log(X_t/X_{t-k})
+[C] introduction promises forecasting but none delivered
+[A] only 4 points above threshold; upper bound at hard parameter boundary
+[A] b1, b2, b3, rho1-3, mu_EI, mu_RS, tau, sigmaSE all fail to converge in local search
+[C] variable H used in equation before being defined
+[C] whether replicated pfilter was used at mif2 endpoint left unstated
+[C] collapse attributed generically to holidays; piecewise structure as cause not examined
+[C] 4-year dataset cannot estimate 20-year rate; this is an identifiability issue
+[C] E(1), I(1), R(1) not explicitly documented given eta=0.89
+[C] "adding a parameter cannot decrease log-likelihood so AIC cannot increase by more than 2" is incorrect framing
+[C] described as population flow rather than additional infectious pressure in force-of-infection
+[A] simulated trajectories reach 600,000+ vs observed <30,000
+[A] ARIMA and POMP log-likelihoods never compared
+[A] systematic bias in transmission parameters
+[A] mu_EI ~2.8 days, mu_RS ~11 days for TB
+[C] naming inconsistency in equations
+[C] ARIMA(3,1,4) has lower AIC than selected ARIMA(0,1,5)
+[C] filter losing track during HIV-era TB resurgence
+[C] build_and_diagnose_model output absent
+[C] reproducibility concerns from redundant code
+[A] Major, human missed
+[A] Major, human missed
+[A] Major, human missed
+[A] Major, human missed
+[A] Major, human missed
+[C] Minor, human missed
+[C] Minor, human missed
+[C] Minor, human missed
+[C] Minor, human missed
+[A] rho and k appear in code with no mathematical definition in text
+[A] no trace plots of log-likelihood or parameters over IF2 iterations
+[A] "proves that vaccinations effectively slows down the transmission rate" is a causal claim from observational analysis
+[C] severe conditional log-lik drop at epidemic peak onset not commented on
+[C] mu_SE_v in diagram vs Beta_v in code; typos "Forcast," "intesive," "inmuen"
+[C] parameter space coverage cannot be assessed from rendered plot
+[A] manual Csnippet reset fires before measurement model, corrupting H
+[A] peak at rho=0.02 is at grid edge; true MLE may lie below
+[A] gamma=6.95 implies ~19-day immunity; flat likelihood above gamma=5
+[C] number of pfilter replicates for final LL not stated
+[C] forward simulations at MLE mislabeled as posterior predictive
+[C] nseq not stated for complete SEIRS searches
+[A] Major; AI finds primary conclusion uses Poisson when the paper's own cited literature and NB sensitivity analysis favor NB
+[A] Major; AI finds log-likelihood estimates from particle filtering subject to MC noise of unknown magnitude, making the LRT statistic unreliable
+[A] Major; AI finds sigma=0 is a boundary constraint and chi-squared(2) approximation is not formally correct
+[A] Major; AI finds Figure 7 is upper envelope of global search, not a proper profile; no CIs provided
+[C] Minor; AI finds Np, Nmif, number of random starts absent from main paper
+[C] Minor; AI finds parameter transformation implicitly constrains mu to be positive without documentation
+[C] Minor; AI finds initial condition assumes neutral momentum without justification or check
+[C] Minor; AI finds many overlapping blue simulated traces obscure the observed series
+[C] Minor; AI finds localized drop in conditional log-likelihood not identified or explained
+[C] Minor; AI finds scientifically implausible alternating AR(1) pattern at local optimum not addressed
+[C] Minor; AI finds look-ahead bias in opponent-strength covariate acknowledged only in Discussion
+[A] different data transformations; human did not raise this
+[A] 10 grid points, single mif2/pfilter per point; human did not raise this
+[A] no ESS plots or per-step log-likelihoods; human did not raise this
+[A] mu_EI, mu_IR, mu_RS, k not profiled; human did not raise this
+[C] S0,E0,I0,R0 not in rw_sd; human did not raise this
+[C] noisy selection; human did not raise this
+[C] 0.015% ascertainment; human did not raise this
+[C] 10-point scatter plots are noisy; human did not raise this
+[A] Major; human did not raise
+[A] Major; human did not raise
+[A] Major; human did not raise
+[A] Major; human did not raise
+[A] Major; human did not raise
+[A] Major; human did not raise
+[A] Major; human did not raise
+[C] Minor; human did not raise
+[C] Minor; human did not raise
+[C] Minor; human did not raise
+[C] Minor; human did not raise
+[A] scatter plots show endpoint parameter values from 20 runs, not re-optimized profiles; no CIs computable
+[A] log-likelihood trace still increasing at iteration 100; reported estimates are lower bounds, not stable MLEs
+[C] sigma_M in paramnames but absent from dmeas C-snippet; measurement equidispersed Poisson
+[C] coefficient at boundary may indicate overdifferencing; "invertible" check technically true but boundary case warrants discussion
+[C] r=0.135 month^{-1} implies 13.5% monthly growth (~4-fold annually); likely transcription from source paper with different time units
+[C] (1+theta_1)(1+Theta_1*B^12) omits B from non-seasonal MA polynomial
+[C] effective sample size not reported; filter degeneracy not ruled out given small Np=1000 in local search
+[A] invalid profile and CI; human did not raise
+[A] non-convergence of key parameter not acknowledged; human did not raise
+[A] biologically implausible fitted parameter; human did not raise
+[A] model description vs implementation discrepancy; human did not raise
+[C] missing SARIMA; human did not raise
+[C] display error in diagnostic plot; human did not raise
+[C] information asymmetry in comparison; human did not raise
+[C] model labeling error; human did not raise
+[C] filter too permissive; human did not raise
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[A] AI major, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[A] physically impossible Heston parameter estimates (sigma < 0, v0 < 0)
+[A] AIC value for ARIMA(2,0,2) stated in text is inconsistent with table and log-likelihood
+[A] Table 5 labels GARCH(1,3) but Section 4 selects GARCH(1,1) after diagnostics
+[A] kappa profile flat from 0.7–1.7, optimum at left edge, lower bound cannot be determined
+[A] sigma_2 profile shows two local maxima with valley; unreliable for CI derivation
+[A] logit inversion error yields p11 ≈ 0.44 not 0.52; near-random regime switching
+[A] ESS not monitored or reported despite text claiming it was
+[A] no confidence intervals reported for any model parameter
+[A] Introduction promises out-of-sample evaluation but only in-sample results are presented
+[C] number of pfilter replicates not reported; logmeanexp vs max not confirmed
+[C] trace plots showing convergence to sigma ≈ 0 and v0 < 0 described as "strong convergence" without noting constraint violation
+[C] ARMA(2,2) selected in Section 3 but Section 4 refers at two points to ARMA(1,1)+GARCH(1,1)
+[C] LaTeX rendering error in GARCH-t equation; figure numbering inconsistent; Wikipedia reference; y-axis label cut off
+[A] unreliable LL estimates in conclusion table
+[A] measurement model mismatch
+[A] model misspecification not diagnosed
+[A] singleton CI not acknowledged as failure
+[A] near-100% reporting rate is misspecification signal
+[A] t<261 covers all data, b is structurally unidentifiable
+[C] inconsistent with SEIRS local search (20 replicates)
+[C] equivalent to ARIMA(p,1,q) on original
+[C] should cite course materials or literature
+[C] values need reconciliation
+[C] readability issue
+[C] sensitivity not assessed
+[A] phi*sqrt(V) in code vs. phi*V in stated model; different dynamical system
+[A] gamma_fng sign and significance unquantified
+[A] local (+0.13) vs. global (-0.89) at indistinguishable log-likelihoods; sign not identified
+[A] differenced FG index governs effect of changes, not level; interpretation in text is incorrect
+[C] no ADF/KPSS; slowly decaying ACF consistent with stationary long-memory
+[C] no log-likelihoods reported across df values; implicit model selection without correction
+[C] text says ~3899.52 but code output reports 3957.105
+[C] G random walk nearly degenerate; leverage weakly identified
+[C] no standalone script file or data archive linked
+[C] "aerbecause", "divergenece", "demanded return", "mispecified"
+[A] Major, human did not raise this
+[A] Major, human did not raise this
+[A] Major, human did not raise this
+[A] Major, human did not raise this (Human Issue #2 already covered by 25.17.14)
+[C] Minor, human did not raise this
+[C] Minor, human did not raise this
+[C] Minor, human did not raise this
+[A] fundamental accumulator misspecification
+[A] no log-likelihood or AIC stated in text
+[A] POMP and ARIMA likelihoods never jointly compared
+[A] conclusions circular, not evidence from data
+[A] no IF2 trace plots
+[A] scatter plot impressions are not CIs
+[C] no bounding on IM subtraction
+[C] inconsistent with IF2 estimate
+[C] ACF shows weekly pattern but not modeled
+[C] reproducibility gap
+[C] ambiguity about parameter status
+[C] not defined in text
+[C] minor presentation error
+[C] simulation basis not stated
+[A] no human equivalent
+[A] no human equivalent
+[A] no human equivalent
+[A] no human equivalent
+[C] no human equivalent
+[C] no human equivalent
+[C] no human equivalent
+[A] Major; H initialization error not raised by human
+[A] Major; benchmark comparison not raised by human
+[A] Major; rho fixed not raised by human
+[A] Major; profile likelihood absence not raised by human
+[C] Minor; population conservation not raised by human
+[C] Minor; partrans omission not raised by human
+[C] Minor; HP filter lambda not raised by human
+[C] Minor; weekly seasonality not raised by human
+[C] Minor; ARMA code-text inconsistency not raised by human
+[A] GARCH exact vs POMP MC estimate; 5.5-unit difference within MC noise range
+[C] Section 4.1 pfilter on sim1.filt, not real SSE data
+[C] independence claim overreaches; squared returns not checked
+[C] knitting artifact; phi blank in conclusion sentence
+[C] omega/intercept term missing from reported equation
+[C] particle diversity not checked for leverage model
+[C] sigma_nu=0 (no leverage) never explored; profile over sigma_nu absent
+[A] reinfection pathway not correctly implemented
+[A] biased estimate used as absolute measure
+[A] one extreme outlier (b1 ≈ 4000) signals optimizer escape
+[A] affects early dynamics and Beta/b1 estimates
+[C] implies implausibly rapid reinfection
+[C] negative binomial more appropriate
+[C] variance heterogeneity during peak
+[C] D value never specified in text
+[C] stronger test of fit not conducted
+[A] counterfactual vaccine scenario simulations never performed
+[A] conservation violated in written equations; code likely correct but math is wrong
+[A] no identifiability assessment for any of the 14+ parameters
+[A] best global loglik (-5677.5) worse than best local (-4796.8) by ~881 units; not acknowledged or investigated
+[C] Np, Nmif, replicates for each run_level not stated; reproducibility impaired
+[C] negative binomial is standard for count data; truncated/rounded normal not justified
+[C] adding AR terms beyond AR(2) worsens AIC; possible optimization failures not noted
+[C] inconsistent inequality signs at boundary dates
+[C] colloquilly, afformentioned, succeptible, heteroskadasticity, etc.; figure captions absent
+[A] Baseline pfilter run on simulated data, not actual returns
+[A] Tesla prediction figure uses Ford volatility bands due to variable naming error
+[A] No profile likelihoods or confidence intervals
+[A] Measurement model architecture (rmeasure/dmeasure design) unexplained
+[C] R_n formula typeset as 1 (LaTeX transcription error)
+[C] Global search initializes from local search object, limiting exploration
+[C] Ford uses 1,000 particles vs Tesla's 2,000 at run_level=3; uneven computational investment undiscussed
+[A] data inconsistency across models makes log-likelihood comparison invalid
+[A] model selection contradicts stated AIC criterion
+[A] boundary of invertibility, suggests model misspecification
+[A] large parameter discrepancies across searches indicate flat or multimodal likelihood
+[A] missing uncertainty quantification for all parameters
+[A] computational imprecision renders local search result uninformative
+[C] key computational settings omitted
+[C] spectrum identifies 7-day cycle but neither model accounts for it
+[C] heavy tails in QQ plot not diagnosed
+[A] AI major, human missed
+[A] AI major, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[C] AI minor, human missed
+[A] major, human missed
+[A] major, human missed
+[A] major, human missed
+[A] major, human missed
+[C] minor, human missed
+[C] minor, human missed
+[C] minor, human missed
+[C] minor, human missed
+[C] minor, human missed
+[C] minor, human missed
+[A] non-convergence acknowledged but not addressed before profiles run
+[A] mathematical description contradicts code
+[A] incorrect visualization of b-profile trace
+[C] reporting rate fixed with no sensitivity check
+[C] implausible parameter estimate not discussed
+[C] measurement model boundary condition coding error
+[C] insufficient particle count for final results
+[C] AIC table formatting issue
+[A] SEIQR force of infection missing N normalization (Major)
+[A] weekly Euler step mismatched with daily data (Major)
+[A] no parameter uncertainty assessment (Major)
+[A] non-converged IF2 used to support conclusions (Major)
+[C] copy-paste error in SEIR likelihood surface plot (Minor)
+[C] mean infectious period of 167 days implausible for Omicron (Minor)
+[C] no conditional log-likelihoods or ESS reported (Minor)
+[A] Major; human missed
+[A] Major; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[C] Minor; human missed
+[A] no log-likelihood, AIC, RMSE, or predictive score for SEIR
+[A] parameters collapse to near-zero; global search parameters produce flat prediction despite non-trivial values
+[A] no measurement distribution specified; rho is only a scaling factor without a likelihood
+[A] ARIMA applied without log or sqrt transformation; QQ tail behavior and residual spike result from this
+[C] b1/b2 described in model section but single constant beta implemented
+[C] S(0), E(0), I(0), R(0) never stated in manuscript
+[C] AI assistance should be disclosed in a methods acknowledgment rather than listed as a citable source
+[C] two SEIR output figures differ visibly; parameter values underlying fig_011 not reported
+[C] mu_SI defined as beta*I(t) but does not appear in transition equations
+[C] number of particles and iterations not stated; computational adequacy cannot be assessed
+[A] reported log-likelihood is lower bound, not MLE; comparison unreliable
+[A] parameter ranges from 0 to 100+ with no concentration; profile likelihood needed
+[A] point estimates without uncertainty bounds; pairs plot at -300 threshold is uninformative
+[C] post-fit simulation diagnostic absent
+[C] reserved keyword in foreach export list; possible silent error
+[A] dN_RS drawn from I instead of R, R grows without bound
+[A] SVEIPR ~183 LL units worse than SEIR, reversal unexplained
+[A] seven parameters fixed ad hoc, Beta and b_i individually unidentifiable
+[A] threshold not stated, no formal statistical meaning
+[A] switch from negative binomial (SEIR) to Gaussian (SVEIPR) without justification
+[A] data processing conflates two distinct operations, second difference unnecessary if incidence already computed
+[A] SEIR best-fit mu_IR=5.33/week implies 1.3-day infectious period, biologically implausible for COVID-19
+[C] several chains collapse but convergence called "successful"
+[C] ARIMA and POMP likelihoods computed on different data transformations
+[C] computational settings for reported results not stated in rendered output
+[C] E=1000, I=500, P=500 inconsistent with King County epidemiological context
+[A] breaks SEIRV conservation; applies to COVID analysis
+[A] guesses by rho, mu_SV not fixed to grid, CI unreliable
+[A] unexplained 30-unit improvement in profile run
+[A] excluded from rw.sd in local search and profile
+[A] if H not reset, all reported logliks are incorrect
+[C] quickly dropping ACF supports simple ARMA, not POMP
+[C] analogous concern to R→S loop not addressed
+[C] particle degeneracy not checked
+[A] epidemiologically backwards; human did not raise
+[A] undisclosed structural assumption; human did not raise
+[C] mu_QR and k fixed without epidemiological sources; human did not raise
+[C] untested R prototype; human did not raise
+[C] Np=2000 insufficient at some parameter settings; human did not raise
+[C] particle filter reliability unassessed; human did not raise
+[C] narrow range may prevent finding true MLE; human did not raise
+[C] quarantined without infectious source; human did not raise
+[A] pairs plots are scatter plots of IF2 endpoints, not profiles; MCAP not computed
+[A] auto.arima shows ARIMA(5,0,4) but text and tables say ARIMA(2,0,0)
+[A] two log-likelihood clusters in NFLX local search not remediated with targeted follow-up search
+[A] epsilon_n ~ N(0, sigma_nu) in observation equation conflicts with code initializing sigma_nu as leverage process parameter
+[C] mu_h = -7.6 and -9.4 discussed without reporting exp(mu_h/2) as implied daily volatility
+[C] 2023–2025 holdout constructed but no model evaluated against it
+[C] mean-zero assumption of observation equation not verified
+[C] draft placeholder "Add direct discussions..." not removed
+[C] search procedure names omitted
+[C] formula labeled as standard OLS without acknowledging ARCH violations
+[A] central mechanism of POMP-ELO not estimated; MLE conditional on unjustified value
+[A] attendance model was never independently estimated
+[A] 8.5 pp discrepancy changes narrative; comparison table untrustworthy
+[A] structural inconsistency in POMP design
+[A] point estimates uninterpretable without uncertainty quantification
+[A] MLE estimates unreliable
+[C] additional detail on scale inconsistency
+[C] deterministic derived quantity; unnecessary state dimension
+[C] typographical error in model equation
+[C] displayed equation differs from code implementation
+[C] alpha positivity constraint may not be enforced for all models
+[C] results not exactly reproducible
+[C] R version and pomp version not stated
+[C] win probability trace figures have no legend or caption
+[C] "there is there is," "A a crucial player," "we we're unable to," etc.
+[C] prediction accuracy figures appear to be in-sample
+[A] ARCH vs POMP log-likelihood comparison not valid
+[A] No profile likelihoods computed; identifiability claims drawn from pair-plot scatter only
+[A] Biologically implausible mu_IR estimates (2 hours to 1 day) not diagnosed or discussed
+[A] mu_EI trace spikes and collapses in SEIR local search; instability not discussed
+[A] SIR local search loglik.se = 1.06; no replicated pfilter evaluation for any model
+[C] SEIR global search finds base_beta ≈ outbreak_beta; time-varying beta structure not exploited
+[C] Unusually low AIC at ARMA(2,3) = 2739.09 is suspicious given ARMA(2,4) selected
+[C] First differencing not formally justified; no unit root test (ADF or KPSS)
+[C] Np and Nmif not stated explicitly in text
+[C] Several typographical errors in manuscript

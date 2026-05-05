@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Write(results/**)",
+      "Write(skills/**)",
+      "Read(results/**)",
+      "Read(skills/**)",
+      "Write",
+      "Bash(mkdir:*)",
+      "Bash(ls:*)"
+    ]
+  }
+}
