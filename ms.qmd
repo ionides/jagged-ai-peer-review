@@ -385,7 +385,7 @@ result = df_supp.groupby(['Semester', 'Agent'])[['A', 'B', 'C', 'D', 'E', 'F']].
 result['Semester'] = pd.Categorical(result['Semester'], categories=['W21', 'W22', 'W24', 'W25'], ordered=True)
 result['Agent'] = pd.Categorical(result['Agent'], categories=['Baseline', '531-Ref', 'Meta-Skill', 'Orchestrator'], ordered=True)
 result = result.sort_values(['Semester', 'Agent']).reset_index(drop=True)
-result
+result.style.hide()
 ```
 
 
@@ -396,5 +396,5 @@ result
 #| tbl-cap: "Counts of human-only findings (E category, all agents missed) by theme across all semesters."
 tbl = theme_df.copy()
 tbl['Percentage (%)'] = (tbl['Count'] / tbl['Count'].sum() * 100).round(1)
-tbl
+tbl.style.hide()
 ```
