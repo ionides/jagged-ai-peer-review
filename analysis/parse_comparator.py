@@ -1,15 +1,15 @@
 """
-Parses ned-clean comparison markdown files and regenerates ned_clean_results.csv.
+Parses comparator comparison markdown files and regenerates comparator_results.csv.
 
-Each ned-clean file contains per-reviewer A-F count tables. This script reads
+Each comparator file contains per-reviewer A-F count tables. This script reads
 those tables directly and aggregates them into a single CSV, providing an
 independently verifiable alternative to the Claude-generated CSV.
 
 Usage:
-    python parse_ned_clean.py
+    python parse_comparator.py
 
 Output:
-    ned_clean_results_parsed.csv  (compare against ned_clean_results.csv to verify)
+    comparator_results_parsed.csv  (compare against comparator_results.csv to verify)
 """
 
 import re
@@ -17,15 +17,15 @@ import csv
 import os
 from pathlib import Path
 
-NED_CLEAN_DIR = Path(__file__).parent.parent / "results" / "ned-clean"
-OUTPUT_FILE = Path(__file__).parent / "ned_clean_results_parsed.csv"
+NED_CLEAN_DIR = Path(__file__).parent.parent / "results" / "comparator"
+OUTPUT_FILE = Path(__file__).parent / "comparator_results_parsed.csv"
 
 REVIEWERS = ["Alex", "Charlie", "Doug", "Evan"]
 
 def parse_filename(filename):
     """Extract semester and project number from filename."""
-    # handles both 'ned-clean-W21_PROJECT02.md' and 'ned-clean-w21_PROJECT06.md'
-    match = re.match(r"ned-clean-([Ww]\d{2})_PROJECT(\d{2})\.md", filename)
+    # handles both 'comparator-W21_PROJECT02.md' and 'comparator-w21_PROJECT06.md'
+    match = re.match(r"comparator-([Ww]\d{2})_PROJECT(\d{2})\.md", filename)
     if not match:
         return None, None
     semester = match.group(1).upper()
@@ -74,7 +74,7 @@ def main():
     rows = []
     errors = []
 
-    files = sorted(NED_CLEAN_DIR.glob("ned-clean-*_PROJECT*.md"))
+    files = sorted(NED_CLEAN_DIR.glob("comparator-*_PROJECT*.md"))
 
     for filepath in files:
         semester, project = parse_filename(filepath.name)

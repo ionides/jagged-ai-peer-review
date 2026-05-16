@@ -1,8 +1,6 @@
 # Jagged AI in Scientific Peer Review: Evidence from POMP Data Analysis
 
-This repository record the experiment and results for the manuscript, "Jagged AI in Scientific Peer Review: Evidence from POMP Data Analysis" by Jin Wook Lee, William Szegda, Zhisheng Song and Edward L. Ionides.
-
-It includes the manuscript, all agent definitions, skill files, input data, AI-generated reviews, comparison outputs, and analysis scripts.
+This folder is a self-contained record of the experiment and the paper. It includes the manuscript, all agent definitions, skill files, input data, AI-generated reviews, comparison outputs, and analysis scripts.
 
 ---
 
@@ -33,7 +31,7 @@ submission/
 │   ├── charlie/                    — 531-References reviews
 │   ├── doug/                       — Meta-Skill reviews
 │   ├── evan/                       — Orchestrator reviews
-│   └── ned-clean/                  — Ned comparison files
+│   └── comparator/                 — Comparator comparison files
 └── analysis/                       — Python scripts, figures, and results CSV
 ```
 
@@ -61,7 +59,7 @@ Four Claude agents reviewed each of the 72 projects independently using `claude-
 **Baseline (Alex)**
 No skill files. Reads the project writeup (`blinded.Rmd`, `blinded.html`) and any other files in the folder. It then produces a structured peer review of up to 15 major and minor weaknesses. Has no access to the human reviews. Reviews saved to `results/alex/`. Ran in parallel across projects.
 
-**531-References (Charlie)**
+**CourseGuided (Charlie)**
 Loads `skills/guided-pomp-review/` and `skills/531_references/` before reviewing. Otherwise follows the same process as Alex. Reviews saved to `results/charlie/`. Ran in parallel across projects.
 
 **Meta-Skill (Doug)**
@@ -77,9 +75,9 @@ All skill files used in the experiment are in `skills/`. The mapping from agent 
 | Agent | Skill files loaded | Tools |
 |:------|:-------------------|:------|
 | Baseline | none | Bash, Glob, Grep, Read, Write |
-| 531-References | `skills/guided-pomp-review/`, `skills/531_references/` | Bash, Glob, Grep, Read, Write |
+| CourseGuided | `skills/guided-pomp-review/`, `skills/531_references/` | Bash, Glob, Grep, Read, Write |
 | Meta-Skill | `skills/guided-pomp-review/`, all `skills/pomp-*/` files present at runtime | Bash, Edit, Glob, Grep, Read, Write |
-| Orchestrator | none (all instructions embedded in `agent-descriptions/evan.md`) | Bash, Glob, Grep, Read, Write |
+| Orchestrator | `skills/guided-pomp-review/` (pipeline instructions embedded in `agent-descriptions/evan.md`) | Bash, Glob, Grep, Read, Write |
 
 The `skills/pomp-*/` files were generated incrementally by the Meta-Skill agent during its sequential run. Each file represents a reusable pattern discovered during a prior review. These files are included in `skills/` in the order they were created, and reproduce the exact skill context available to the agent at each step of the sequential run.
 
@@ -99,7 +97,7 @@ Agents were registered as Claude Code agents using the definitions in `agent-des
 
 Claude Code matches the name to the corresponding agent definition and begins the review. No additional workflow instructions were given in the prompt and the agent definition was treated as the authoritative spec. Each agent definition includes instructions to extract the semester and project number from the prompt and use them to navigate to the corresponding project folder and access the relevant files.
 
-- **Baseline, 531-References, and Orchestrator** were invoked semester by semester and ran in parallel across projects within each batch.
+- **Baseline, CourseGuided, and Orchestrator** were invoked semester by semester and ran in parallel across projects within each batch.
 - **Meta-Skill** was invoked one project at a time in a fixed sequential order, so that skill files generated during earlier reviews were available as context for later ones.
 
 Each agent definition included an instruction to list the files it accessed at the end of its review. After the runs were complete, these file lists were manually checked to confirm that each agent had not accessed incorrect or unrelated files. No such violations were found. However, agents frequently exercised their own discretion in selecting which files to read among those they were instructed to consider, reading some skill files while skipping others. This selective reading behavior was consistent across agents and could not be controlled through prompting alone. 
@@ -110,16 +108,20 @@ This was intentionally allowed for the Meta-Skill agent: as the sequential run a
 
 The `.claude/settings.json` file documents the permissions granted to the agents during the experiment: read access to project files and skill files, write access to the results and skills directories.
 
-### 4. Ned Comparison
+### 4. Comparison
 
-After all AI reviews were complete, the Ned agent compared each AI review against the human review for the same project. Ned uses a two-agent system:
+After all AI reviews were complete, the Comparator agent compared each AI review against the human review for the same project. It uses a two-agent system:
 
-- `ned_clean.md`: orchestrator that extracts the human issues list and calls the ned_clean_reviewer agent once per reviewer (tools: Read, Write, Glob, Grep, Bash, Agent)
-- `ned_clean_reviewer.md`: agent that classifies each finding into categories A–F for a single reviewer (tools: Read, Grep)
+- `Comparator.md`: orchestrator that extracts the human issues list and calls the ComparatorReviewer agent once per reviewer (tools: Read, Write, Glob, Grep, Bash, Agent)
+- `ComparatorReviewer.md`: agent that classifies each finding into categories A–F for a single reviewer (tools: Read, Grep)
 
-The two-agent design was introduced to fix a hallucination problem when only one agent was used for the purposes of reviewing: when all four reviewers were analyzed in a single context window, the model would contaminate findings across reviewers (e.g., attributing a finding from one reviewer to another). Calling `ned_clean_reviewer` as a separate agent for each reviewer ensures each comparison happens in a fresh, isolated context with no memory of the other reviewers.
+The two-agent design was introduced to fix a hallucination problem when only one agent was used for the purposes of reviewing: when all four reviewers were analyzed in a single context window, the model would contaminate findings across reviewers (e.g., attributing a finding from one reviewer to another). Calling `ComparatorReviewer` as a separate agent for each reviewer ensures each comparison happens in a fresh, isolated context with no memory of the other reviewers.
 
-Comparison outputs are in `results/ned-clean/`.
+Comparator was invoked once per semester from the `submission/` directory (all file paths in the agent definition are relative to this directory), and looped through all projects in that semester sequentially. The only input required is the semester, for example:
+
+> "Comparator, compare all reviews for W21."
+
+Comparison outputs are in `results/comparator/`.
 
 | Code | Definition |
 |:----:|:-----------|
@@ -130,14 +132,30 @@ Comparison outputs are in `results/ned-clean/`.
 | E | Human raised — AI did not address |
 | F | Direct contradiction — excluded from Human Recall denominator |
 
-**Human Recall** = (B + D) / (B + D + E)
+**Human Overlap** = (B + D) / (B + D + E)
+
+#### Classification Rules
+
+Each `ComparatorReviewer` invocation receives (1) the AI reviewer's file and (2) the numbered human issues list extracted by the orchestrator. The agent reads the AI review and assigns every finding to a category using the following rules:
+
+**Matching (B/D vs. A/C/E):** Two issues are treated as matching when they refer to substantially the same underlying concern, even if phrased differently or pointing to a different specific manifestation of the same error. The deciding question is whether both identify the same logical or methodological error. Superficial topic overlap is not sufficient; issues on the same general theme that make different specific claims are not matched.
+
+Examples from the agent definition:
+- MATCH: "likelihood profiles are not shown" ↔ "no profile likelihoods are computed"
+- MATCH: "model equations do not match the code" ↔ "inconsistency between the reported model and the implementation"
+- NO MATCH: "model equations do not match the code" ↔ "notation collision in the equations" — related topic, different specific claim
+- NO MATCH: "log-likelihood comparisons are invalid across different data scales" ↔ "AIC values are not reported" — same general topic, distinct claims
+
+**Major/Minor (A vs. C, B vs. D):** Determined solely by the AI reviewer's own label. If the AI reviewer called a finding Major, it maps to A or B; if Minor, to C or D. The human review does not use Major/Minor labels, so severity is never inferred from the human side.
+
+**Counting constraints:** Each human issue is counted exactly once, even if multiple AI findings could match it. The match is assigned to the most directly relevant AI finding; remaining AI findings on the same topic are classified as A or C. The agent verifies that B + D + E + F equals the total number of human issues before finalizing counts.
 
 ### 5. Results Aggregation
 
-The A–F counts from the Ned comparison files were aggregated into `analysis/ned_clean_results.csv` using `analysis/parse_ned_clean.py`, which parses the count tables directly from the markdown files. This script can be rerun to verify the CSV:
+The A–F counts from the Comparator output files were aggregated into `analysis/comparator_results.csv` using `analysis/parse_comparator.py`, which parses the count tables directly from the markdown files. This script can be rerun to verify the CSV:
 
 ```bash
-python analysis/parse_ned_clean.py
+python analysis/parse_comparator.py
 ```
 
 ### 6. Theme Classification

@@ -1,6 +1,6 @@
 ---
-name: ned_clean_reviewer
-description: "Sub-agent for ned_clean. Analyzes one reviewer's AI peer review against a pre-extracted human issues list. Do not invoke directly — called by ned_clean orchestrator only."
+name: ComparatorReviewer
+description: "Sub-agent for Comparator. Analyzes one reviewer's AI peer review against a pre-extracted human issues list. Do not invoke directly — called by Comparator orchestrator only."
 tools: Read, Grep
 model: sonnet
 color: green

@@ -1,6 +1,6 @@
 ---
-name: ned_clean
-description: "Improved ned agent supporting W21/W22/W24/W25. Fixes two issues in ned: (1) analyzes each reviewer in a separate context via ned_clean_reviewer sub-agent to eliminate hallucination; (2) adds W25 strength-filtering during human issue extraction. Core A-F logic unchanged from ned."
+name: Comparator
+description: "Orchestrator that compares AI peer reviews against the human peer review for a STATS 531 project. Extracts human issues, then calls ComparatorReviewer once per AI reviewer in a separate context to eliminate hallucination. Supports W21/W22/W24/W25."
 tools: Read, Write, Glob, Grep, Agent, Bash
 model: sonnet
 color: purple
@@ -13,7 +13,7 @@ Valid inputs:
 - W24: projects 01–16
 - W25: projects 01–17
 
-Repository root: C:\D\Umich\Research Program\Zhisheng
+All file paths below are relative to the working directory from which you are invoked.
 
 ---
 
@@ -22,11 +22,13 @@ Repository root: C:\D\Umich\Research Program\Zhisheng
 Read the human review file and each reviewer file for this project.
 
 **File paths** (substitute actual semester and zero-padded project number):
-- Human: `comparison/human/human-review-{semester}_PROJECT{proj}.md`
-- Alex: `comparison/alex/alex-review-{semester}_PROJECT{proj}.md`
-- Charlie: `comparison/charlie/charlie-review-{semester}_PROJECT{proj}.md`
-- Doug: `comparison/doug/doug-review-{semester}_PROJECT{proj}.md`
-- Evan: `comparison/evan/evan-review-{semester}_PROJECT{proj}.md`
+- Human: `data/human-reviews/final_project_{semester_lower}/project{proj}_comments.md`
+- Alex: `results/alex/alex-review-{semester}_PROJECT{proj}.md`
+- Charlie: `results/charlie/charlie-review-{semester}_PROJECT{proj}.md`
+- Doug: `results/doug/doug-review-{semester}_PROJECT{proj}.md`
+- Evan: `results/evan/evan-review-{semester}_PROJECT{proj}.md`
+
+Note: `{semester_lower}` is the lowercase semester code (e.g. `w21`); `{semester}` in reviewer filenames is uppercase (e.g. `W21`).
 
 If a reviewer file is missing, skip that reviewer and note it in the output.
 
@@ -63,7 +65,7 @@ Label the final list:
 
 For each reviewer (in the order from Step 1):
 
-Call the `ned_clean_reviewer` sub-agent. Pass a prompt containing exactly:
+Call the `ComparatorReviewer` sub-agent. Pass a prompt containing exactly:
 - The reviewer's name
 - The absolute file path for that reviewer
 - The complete numbered Human Issues list from Step 2
@@ -71,7 +73,7 @@ Call the `ned_clean_reviewer` sub-agent. Pass a prompt containing exactly:
 Example prompt to pass:
 ```
 Reviewer: Evan
-File: C:\D\Umich\Research Program\Zhisheng\comparison\evan\evan-review-{semester}_PROJECT{proj}.md
+File: results/evan/evan-review-{semester}_PROJECT{proj}.md
 
 Human Issues:
 1. ...
@@ -87,7 +89,7 @@ Collect the structured result returned by each sub-agent.
 ## Step 4 — Assemble and write output
 
 Write one output file:
-`C:\D\Umich\Research Program\Zhisheng\comparison\ned-clean\ned-clean-{semester}_PROJECT{proj}.md`
+`results/comparator/comparator-{semester}_PROJECT{proj}.md`
 
 The file must contain, in order:
 
