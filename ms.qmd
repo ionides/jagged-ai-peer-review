@@ -547,8 +547,7 @@ However, we postulate that mistakes made by statistics graduate students after t
 
 The authors thank Aaron Abkemeier, Fred Feinberg and Bo Yang for helpful suggestions.
 
-**Ethics**. This study analyzes publicly available and de-identified data. 
-A request is pending for exemption from full review by the University of Michigan Institutional Review Board (HUM00293579).
+**Ethics**. This study analyzes publicly available and de-identified data, and was therefore determined not to require human subject regulation by the University of Michigan Institutional Review Board (HUM00293579).
 
 **Use of AI**. AI tools were used as described in Materials and Methods. Claude Code Opus 4.7 and Chat GPT 5.5 were used to provide review of this manuscript, and we are grateful for their helpful suggestions.
 
