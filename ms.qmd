@@ -31,6 +31,8 @@ number-sections: true
 jupyter: python3
 ---
 
+\vspace{-2cm}
+
 ## Abstract {.unnumbered}
 
 Despite their growing use in academic writing and statistical analysis, the performance of artificial intelligence (AI) tools in scientific peer review remains a largely unexplored area.
@@ -45,7 +47,7 @@ The jaggedness was found to be similar for all agents, consistent with it being 
 Skill file configuration shifted which weaknesses agents emphasized, without removing the jaggedness.
 
 
-**Keywords:** Peer review; Partially observed Markov process; jagged artificial intelligence.
+**Keywords:** Peer review; Partially observed Markov process; Jagged artificial intelligence.
 
 # Introduction
 
@@ -322,7 +324,7 @@ theme_total = theme_df['Count'].sum()
 tc = dict(zip(theme_df['Theme'], theme_df['Count']))
 ```
 
-To characterize the structure of human-unique findings, we analyzed `{python} theme_total` human-raised issues that were missed (category E) for all four agents.
+To characterize the structure of human-unique findings, we analyzed `{python} theme_total.item()` human-raised issues that were missed (category E) for all four agents.
 Themes were identified by having Claude broadly classify each finding by content into general categories. The classification was manually verified across all semesters by reviewing the individual assignments and confirming the categorizations were reasonable.
 These clustered into five recurring themes, shown in @fig-themes.
 
