@@ -185,7 +185,6 @@ colors = {
 markers = {'Baseline': 'o', 'CourseGuided': 's', 'MetaSkill': 'D', 'Orchestrator': '^'}
 ```
 
-@tbl-coverage-raw presents the Human Overlap by agent and semester.
 
 ```{python}
 #| echo: false
@@ -202,6 +201,7 @@ pivot.columns.name = None
 pivot
 ```
 
+@tbl-coverage-raw presents the Human Overlap by agent and semester.
 @fig-coverage-trends shows the Human Overlap trend across semesters for each agent.
 All agents exhibited a declining trend in Human Overlap from W22 to W25, partly because human reviews became more thorough over time: the average number of human-confirmed issues per project grew from `{python} f"{avg_human_issues['W21']:.1f}"` in W21 to `{python} f"{avg_human_issues['W24']:.1f}"` in W24 before settling at `{python} f"{avg_human_issues['W25']:.1f}"` in W25.
 As the denominator of Human Overlap increased while AI coverage remained roughly stable, the overlap rate naturally declined.
