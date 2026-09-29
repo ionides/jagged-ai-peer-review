@@ -1,4 +1,4 @@
-# Review: W25 PROJECT07
+# Review: W25 Project 07
 ## *Dengue Fever in the U.S. States and Territories (2022–2023)*
 
 ---
@@ -7,11 +7,11 @@
 
 | Field | Details |
 |-------|---------|
-| **Inference method** | IF2 (iterated filtering, mif2) with particle filter likelihood evaluation |
-| **R packages used** | pomp, doFuture, doParallel, doRNG, forecast, denguedatahub (versions not pinned) |
-| **Code publicly available** | Partial — Rmd provided in course submission; no external archive or DOI |
-| **Data publicly available** | Yes — via `denguedatahub` R package (CDC data) |
-| **Benchmark comparison included** | Yes — SARIMA(2,0,0)×(0,0,1)[53] used as benchmark |
+| **Inference method** | IF2 (mif2) + particle filter (pfilter) |
+| **R packages used** | pomp, forecast (Arima), denguedatahub, doFuture, doParallel |
+| **Code publicly available** | Yes — Rmd submitted via course git repo |
+| **Data publicly available** | Yes — via `denguedatahub` R package |
+| **Benchmark comparison included** | Yes — SARIMA(2,0,0)(0,0,1)[53] |
 
 ---
 
@@ -19,190 +19,134 @@
 
 | # | Practice | Status | Notes |
 |---|----------|--------|-------|
-| 1 | Likelihood-based inference | ~ | IF2 used for both SIRS and SEIR; some parameters fixed ad hoc without justification |
-| 2 | Benchmark comparison | ~ | SARIMA benchmark present but comparison is informal and favors POMP models |
-| 3 | Quantitative goodness-of-fit reporting | ~ | Log-likelihoods reported, but no AIC or formal comparison table |
-| 4 | Model diagnostics | ~ | ESS and conditional log-likelihoods shown for SIRS only; not for SEIR |
-| 5 | Parameter identifiability and uncertainty | ✗ | No profile likelihoods; no confidence intervals for any parameter |
-| 6 | Computational adequacy | ~ | Convergence traces shown; but computation is minimal (run_level=3 with Nglobal=20 for SIRS) |
-| 7 | Forecast methodology | N/A | No forecasting objective stated |
-| 8 | Model variations and nested comparisons | ~ | SIRS and SEIR compared qualitatively; no likelihood ratio test or AIC comparison between them |
+| 1 | Likelihood-based inference | ~ | mif2 + pfilter used correctly; logmeanexp applied |
+| 2 | Benchmark comparison | ~ | SARIMA fitted; log-likelihood compared but AIC scale difference not noted |
+| 3 | Quantitative goodness-of-fit reporting | ~ | Log-likelihoods reported numerically; no AIC table for POMP models |
+| 4 | Model diagnostics | ~ | ESS/conditional loglik shown for SIRS only; no analogous diagnostics for SEIR |
+| 5 | Parameter identifiability and uncertainty | ✗ | No profile likelihoods computed for any model; code variables defined but never used |
+| 6 | Computational adequacy | ~ | SEIR adequate; SIRS global search uses only 20 starting points and Nmif=50 |
+| 7 | Forecast methodology | N/A | No forecasting performed |
+| 8 | Model variations and nested comparisons | ~ | SIRS and SEIR compared, but only qualitatively |
 | 9 | Stochasticity | ✓ | Both models use binomial transitions; negative binomial measurement model |
-| 10 | Reproducibility and extendability | ~ | bake() used; no archived MLE parameter files as standalone CSVs; package versions absent |
-| 11 | Corroboration with scientific knowledge | ~ | Some parameter values rationalized; N=4e9 in SIRS is biologically implausible |
-| 12 | Measurement model specification | ~ | Negative binomial used; rho fixed at implausible values without justification |
-| 13 | Initial conditions | ~ | Initial conditions partially estimated; fixed N not justified in SEIR |
+| 10 | Reproducibility and extendability | ~ | Code present; no package version pinning; no sessionInfo(); some hardcoded indices |
+| 11 | Corroboration with scientific knowledge | ~ | Parameter values loosely grounded in WHO/literature; population size choices not justified |
+| 12 | Measurement model specification | ~ | Negative binomial used; k fixed without justification in SEIR |
+| 13 | Initial conditions | ~ | SIRS parameterizes all initial fractions (good); SEIR hardcodes E=10, I=70 |
 
 ---
 
 ## Summary
 
-The paper models weekly travel-associated dengue cases in the U.S. (2022–2023) using two stochastic compartmental models — SIRS and SEIR — fit via particle filtering and iterated filtering (IF2), with a SARIMA benchmark. The authors implement seasonal transmission forcing, compare local and global parameter searches, and present visual trajectory comparisons. While the project demonstrates competent use of the `pomp` framework and appropriately includes a statistical benchmark, the analysis suffers from absent profile likelihoods, biologically implausible fixed parameters, inconsistent data filtering between the SIRS and SEIR models, and only informal model comparison. Neither model is formally shown to outperform the SARIMA benchmark, and no confidence intervals are reported for any parameter.
+This project analyzes weekly travel-associated dengue case counts for U.S. states and territories (2022–2023, 106 weeks) using three modeling approaches: a SARIMA benchmark, a stochastic SIRS model with a two-phase seasonal transmission rate, and a stochastic SEIR model with cosine-modulated seasonality. Parameters are estimated via iterated filtering (mif2) with particle filter likelihood evaluation. Both mechanistic models achieve log-likelihoods close to the SARIMA benchmark (~-440 vs. -445), which the authors interpret as favorable.
 
-**Strengths:**
-- Includes a SARIMA benchmark with AIC-based model selection, which is methodologically appropriate.
-- Both compartmental models incorporate stochastic process noise (binomial transitions) and overdispersed measurement models (negative binomial).
-- ESS and conditional log-likelihood diagnostics are shown for the SIRS model.
-- bake() caching is used for computational reproducibility of expensive steps.
-- Seasonal forcing is motivated by dengue biology and implemented in both models.
+**Strengths:** The project demonstrates solid command of the POMP workflow — model specification via Csnippets, run_level framework, local and global searches, logmeanexp aggregation, and simulation-based visualization. Including a SARIMA benchmark and comparing log-likelihoods is commendable. The SIRS ESS and conditional log-likelihood diagnostics are appropriately presented.
 
-**Weaknesses:**
-- No profile likelihoods or confidence intervals are computed for any parameter in either model.
-- The SIRS model uses N=4e9 (four billion), far exceeding any plausible U.S. population, while the SEIR model uses N=3.2 million; neither is justified.
-- Data construction differs between the two models (different filter conditions on the raw dataset), meaning the two models are not fit to the same data.
-- The benchmark comparison is informal: log-likelihoods are reported but no AIC, likelihood ratio test, or formal comparison table between SIRS, SEIR, and SARIMA is presented.
-- The SEIR global search is severely underpowered (Nglobal=100 for run_level=3 but the global search block uses `%dopar%` rather than `%dofuture%`, and `run_level` is re-declared mid-script inconsistently).
+**Weaknesses:** Neither model computes profile likelihoods, leaving parameter identifiability entirely unaddressed. The SIRS global search is severely underpowered relative to the SEIR search. The SEIR overdispersion parameter k is never estimated. Both models rely on population sizes that are epidemiologically implausible and unjustified. The SEIR initial conditions for E and I are hard-coded integers rather than estimated parameters. These gaps collectively undermine the reliability of the reported parameter estimates and model comparisons.
 
 ---
 
 ## Major Issues
 
-### 1. No Profile Likelihoods or Confidence Intervals
+### 1. No profile likelihoods for any model parameter
 
-Neither the SIRS nor the SEIR analysis computes profile likelihoods or reports any confidence intervals for parameter estimates. `Npoints_profile` and `Nreps_profile` are defined in the run-level blocks but never used — no profile likelihood code appears anywhere in the document. Without profiles, it is impossible to assess whether any parameter is identifiable from 106 weeks of data. Given that both models fix several parameters (N, rho in SIRS; N, k in SEIR) and estimate others, the identifiability of the estimated parameters under the fixed-parameter constraints is completely uncharacterized. Wheeler et al. (2024) emphasize profile likelihoods as essential for assessing identifiability; their absence here undermines all conclusions about parameter estimates.
+Neither the SIRS nor the SEIR model computes profile likelihoods. The Rmd defines `Npoints_profile` and `Nreps_profile` in both run_level blocks (lines 345–346 for SIRS; lines 934–935 for SEIR), but these variables are never used. Without profile likelihoods, it is impossible to assess whether any parameter is identifiable from the data, and the reported point estimates (β, γ, ξ, μ_EI, μ_IR, R₀) carry no quantified uncertainty. This is the most critical gap. Per Wheeler et al. (2024), §Parameter identifiability, "profile likelihoods should be computed to assess whether parameters are identifiable from the data." The authors should compute at minimum 2–3 profile likelihoods for key epidemiological parameters (e.g., β, recovery rate) and report MCAP confidence intervals.
 
-**Fix:** Compute profile likelihoods for at least the key epidemiological parameters (beta/a/b, mu_IR, rho) in both models, report Monte Carlo Adjusted Profile (MCAP) confidence intervals, and discuss whether the profiles show evidence of identifiability or flat likelihood surfaces.
+(CC-Yes: Error 1.9 — Profile likelihood too sparse to identify the maximum; here the profile is entirely absent.)
 
----
+### 2. SIRS global search severely underpowered relative to SEIR
 
-### 2. Biologically Implausible and Inconsistent Population Parameters
+The SIRS run_level block (lines 340–347) has four switch values and at run_level=3 evaluates to Nglobal=20 and Nmif=50. The SEIR run_level block (lines 931–938) has three switch values and at run_level=3 evaluates to Nglobal=100 and Nmif=100. This five-fold difference in global starting points and two-fold difference in mif2 iterations means the SIRS global search is far less thorough than the SEIR search. With only 20 starting points, the SIRS global optimum may not have been found, making the SIRS log-likelihood comparison unreliable. The four-value switch structure for SIRS (with the extra level appearing to be an aspirational run_level=4) suggests the intended high-effort settings were never executed. The SIRS global search should be re-run with at least Nglobal=100 and Nmif=100 before drawing conclusions from the SIRS–SEIR–SARIMA comparison.
 
-The SIRS model is initialized with `N=4e9` (four billion individuals) and later the global search fixes `N=3.25e8` (325 million) — the U.S. population. Neither value is explicitly justified in the text, and the initial value of four billion exceeds the entire U.S. population by more than tenfold. The reporting rate `rho=1e-7` used alongside N=4e9 implies that roughly 400 travelers per week are infected out of an effective pool of four billion, which has no epidemiological meaning for a travel-associated case series.
+(CC-Yes: Error 1.8 — Missing convergence diagnostics / inadequate search effort.)
 
-The SEIR model independently sets `N=3200000` (3.2 million) without explanation. This is inconsistent with the SIRS global search parameter of 3.25e8 and with any stated interpretation of N as the U.S. population.
+### 3. Biologically implausible and inconsistent population size N
 
-These inconsistencies suggest that N and rho are being used as scale parameters calibrated numerically rather than as biologically interpretable quantities, which violates the interpretability goals of mechanistic modeling. Wheeler et al. (2024) flag implausible parameter estimates as evidence of model misspecification.
+The SIRS model uses N=4e9 (4 billion) for initial simulations and the local search (line 427: `N=4e9`), then switches to N=3.25e8 (325 million) for the global search (line 599) without explanation. The SEIR model uses N=3.2e6 (3.2 million) throughout. These values span three orders of magnitude and none is justified. Four billion exceeds the entire world population and is physically impossible as a susceptible pool for U.S. travel-associated dengue. The relevant epidemiological denominator for travel-associated cases is ambiguous (U.S. travelers to dengue-endemic regions? U.S. population?), but the choice of N is directly confounded with the reporting rate ρ and the transmission rate β. Without fixing N on defensible grounds and justifying ρ accordingly, the fitted β values are not interpretable as transmission rates. The authors should specify the intended population, justify N, and verify that the product N × ρ is consistent with observed case counts.
 
-**Fix:** Justify the choice of N explicitly. If N represents a "susceptible traveler pool" rather than total U.S. population, state this clearly and provide a principled estimate. Ensure N and rho are consistent across models or explain the difference.
+### 4. SEIR overdispersion parameter k is never estimated
 
----
+The SEIR `partrans` includes k in the log-transform list (line 842: `log=c("Beta","mu_EI","mu_IR","k","phi")`), suggesting k was intended to be estimated. However, the local search rw.sd specification (line 954) omits k, and the global search explicitly fixes k via `fixed_params <- coef(measSEIR, c("N","k"))` (line 1076). Consequently k=10 throughout, set by the initial guess. The overdispersion parameter directly controls the width of the negative binomial measurement distribution and thus affects all likelihood values. Fixing k at an arbitrary initial value without sensitivity analysis or justification materially affects the reported log-likelihoods and the simulation uncertainty bands. The authors should either estimate k jointly with other parameters or provide a principled justification for fixing k=10.
 
-### 3. SIRS and SEIR Models Are Fit to Different Data
+### 5. SEIR initial conditions E and I are hard-coded integers, not estimated
 
-The SIRS model filters the raw CDC data using:
-```r
-cdc_casesby_week %>% filter(Travel.status == "All", Year %in% c(2022, 2023))
-```
+The SEIR `seir_rinit` Csnippet (lines 806–811) hard-codes E=10 and I=70, estimating only S via the parameter η. With only 106 data points, the latent initial state can have a substantial influence on the fitted likelihood. Hard-coding E and I at round-number guesses — with no sensitivity analysis and no exploration of alternative starting conditions — introduces an unquantified systematic error into the SEIR results. By contrast, the SIRS model correctly parameterizes all initial compartment fractions (S_0, I_0, R_0) as barycentric coordinates that are estimated via mif2. The SEIR model should parameterize E_0 analogously, or at minimum demonstrate robustness to the choice of initial conditions.
 
-The SEIR model uses:
-```r
-data <- cdc_casesby_week
-data <- data[637:nrow(data), ]
-```
+### 6. SIRS reporting rate rho is fixed at epidemiologically implausible values
 
-The row-index subsetting `[637:nrow(data), ]` is not equivalent to the year-and-travel-status filter used for SIRS. The raw dataset contains multiple travel statuses and years, so row 637 may not correspond to week 1 of 2022 for "All" travel status. As a result, the two models may be fit to different case series. The paper presents them as modeling the same phenomenon and compares their log-likelihoods directly, but this comparison is invalid if the data differ.
+The SIRS model fixes rho=1e-7 (one in ten million) in the initial and local-search phase (line 431: `fixed_params <- c(N=4e9, rho=1e-7)`), then silently changes to rho=4e-5 (one in 25,000) for the global search (line 599–601) without explanation. With N=4e9 and rho=1e-7, a weekly peak of ~200 reported cases would require ~2 billion actual infections, which is impossible. With N=3.25e8 and rho=4e-5, ~200 reported cases imply ~5 million actual infections per week in the U.S., which is also implausible for imported dengue. The combination of N and rho is not independently identifiable without external constraints; the authors must provide a principled argument for at least one of these values using surveillance coverage data or published estimates of reporting rates for dengue in the U.S.
 
-**Fix:** Use identical data extraction code for both models, verify the extracted series are equal (e.g., `identical(df_pomp$reports, meas$reports)`), and document the extraction logic clearly.
+### 7. No particle filter diagnostics for SEIR model
 
----
+The SIRS section includes ESS and conditional log-likelihood diagnostics via `plot(sirs_pf)` at initial parameters (lines 466–476), and the authors correctly interpret the ESS and per-time-step log-likelihoods. The SEIR section contains no analogous diagnostics at any stage — no ESS plot, no conditional log-likelihood trace, no `plot(pfilter(...))` output. Without these diagnostics it is impossible to assess whether the SEIR particle filter is functioning adequately (e.g., detecting filter degeneracy or early-time-point poor fit). This asymmetry is unjustified given that the SEIR model is presented as the primary epidemiological contribution. The authors should add SEIR particle filter diagnostics at the MLE parameters before drawing conclusions about model fit.
 
-### 4. Informal and Incomplete Model Comparison
+### 8. Seasonal period inconsistency: SARIMA uses 53 weeks, POMP models use 52
 
-The paper's main conclusion is that "the log likelihoods of both the SIRS and SEIR model were close to the baseline of the SARIMA model." However, no formal comparison table is presented, and the comparison is misleading for several reasons: (a) SARIMA log-likelihood is reported as "approximately -445" without a precise value; (b) the SIRS and SEIR log-likelihoods are compared to this approximate figure without reporting standard errors alongside them; (c) no AIC values are computed for the mechanistic models to enable an apples-to-apples comparison with SARIMA's AIC-based model selection; (d) the two mechanistic models are not compared against each other via likelihood ratio test or AIC despite having the same observation model and nested model structure.
-
-Wheeler et al. (2024) note that "log-likelihood or AIC values must be reported for any meaningful model comparison" and that visual comparisons alone are a weak measure. The conclusion that both mechanistic models perform well because their log-likelihoods are "close to" the SARIMA benchmark does not constitute a rigorous comparison.
-
-**Fix:** Present a single comparison table with model name, number of estimated parameters, log-likelihood (with Monte Carlo SE), and AIC for SARIMA, SIRS, and SEIR. Use a likelihood ratio test for nested model comparisons (SEIR vs. SIRS is not nested, but both vs. SARIMA can be compared via AIC). Discuss what "close to" means in the context of model complexity differences.
-
----
-
-### 5. Global Search Is Severely Underpowered for SIRS
-
-The SIRS global search uses `Nglobal = switch(run_level, 2, 5, 20, 100)`, yielding only 20 search replicates at run_level=3. With 7 free parameters and a 7-dimensional search box, 20 random starting points is insufficient to characterize the global likelihood surface. The pairs plot for the global SIRS search (which should show 20 points) cannot meaningfully reveal the shape of the likelihood surface.
-
-Additionally, the global search bake file is `paste0("global_sirs_",run_level,".rds")` which at run_level=3 is `"global_sirs_3.rds"`. The script reads `guesses` (20 rows) but the `mif2` inside the loop only runs `Nmif=50` iterations from each guess (using the `mf1` object from the local search), giving each guess only a single pass. This is insufficient for a global search; Wheeler et al. (2024) note that computational effort is a primary driver of whether a global search locates the true MLE.
-
-**Fix:** Increase Nglobal to at least 100 for SIRS (consistent with the SEIR value). Run two passes of mif2 from each guess (as shown in the course notes pattern `mif2() |> mif2()`). Report the spread of top log-likelihoods across global search replicates to demonstrate convergence to a consistent maximum.
-
----
-
-### 6. SEIR Particle Filter Diagnostics Missing
-
-The SIRS section presents ESS and conditional log-likelihood diagnostics via `plot(sirs_pf)`, which is commendable. However, the SEIR section contains no equivalent diagnostics — no ESS plot, no conditional log-likelihood trace, and no assessment of filter health. Given that the SEIR model has an additional compartment (E) and different dynamics, the particle filter may behave differently, and its adequacy should be independently verified.
-
-This is particularly important because the SEIR local search uses only `ncpu` replicates (typically 8 or fewer on a laptop), which may be insufficient to characterize the local likelihood surface reliably.
-
-**Fix:** Add `pfilter` diagnostics for the SEIR model analogous to those presented for SIRS. Show ESS and conditional log-likelihoods at the initial parameters and at the MLE.
-
----
-
-### 7. Fixed Parameters Not Justified for SEIR (k Fixed at 10)
-
-In the SEIR model, the overdispersion parameter `k` is fixed at 10 throughout — in the local search, global search, and all simulations (`k=10` is hardcoded in every `simulate` and `coef` call). The value `k=10` is not explained or justified; there is no sensitivity analysis and no profile likelihood. Fixing an overdispersion parameter at an arbitrary value when the data show substantial variability can lead to biased estimates of all other parameters that affect the spread of the outcome distribution.
-
-In contrast, the SIRS model estimates `k` (it appears in the parameter estimation search). This inconsistency is unexplained.
-
-**Fix:** Either estimate `k` in the SEIR model (include it in `rw.sd`) or justify its fixed value with reference to external data or a sensitivity analysis. Remove `k` from `fixed_params` if it is being estimated, or add it if fixing is deliberate.
-
----
-
-### 8. The "Pandemic Switch" in SIRS Is Not Scientifically Motivated
-
-The SIRS model introduces a transmission shift at week 29 (labeled "pandemic week"), switching from parameter `a` to `b`. The authors state they set `a > b` because "the second peak after week 29 is larger than the first peak." However, the data covers 2022–2023, well into the post-pandemic period, and the use of the term "pandemic week" without any biological or epidemiological justification for a structural break at that specific week is ad hoc.
-
-The model implies a permanent change in dengue transmission dynamics at a single calendar week (week 29 of the 106-week series, corresponding roughly to mid-July 2022), with no explanation of what epidemiological event this represents. This is a structural change to the model justified purely by visual inspection of the data, which risks overfitting.
-
-**Fix:** Justify the "pandemic switch" biologically (e.g., a specific policy change, surveillance shift, or ecological event). If no justification exists, remove it or treat it as a sensitivity analysis. Alternatively, compare a model with the switch against one without it using a likelihood ratio test.
+The SARIMA model uses a seasonal period of 53 (lines 92, 103, 125: `period=53`) based on the correct observation that the dataset has 53 weeks per year. However, the SIRS transmission formula (line 369) divides by 52 (`2*pi*(t+d)/52`), and the SEIR transmission formula (lines 789–790) also uses `period=52`. This means the POMP models impose a seasonal cycle of exactly 52 weeks rather than the 53-week cycle in the data, introducing a systematic phase drift of approximately one week per year — visible over a two-year dataset. The POMP models should use period=53 to be consistent with the data structure, or the authors should explain why a 52-week period is the appropriate biological assumption.
 
 ---
 
 ## Computational and Diagnostic Assessment
 
-**Convergence:** The SIRS local search shows convergence traces across MIF2 iterations for all parameters, which is good. The SEIR local search also shows traces. However, neither model presents a scatter plot of final log-likelihoods across all global search replicates (only the best result is reported for SEIR), making it difficult to assess whether the global search consistently locates the same optimum.
+**Convergence:** SIRS local search trace plots (lines 507–515) show parameter convergence across 20 mif2 runs. The log-likelihood panel appears to plateau around -440, suggesting adequate local convergence. SEIR local search traces (lines 962–969) are also shown. However, no global search convergence traces are presented for either model — only pairs plots of terminal parameter values. Pairs plots cannot distinguish whether the global search converged or whether the apparent cluster is a large local maximum.
 
-**Particle filter:** ESS diagnostics are presented for the SIRS initial parameter filter. ESS occasionally dips near seasonal transitions, which the authors note. No equivalent diagnostics are shown for SEIR, which is a gap.
+**Particle filter:** ESS is monitored for SIRS at initial parameters. For SEIR, no ESS monitoring is performed at any stage. The SEIR local and global searches use Np=2000 (lines 977, 1094), which is adequate. The SIRS global search uses Np=1000 (from the switch at run_level=3, line 340).
 
-**Conditional log-likelihoods:** Per-time-step log-likelihoods are shown for the initial SIRS filter. These are not presented for the post-optimization parameters or for SEIR.
+**Conditional log-likelihoods:** Shown for SIRS initial parameters only. Absent for SEIR and for post-optimization SIRS.
 
-**Profile likelihoods:** None computed. `Npoints_profile` and `Nreps_profile` are defined but the profile likelihood code is absent from the document entirely. This is the single most critical missing element.
+**Profile likelihoods:** Not computed for any model (see Major Issue 1).
 
-**Computational scale:** The SIRS global search uses 20 replicates with 50 MIF2 iterations and 1000 particles. The SEIR global search uses 100 replicates at similar settings. Total CPU hours are not reported. The computation is modest for a 106-observation time series with a simple model, but it is not clearly insufficient — the concern is the small number of global search replicates for SIRS.
+**Computational scale:** SEIR: Nglobal=100, Nmif=100, Np=2000. SIRS: Nglobal=20, Nmif=50, Np=1000. CPU-hours not reported. The discrepancy between model effort is substantial and unexplained.
 
 ---
 
 ## Reproducibility Assessment
 
-**Code availability:** Code is embedded in the Rmd file submitted to the course. There is no external archive (GitHub, Zenodo) with a DOI.
+**Code availability:** Complete Rmd submitted with bake() caching. All computational results are cached in `.rds` files keyed by run_level, enabling reproduction without full re-runs.
 
-**Final parameters:** Intermediate CSV files (`sirs_lik.csv`) are written and read back within the script. However, the final MLE parameter vectors are not archived as standalone files; results depend on the bake RDS files being present in the working directory. The bake files are not submitted with the project.
+**Final parameters:** The SIRS local search results are written to `sirs_lik.csv` (lines 529, 674–679). SEIR results are stored in `results` and `local_logliks` objects but not written to standalone CSV files for the final parameters. Archiving final SEIR MLE parameters to a CSV would improve reproducibility.
 
-**Model-code consistency:** The measurement model is `dnbinom_mu(reports, k, rho*H, give_log)` in both SIRS and SEIR. The text describes a negative binomial observation model with mean `rho*H`. This is consistent. However, the SEIR model hardcodes `k=10` in simulation calls while removing `k` from the search, creating a mismatch between the model as estimated and the model as simulated after the global search (the global search fixes `k` via `fixed_params = coef(measSEIR, c("N","k"))`, so this is internally consistent but the value is never justified).
+**Model-code consistency:** The SIRS measurement model in code (`dnbinom_mu(reports, k, rho*H, give_log)`, line 393) and the SEIR measurement model (`dnbinom_mu(reports, k, rho*H, give_log)`, line 818) are consistent with the text description (negative binomial with mean rho*H).
 
-**Package versions:** No `sessionInfo()` output is included. The `denguedatahub` package version is not specified; the row-index subsetting in the SEIR data construction `data[637:nrow(data),]` will break silently if the package is updated and the row count changes. The `pomp` version is not pinned.
+**Package versions:** No `sessionInfo()` output, no `renv.lock`, and no explicit version pinning for `pomp`. The `pomp` API has changed substantially across versions; without version pinning, reproduction is not guaranteed on future package versions.
 
-**Auxiliary data:** Data is pulled from the `denguedatahub` package at run time. This is convenient but means results depend on the package version and the current CDC data, both of which may change.
-
-**HPC reproducibility:** No cluster computing was used; analysis runs locally. This is acceptable for the scale of this project.
+**Auxiliary data:** Data sourced from the `denguedatahub` package, which is publicly available. The SEIR data is loaded via hardcoded row indices `data[637:nrow(data), ]` (line 777). If the upstream package is updated and rows are added or reordered, this will silently select the wrong data.
 
 ---
 
 ## Minor Issues
 
-- The SARIMA log-likelihood is reported as "approximately -445" without a precise value. The actual value from `print(sarima)` should be cited exactly.
-- The introduction states that both SARIMA and POMP models are fitted "to benchmark performance," but the SARIMA model is presented as the benchmark for the POMP models, not the reverse. The framing should be clarified.
-- The `run_level` variable is declared twice in the SIRS section (lines ~339 and ~930), creating a risk of inconsistent settings if the document is partially re-run.
-- The `%dopar%` operator is used in the SEIR global search while `%dofuture%` is used in the SIRS global search. These require different backend registrations and the mixing is inconsistent.
-- The color `531` in the data plot (`geom_line(color = 531)`) will be interpreted as a numeric color code by ggplot2 rather than a meaningful named color; this appears to be a course in-joke but may produce unexpected rendering behavior.
-- The SARIMA model selection table is computed over a grid that includes d=0 (no differencing) despite the ACF analysis suggesting non-stationarity. The choice of d=0 should be justified or d=1 models should also be considered.
-- The ACF analysis concludes from oscillating ACF that the series is "non-stationary," but oscillating ACF is consistent with a stationary seasonal AR process. The stationarity interpretation is incorrect; a formal unit root test (ADF, KPSS) should be used.
-- The SEIR initial conditions fix `E=10` and `I=70` as constants rather than estimating them, with no sensitivity analysis. For a 106-week series, initial conditions in 2022 may materially affect fit.
-- References [2] acknowledges that two helper functions were generated with ChatGPT, which is appropriate to disclose; however no description of how those functions were validated is given.
-- Several simulation plots use `theme(legend.position = c(0.2, 0.85))` followed immediately by `theme_minimal()`, which resets the legend position. The legend position customization has no effect.
+- **rw.sd values below course standard for SIRS:** The SIRS local search uses rw.sd=0.01 for all parameters (lines 495–500). The course standard is rw.sd=0.02 on the log/logit scale (Ch 15, p31). Perturbations of 0.01 may slow convergence without being harmful, but the choice is unexplained.
+
+- **ACF interpretation contradicts SARIMA specification:** The text states (lines 79–80) "The oscillating pattern...supports that the data is non-stationary," but the fitted SARIMA has d=0, D=0 (i.e., no differencing), implying the authors treated the series as stationary for fitting purposes. A sinusoidal ACF pattern is characteristic of a stationary seasonal process, not evidence of non-stationarity per se. This internal contradiction should be resolved.
+
+- **SEIR phi parameter: log-transform is inappropriate for a phase shift:** The SEIR `partrans` includes phi in the log-transform list (line 842: `log=c("Beta","mu_EI","mu_IR","k","phi")`). This forces phi > 0, which may be appropriate if phi is defined in weeks (expected range 20–32 based on the global search bounds). However, the SIRS phase parameter d is unconstrained and ranges from -40 to 10 (line 606). The two models use different conventions for the phase shift (cosine vs. sine, d vs. phi), making direct comparison of phase estimates impossible. The authors should clarify these differences.
+
+- **"Pandemic switch" terminology and justification:** The SIRS model's structural break is called a "pandemic switch" (lines 305, 338) but the data are from 2022–2023, after the acute COVID-19 pandemic phase. The text later acknowledges this represents "increased international travel during summer." Using the term "pandemic" for a seasonal travel-pattern break is misleading. Additionally, with week 29 falling in the first year of the two-year dataset, the switch fires once in year 1 (week 29) and once in year 2 (week 82), but the text implies it is a one-time structural break. This needs clarification.
+
+- **SEIR global search pairs plot includes all results within 1000 log-likelihood units of max:** The filter `filter(results, loglik > max(loglik) - 1000)` (line 1108) retains results that are 1000 log-likelihood units below the maximum. For a dataset of 106 observations, 1000 log-likelihood units is an enormous range (roughly 9.4 per observation), producing a pairs plot that mixes runs that are essentially at the global optimum with runs that are catastrophically bad fits. A tighter filter (e.g., within 50 units of the maximum) would yield a more informative visualization.
+
+- **SIRS pairs plot includes guess points without label contrast:** The SIRS pairs plot (lines 686–692) plots guesses in grey and results in red. However, the `all` data frame includes `bind_rows(guesses)` which introduces rows with NA log-likelihoods into the panel. The `loglik` panel of the pairs plot will contain NA rows, potentially distorting axis scaling. This should be verified in the output.
+
+- **Missing ACF for residuals of SARIMA model:** The residual analysis for the SARIMA model (lines 218–229) presents a time series plot, histogram, and QQ-plot but omits an ACF of the residuals. ACF of residuals is the primary diagnostic for whether the model has captured all serial correlation. The text claims "no strong autocorrelation" but does not show the ACF residual plot to substantiate this claim.
 
 ---
 
 ## Recommendation
 
-**Major Revision.**
-
-The paper makes a reasonable attempt at mechanistic modeling of dengue fever dynamics using the `pomp` framework, with an appropriate benchmark comparison and stochastic model formulation. However, three critical deficiencies prevent acceptance in the current form: (1) the complete absence of profile likelihoods or confidence intervals for any parameter, making identifiability assessment impossible; (2) inconsistent data construction between the SIRS and SEIR models, which invalidates the head-to-head log-likelihood comparison that is central to the conclusion; and (3) biologically implausible and unjustified population parameters (N=4e9 for SIRS). These issues require substantive revision. The informal benchmark comparison and the underpowered SIRS global search also need to be addressed before the results can be considered reliable.
+Major Revision. The project demonstrates solid technical execution of the POMP workflow and commendably includes a SARIMA benchmark comparison. However, the complete absence of profile likelihoods for either mechanistic model is a fundamental gap: without identifiability checks and confidence intervals, the reported parameter estimates cannot be interpreted or trusted. The severely underpowered SIRS global search, the unjustified and inconsistent population size choices, the hard-coded SEIR initial conditions, and the unfixed overdispersion parameter together cast doubt on whether the reported likelihoods represent genuine MLEs. The seasonal period inconsistency (52 vs. 53 weeks) is an additional structural error that should be corrected. The authors should (1) compute profile likelihoods for key parameters in both models, (2) re-run the SIRS global search with at least Nglobal=100, (3) justify and harmonize population size choices, (4) either estimate k in SEIR or justify fixing it, and (5) correct the seasonal period to be consistent across all models.
 
 ---
 
 ## Files Consulted
 
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/SKILL_pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/assets/rev_template_pomp.qmd`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project07/blinded.Rmd`
+**Skill files:**
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/SKILL_pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/assets/rev_template_pomp.qmd`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/README.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-conventions.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-weakness-reference.md`
+
+**Project files:**
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W25/project07/blinded.Rmd`

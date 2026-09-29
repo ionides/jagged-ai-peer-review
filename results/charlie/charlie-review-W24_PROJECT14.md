@@ -1,169 +1,156 @@
-# Peer Review: W24 Project 14 — Tuberculosis Incidence in the USA: ARIMA and POMP Analysis
+# Peer Review: W24 Project 14
+## Tuberculosis Incidence in the USA — ARIMA and SEIRS POMP Analysis
 
 ---
 
 ## Summary
 
-This project analyzes U.S. tuberculosis (TB) case data from 1953 to 2020 using two approaches: an ARIMA-based time series model and a POMP-based stochastic SEIRS compartmental model. The ARIMA section fits an ARIMA(0,1,5) model selected by AIC. The POMP section builds a stochastic SEIRS model with a time-varying transmission rate, gamma process noise, and a negative binomial measurement model, estimated using iterated filtering (mif2). The paper's main strength is its use of a mechanistic, partially observed model that explicitly accounts for under-reporting. However, the paper has severe methodological deficiencies: the global search was abandoned entirely, the single mif2 run provides no evidence of convergence, no benchmark comparison is made, no profile likelihoods are computed, model equations in the text are inconsistent with the code, reproducibility is compromised by a hardcoded absolute path and undefined helper functions, and the ARIMA model is selected but never diagnostically validated in the rendered output.
+This project analyzes annual US tuberculosis (TB) case counts from 1953 to 2020 using both an ARIMA(0,1,5) model and a stochastic SEIRS POMP model with a time-varying (linearly decreasing) transmission rate. The project is motivated by the long-term decline in TB incidence and attempts to explain this trend through a mechanistic model incorporating overdispersion, gamma white-noise stochasticity, and waning immunity. While the biological motivation is reasonable and the choice of SEIRS is appropriate for TB dynamics, the POMP analysis is severely incomplete: there is no global search, the reported log-likelihood comes directly from mif2 output (invalidating it as an inference quantity), no non-mechanistic benchmark comparison is made, and the written mathematical equations contain systematic errors that contradict the code. The ARIMA section is also incomplete, lacking residual diagnostics for the selected model.
 
 ---
 
 ## Major Issues
 
-### 1. No global search and no convergence evidence (Critical)
+### 1. No global search and absent convergence diagnostics (Error 1.8 — CC-Yes, Major)
 
-The entire optimization rests on a single mif2 call with `Nmif = 50` and `Np = 2000` from a single set of starting values. The authors explicitly acknowledge: "Due to time constraint it was not possible to run global search" and "Despite trying global search techniques, these efforts were omitted from the report due to encountered failures." No replicate mif2 runs from diverse starting points are shown, and no log-likelihood convergence trace from the single run is interpreted or discussed. The `plot(mif_out)` call will produce trace plots, but the text contains no commentary on whether the traces show convergence.
+The project acknowledges explicitly: "Due to time constraint it was not possible to run global search." A single mif2 run is executed from a fixed set of starting parameter values. There are no multiple optimization runs from diverse starting points, and no comparison of terminal log-likelihood values across replicates. The trace plot (`plot(mif_out)`) is produced but never interpreted in text. Without replicated searches, there is no evidence the optimizer found the global maximum. All downstream parameter estimates and likelihood values are potentially unreliable. The course explicitly requires convergence evidence before interpreting POMP results (Ch. 15, p. 35). This is the most critical gap in the analysis.
 
-Without multiple restarts from diverse starting values converging to the same log-likelihood, there is no basis to claim that the reported parameter estimates or log-likelihood of -628.8447 are near the MLE. The entire downstream analysis (parameter interpretation, simulation) rests on an unverified, likely sub-optimal point. See Wheeler et al. (2024), §Computational adequacy: a large improvement in log-likelihood was attributed primarily to increasing computational effort, and convergence must be demonstrated via replicate searches.
-
-**Fix:** Run at least 20 mif2 chains from diverse starting values (ideally drawn from a space-filling random search), plot the resulting log-likelihoods, and report the maximum across runs as the candidate MLE.
+**Fix:** Run at least 10–20 independent mif2 chains from dispersed starting values, compare terminal log-likelihoods, and show that the best-found values cluster near a common level.
 
 ---
 
-### 2. No non-mechanistic benchmark comparison (Critical)
+### 2. mif2 log-likelihood reported directly without replicated pfilter re-evaluation (Error 1.4 — CC-Yes, Major)
 
-The mechanistic SEIRS model is never compared against any non-mechanistic baseline. The ARIMA model fitted in the first section of the paper is never compared to the POMP model on a common quantitative scale (log-likelihood or AIC). The paper concludes that "the POMP model provides a more comprehensive approach" without any quantitative evidence. This comparison is the single most diagnostic check for whether a mechanistic model captures meaningful structure beyond what a simple statistical model achieves.
+The report states: "best parameters we could find with log likelihood of -628.8447." This value is taken from `logLik(mif_out)`, the mif2 internal likelihood, which is not reliable for inference. mif2 applies parameter perturbations during iteration, including in the final step, so the internally computed likelihood reflects a perturbed parameter vector. The course standard is to re-evaluate the likelihood at the MLE by calling `logLik(pfilter(...))` with many particles, replicated to average out Monte Carlo noise. No replicated pfilter calls appear anywhere in the code. The single mif2 likelihood value cannot be used as the model log-likelihood for model comparison or goodness-of-fit assessment.
 
-Wheeler et al. (2024) note that none of the 32 papers in their Haiti cholera review performed this comparison, and their own benchmark revealed that some models failed to beat an auto-regressive negative binomial. The same risk applies here.
-
-**Fix:** Report the log-likelihood of the best-fitting ARIMA model and the best POMP model log-likelihood (from a proper global search) on the same data and measurement scale. Alternatively, fit an auto-regressive negative binomial model and compare via AIC.
+**Fix:** After mif2, call `replicate(Nreps_eval, logLik(pfilter(TBseir_C, params = coef(mif_out), Np = Np)))` and aggregate with `logmeanexp(se = TRUE)`.
 
 ---
 
-### 3. Model equations inconsistent with code (Critical)
+### 3. No non-mechanistic benchmark comparison (Error 1.6 — CC-Yes, Major)
 
-The written stochastic differential equations (lines 543–549) and the discrete-time binomial transition equations (lines 556–560) do not match the Csnippet implementation.
+The ARIMA and POMP sections are presented as independent analyses. The ARIMA log-likelihood is never extracted and compared to the POMP model log-likelihood. The conclusion states "the POMP model provides a more comprehensive approach" without quantitative evidence. Without comparing the two models' likelihoods on the same data, there is no basis for preferring the mechanistic model. The course taught explicitly that benchmark comparison is a core model validation step (Ch. 17; 531-weakness-reference.md Error 1.6). An AIC or log-likelihood comparison between ARIMA(0,1,5) and the SEIRS POMP model would determine whether the added complexity is supported by the data.
 
-Specifically:
-
-- The written ODE for S includes two terms: `- β(t) SI/N - dw(t) β SI/N`, implying both a deterministic and a stochastic component summed. The Csnippet code computes `foi = (Beta - Beta_t * (t - 1952)) * I / N` and then multiplies by `dw` (the gamma noise), meaning the noise is multiplicative on the entire force of infection, not additive. These are different models.
-- The discrete-time equation for E (line 557) shows `E(t+δ) = E(t) + Binomial(S(t), 1 - exp(-μ_EI δ))`, which implies the new E entrants come from a binomial draw on S with rate μ_EI. This is wrong: the new E entrants should be the S→E transitions (`dN_SE`), and the E→I transitions should be subtracted. The code correctly computes `dN_SE` and `dN_EI` separately, but the equation is mis-stated.
-- The H accumulator equation (line 560) uses `Binomial(I(t), 1 - exp(-μ_IR δ))`, which double-counts relative to the I→R transitions already drawn; the code correctly reuses `dN_IR` for both R and H updates.
-
-These mathematical specification errors undermine the paper's scientific clarity and, per Wheeler et al. (2024) §Code and data supplements, constitute a reproducibility failure when code and text diverge.
-
-**Fix:** Rewrite the mathematical specification to match the Csnippet code precisely.
+**Fix:** Report the ARIMA log-likelihood (e.g., `logLik(arima(tb_num, order = c(0,1,5)))`), compare it to the replicated pfilter log-likelihood for the POMP model, and discuss the difference.
 
 ---
 
-### 4. No profile likelihoods or parameter identifiability assessment (Major)
+### 4. Written stochastic Euler equations are systematically incorrect and inconsistent with code
 
-With 13 parameters (Beta, Beta_t, mu_EI, mu_IR, mu_RS, rho, k, sigmaSE, S_0, E_0, I_0, R_0, N) fit to 68 annual observations, parameter identifiability is a serious concern. The paper presents no profile likelihoods, no confidence intervals, and no discussion of whether the estimated parameters are identifiable.
+The section "Adding stochasticity to compartment transitions" presents equations such as:
+- E(t+δ) = E(t) + Binomial(S(t), 1 − exp(−mu_EI · δ))
+- I(t+δ) = I(t) + Binomial(I(t), 1 − exp(−mu_IR · δ))
+- R(t+δ) = R(t) + Binomial(R(t), 1 − exp(−mu_RS · δ))
 
-Several parameters are particularly suspect:
-- `mu_EI = 129.3` implies an exposed-to-infectious period of approximately 0.008 years (about 3 days), which is implausibly short for TB (typical latency is weeks to months).
-- `mu_RS = 33.8` implies immunity lasts approximately 11 days, again biologically implausible for TB.
-- No comparison to literature values is provided.
+Each equation shows only an outflow from the compartment using the wrong parent pool. For example, the increment to E should equal the S→E flow (Binomial(S, 1−exp(−force_of_infection·δ))) minus the E→I flow (Binomial(E, 1−exp(−mu_EI·δ))). Using mu_EI applied to S(t) as the increment to E conflates the two transitions entirely. These written equations do not match the Csnippet code (which correctly implements the transitions), but the mathematical description of the model is what readers evaluate. Per Wheeler et al. (2024), model-code discrepancies are a documented reproducibility failure.
 
-Wheeler et al. (2024) §Parameter identifiability note that implausible MLE values (e.g., zero immunity loss rate) are evidence of model misspecification, not biological truths. The same interpretation applies here.
-
-**Fix:** Compute profile likelihoods for at least the key epidemiological parameters (Beta, mu_EI, mu_IR, rho). Report 95% confidence intervals via MCAP. Compare estimated values to known TB natural history parameters.
+**Fix:** Replace the stochastic Euler equations with the correct net-flow formulas that show both inflow and outflow for each compartment, matching the Csnippet implementation.
 
 ---
 
-### 5. ARIMA model selected but diagnostic model is never called (Major)
+### 5. No profile likelihoods; parameter identifiability unassessed
 
-A `build_and_diagnose_model` function is defined (lines 390–450) but is never called in the document. The ARIMA model identified as "best" (ARIMA(0,1,5)) is never fitted, residual diagnostics are never produced, and the model is never shown to pass white-noise tests. The AIC comparison table is displayed, but the reader has no evidence that the chosen model is adequate or that residuals are uncorrelated.
+The SEIRS model has 13 estimated parameters including Beta, Beta_t, mu_EI, mu_IR, mu_RS, rho, k, sigmaSE, and four initial condition fractions. No profile likelihoods are computed for any parameter. With annual data and only 68 observations, many of these parameters are likely weakly identifiable or confounded (e.g., Beta and Beta_t are both transmission-related; mu_EI and mu_IR interact). Without profile likelihoods, the reported point estimates carry no uncertainty quantification and identifiability cannot be assessed. The course requires profile likelihoods for POMP models (Ch. 16, p. 56).
 
-**Fix:** Call `build_and_diagnose_model` on the selected ARIMA(0,1,5) model, display residual plots, ACF of residuals, and normality test results.
+**Fix:** Compute profile likelihoods for at least the key epidemiological parameters (Beta, mu_IR, rho) and report 95% CIs using the Wilks threshold.
 
 ---
 
-### 6. Hardcoded absolute path breaks reproducibility (Major)
+## Minor Issues
 
-Line 493 contains:
+### 6. No residual diagnostics for the selected ARIMA(0,1,5) model
+
+The `build_and_diagnose_model` function is defined with plotting capability (residual plot, QQ plot, ACF), but it is never called on the selected ARIMA(0,1,5) model. The AIC table is shown and the model is selected, but no residual analysis is presented. Residual diagnostics (ACF of residuals, Ljung-Box test, QQ plot) are the standard way to validate ARIMA model adequacy and are expected in a STATS 531 project.
+
+**Fix:** Call `build_and_diagnose_model(tb_num, "ARIMA(0,1,5)", arima_order = c(0,1,5))` and interpret the residual plots.
+
+---
+
+### 7. Hardcoded local file path prevents rendering
+
+The SEIRS model diagram references a hardcoded local path:
 ```
-<img src="/Users/shreya/Desktop/Winter/stats_531/PROJECT2/seirs_draw.png" ...>
+<img src="/Users/shreya/Desktop/Winter/stats_531/PROJECT2/seirs_draw.png" ... />
 ```
-This is an absolute path to a local filesystem and will produce a missing image in any other environment. The SEIRS diagram is not included in the project files, making the HTML rendering incomplete for any reader other than the author.
+This image will not render in any environment other than the original author's machine. The diagram does not appear in the rendered HTML, which means readers see no model schematic at the point where the SEIRS compartments are introduced.
 
-**Fix:** Include the image file in the project directory and use a relative path, or remove the image and replace it with a LaTeX/TikZ or ASCII diagram.
-
----
-
-### 7. `simulation_arima` and `simulation_sarima` functions are undefined (Major)
-
-The `model_selection_table` function (lines 223–377) calls `simulation_arima` and `simulation_sarima` (lines 329–333), which are never defined anywhere in the document. The code only avoids a runtime error because `simulation_times = 0` is passed at the call site (line 382), causing the branch to be skipped. If a reviewer attempts to run the code with `simulation_times > 0`, it will error. The `simulated_ci_cover_0_table` results are therefore entirely absent. This is both a reproducibility failure and an incomplete analysis — the simulated confidence intervals were presumably intended to complement the Fisher-information intervals.
-
-**Fix:** Define `simulation_arima` and `simulation_sarima`, or remove references to them and the corresponding table columns.
+**Fix:** Place the image file in the project directory and use a relative path, or embed the diagram using R's `DiagrammeR` or similar package.
 
 ---
 
-### 8. H compartment not reset between measurement times (Potential accumvar issue)
+### 8. Population size is fixed at 2023 value across all years 1953–2020
 
-The process model uses `accumvars = 'H'` to ensure H is reset to zero at each observation time, which is correct for tracking incident cases per observation window. However, the initial condition in `seir_init` sets `H = 0` (line 666), which is correct. The concern is that with annual observations and a time step of 1/52 year (weekly), H accumulates all recoveries over 52 weekly steps before being reset. The measurement model then compares this accumulated H against the annual count `Number`. This architecture is correct but the paper provides no validation that the accumulation is happening as intended (e.g., a simple simulation check). Given the many model-building iterations in the code (including an earlier version where `accumvars` was absent), it is worth verifying explicitly.
+The parameter N = 333,000,000 is the 2023 US population. This value is used without change for the entire 68-year time series, even though the US population was approximately 160 million in 1953 and grew substantially over the study period. The authors acknowledge this in the "Further Investigation" section but treat it as optional future work rather than a model limitation. Using an incorrect population size biases the per-capita force of infection and the susceptible fraction throughout the series.
 
-**Fix:** Include a brief simulation check showing that the simulated annual `Number` values are of the right order of magnitude compared to observed counts.
-
----
-
-### 9. Goodness-of-fit assessment is purely visual (Major)
-
-The only goodness-of-fit assessment for the POMP model is a plot of 5 simulation trajectories overlaid on the data (lines 696–706), with the observation that the model "reasonably capture[s] the overall declining trend." No quantitative fit measure is reported, no AIC is computed, and the single reported log-likelihood of -628.8447 comes from before the mif2 run (it is the log-likelihood at the initial hand-picked parameter values, as `logLik(mif_out)` after a single non-converged run is also not properly interpreted).
-
-Wheeler et al. (2024) state: "Visual comparisons alone are only a weak and informal measure of goodness-of-fit." Five simulation trajectories are insufficient to assess calibration.
-
-**Fix:** Report the log-likelihood after filtering (using `pfilter` with multiple replicates) at the fitted parameters. Compute AIC and compare to the ARIMA baseline.
+**Fix:** At minimum, note this as a limitation in the main text. If computationally feasible, incorporate a time-varying population covariate (year-specific census estimates) as a covariate in the POMP object.
 
 ---
 
-### 10. Population fixed at 2023 value; acknowledged but not addressed (Minor/Moderate)
+### 9. Fisher CI computation error in model_selection_table
 
-The population N is fixed at 333,000,000 (the 2023 U.S. population), yet the data spans 1953–2020. The U.S. population in 1953 was approximately 160 million, roughly half the current value. This means the transmission rate Beta and the initial fractions S_0, I_0, E_0, R_0 are fitting to incorrect population sizes throughout the time series. The authors acknowledge this in the "Further Investigation" section but do not address it. Because force of infection is `Beta * I / N`, underestimating N by up to a factor of 2 for earlier years will produce systematically biased Beta estimates.
-
-**Fix:** Either use yearly U.S. population estimates as a covariate (available from Census Bureau data), or at minimum perform a sensitivity analysis with the mean population over the study period.
-
----
-
-### 11. Stochastic model equations label mislabeled (Minor)
-
-The deterministic ODE system (lines 542–549) is labeled "Stochastic Model" in the section heading. It is the mean-field (deterministic) approximation of the process, not the stochastic model itself. The discrete-time binomial transitions that follow (lines 554–560) represent the actual stochastic model. This labeling is misleading.
-
-**Fix:** Rename the ODE block to "Deterministic mean-field equations" or "ODE approximation" and label the binomial transitions as the stochastic process model.
-
----
-
-### 12. Fisher confidence interval computation is incorrect (Minor)
-
-The `model_selection_table` function computes "Fisher CI" as:
+In `model_selection_table` (lines 311–312):
 ```r
 fisher_ci_low <- pc_model$coef - 1.96 * diag(pc_model$var.coef)
 fisher_ci_high <- pc_model$coef + 1.96 * diag(pc_model$var.coef)
 ```
-`diag(pc_model$var.coef)` returns the diagonal of the variance-covariance matrix, which gives the variances, not the standard errors. The correct standard errors are `sqrt(diag(pc_model$var.coef))`. This means all reported Fisher confidence intervals are dramatically miscalculated (using variance instead of SD in the margin of error). The `fisher_ci_cover_0_table` results are therefore unreliable.
+`diag(pc_model$var.coef)` returns the diagonal of the variance-covariance matrix — these are variances, not standard errors. The correct expression is `1.96 * sqrt(diag(pc_model$var.coef))`. As written, the CIs use variance values directly, making them dramatically too wide (by a factor equal to the parameter SE) and the resulting `fisher_ci_cover_0_table` flags are incorrect.
 
-**Fix:** Replace `diag(pc_model$var.coef)` with `sqrt(diag(pc_model$var.coef))` throughout the interval computation.
-
----
-
-### 13. ARIMA applied to raw counts without scale justification (Minor)
-
-The ARIMA model is applied to `tb_num`, the raw case counts (ranging from ~84,000 in 1953 to ~7,000 in 2020). No transformation is applied. For count data with such a large dynamic range and clear heteroscedasticity (variance likely scales with level), a log-transform or Box-Cox transform would typically be considered. The spectral analysis and AIC model selection are both performed on the raw untransformed series, yet the heteroscedasticity is not discussed.
-
-**Fix:** At minimum, plot and discuss the residual variance over time to assess whether heteroscedasticity is present; consider whether a log-transformed series would be more appropriate for ARIMA modeling.
+**Fix:** Replace `diag(...)` with `sqrt(diag(...))` in both lines.
 
 ---
 
-### 14. mif2 random walk standard deviation is uniform across all parameters (Minor)
+### 10. Stochastic Euler equations omit the RS waning immunity transition
 
-All parameters in the mif2 call (line 729) are given a random walk standard deviation of 0.02, regardless of parameter scale or transformation. While parameters are log- or logit-transformed via `partrans`, the magnitude 0.02 is applied uniformly. In practice, some parameters (such as the initial fractions S_0, E_0, I_0 under barycentric transformation) may need different perturbation magnitudes. No justification or sensitivity analysis for the choice of rw.sd values is provided.
-
-**Fix:** Provide brief justification for the rw.sd choices, or note that tuning these values was not performed and represents a limitation.
+The stochastic Euler equations section lists transitions for S, E, I, R, and H, but the R(t+δ) equation only shows outflow from R (Binomial(R, 1−exp(−mu_RS·δ))). There is no corresponding line for the S compartment receiving recovered individuals. This omission further contributes to the mathematical description not matching the SEIRS model being claimed. The Csnippet correctly handles dN_RS with `S += dN_RS` and `R += dN_IR − fmin(dN_RS, R)`.
 
 ---
 
-### 15. Missing: particle filter diagnostics and effective sample size (Minor)
+### 11. Multiple redefinitions of seir_step obscure the actual model
 
-No effective sample size (ESS) diagnostics are reported for the particle filter. ESS collapse during filtering would indicate that the model is incompatible with the data (or that the particle count is insufficient), but neither is checked. The `Np = 2000` choice is not justified, and no sensitivity to particle count is assessed.
+The function `seir_step` is defined three times in the code: (1) an R function without the H accumulator, (2) an R function with H, and (3) a Csnippet with SEIRS dynamics and time-varying Beta. Only the third definition is used in the final POMP object `TBseir_C`. The first two definitions are dead code that creates confusion about which model is actually being estimated.
 
-**Fix:** Report ESS traces from the final pfilter run. Verify that ESS does not collapse to near zero at any time point.
+**Fix:** Remove the two unused R definitions of `seir_step` and present only the Csnippet version that is actually used.
+
+---
+
+### 12. Figure 2 caption is incorrect
+
+Figure 2 is captioned "TB Cases and Deaths over years" but the plot shows the incidence rate and death rate per 100,000 people — not counts. This is the same caption as Figure 1, which shows raw counts. The distinction matters: Figure 1 shows population-unadjusted counts, while Figure 2 normalizes by population.
+
+---
+
+### 13. Intermediate R-based measurement model uses wrong observation variable
+
+The initial R-based measurement functions (before the Csnippet version) use `Rate` as the observed variable:
+```r
+seir_dmeas <- function (Rate, H, rho, k, log, ...) { dnbinom(x = Rate, ...) }
+```
+But the final POMP object is built with `obsnames = 'Number'`, and the Csnippet dmeas uses `Number`. The initial R-based functions would have modeled the incidence rate per 100,000 as a raw count, conflating two very different quantities. While only the Csnippet version is used for the actual analysis, the inconsistency in the code suggests incomplete understanding of which variable is being modeled.
+
+---
+
+### 14. ARIMA model selection rationale is not adequately explained
+
+The paper states "based on the AIC and smallest root, the relatively suitable model we choose is ARIMA(0,1,5)." The AIC table is shown but the reasoning is not explained: which cell has the minimum AIC, what the margin over alternative models is, and whether ARIMA(0,1,5) with a smallest MA root of 1.05 (near the unit circle) is actually invertible or nearly non-invertible. An MA root close to 1 is worth investigating as it could indicate near-non-invertibility.
+
+---
+
+### 15. Visual goodness-of-fit presented as primary model validation
+
+The report's conclusion that the POMP model "reasonably captures the overall declining trend" is based solely on visual comparison of 5 simulated trajectories to observed data. The simulations show wide variability around the observed values in the 1960s–1980s. Wheeler et al. (2024) explicitly note that "visual comparisons alone are only a weak and informal measure of goodness-of-fit." Given that the mif2 likelihood is also unreliable (Issue 2), there is effectively no quantitative goodness-of-fit assessment in this project.
 
 ---
 
 ## Files Consulted
 
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/SKILL_pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W24/project14/blinded.Rmd`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W24/project14/TB_data_usa.csv`
+**Skill files:**
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/SKILL_pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-conventions.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-weakness-reference.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/README.md`
+
+**Project files:**
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W24/project14/blinded.Rmd`
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W24/project14/TB_data_usa.csv`

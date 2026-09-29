@@ -1,110 +1,183 @@
-# Peer Review: W25 Project 10
-## "Daily Environmental Noise and Heart-Rate Variability"
+# Review: W25 Project 10
+
+## Paper Metadata
+
+| Field | Details |
+|-------|---------|
+| **Title** | Daily Environmental Noise and Heart-Rate Variability |
+| **Inference method** | MIF2 (iterated filtering via `mif2`), particle filter (`pfilter`) |
+| **R packages used** | pomp, tidyverse, doParallel, doRNG, foreach, knitr |
+| **Code publicly available** | No — analysis performed inside Apple Inc.'s secure VDI; HTML output cannot be exported |
+| **Data publicly available** | No — proprietary Apple Inc. data under research-use agreement |
+| **Benchmark comparison included** | Yes — ARIMA(5,1,6) and linear regression |
+
+---
+
+## POMP Checklist Scorecard
+
+| # | Practice | Status | Notes |
+|---|----------|--------|-------|
+| 1 | Likelihood-based inference | ~ | MIF2 used correctly in principle; but declining loglik means terminal likelihood is not at MLE |
+| 2 | Benchmark comparison | ~ | Benchmarks included but compared across differently-transformed data (see Issue 2) |
+| 3 | Quantitative goodness-of-fit reporting | ~ | Loglikelihoods reported but the reported POMP value is from a non-converged run |
+| 4 | Model diagnostics | ~ | Trace plots shown; no simulation-based post-fit diagnostics or ESS monitoring |
+| 5 | Parameter identifiability and uncertainty | ✗ | No profile likelihoods, no confidence intervals |
+| 6 | Computational adequacy | ✗ | Loglik declines after iteration ~10; optimizer never converged; global search far below local |
+| 7 | Forecast methodology | N/A | No forecasts attempted |
+| 8 | Model variations and nested comparisons | ✗ | No alternative model structures tested |
+| 9 | Stochasticity | ~ | Process and measurement noise included; overdispersion not assessed |
+| 10 | Reproducibility and extendability | ✗ | Data proprietary and inaccessible; analysis unverifiable; screenshots only |
+| 11 | Corroboration with scientific knowledge | ~ | Noise coefficient sign discussed; other parameters not checked against literature |
+| 12 | Measurement model specification | ~ | Gaussian assumed; acknowledged as potentially wrong but not examined |
+| 13 | Initial conditions | ~ | X_0 estimated as parameter; no sensitivity analysis |
 
 ---
 
 ## Summary
 
-This project fits a linear-Gaussian partially observed Markov process (LG-POMP) to a pooled daily time series of heart-rate variability (SDNN) spanning November 2019 to December 2024 (n = 1,875 days), with environmental noise level (Leq) and physical activity (Energy) as observed covariates in the latent-state equation. The goal is to quantify the same-day effect of environmental noise on population-level HRV. The project includes an ARIMA(5,1,6) benchmark comparison and a linear regression baseline, and honestly reports that the POMP model fails to beat either benchmark. While the project demonstrates commendable honesty about its own failure and makes a genuine attempt at a two-stage IF2 optimization with convergence traces, the analysis suffers from a series of critical methodological and computational problems that undermine the validity of the reported estimates and prevent any confident scientific conclusion. The global search is fundamentally invalid due to a prior-mif2-result initialization error; the log-likelihood comparisons across models are made on incommensurable objects; parameter convergence is incomplete; no profile likelihoods or confidence intervals are presented; and the underlying data cannot be shared or reproduced. These issues compound to render the main stated findings — including the noise coefficient estimate — unreliable.
+This project fits a linear-Gaussian partially observed Markov process (LG-POMP) to a proprietary daily pooled dataset of heart-rate variability (SDNN, n = 1,875 days) and two covariates (daily environmental noise Leq and physical activity Energy), aiming to quantify the instantaneous suppressive effect of noise on HRV at the population level. The model is compared informally against an ARIMA(5,1,6) benchmark and a linear regression. The project demonstrates genuine methodological ambition and clear scientific motivation.
+
+**Strengths:** The research question is well-framed and the LG-POMP model is elegantly specified. The author correctly uses `logmeanexp` to aggregate replicated particle filter runs, shows trace plots for convergence diagnosis, and acknowledges the model's shortcomings honestly in the conclusion. The identification of the model as linear-Gaussian is a sophisticated observation that could support future Kalman filter implementation.
+
+**Weaknesses:** The optimizer demonstrably fails to converge — the log-likelihood peaks near −2700 in early iterations and declines to −3235 by the final iteration, so the reported MLE is not the true MLE. The ARIMA benchmark is fit to the differenced series while the POMP model is fit to the original series, making the key comparative log-likelihoods non-comparable. No profile likelihoods or confidence intervals are reported for any parameter. The data and full output are inaccessible due to Apple Inc. proprietary restrictions, making the analysis unverifiable.
 
 ---
 
 ## Major Issues
 
-### 1. Global Search Initialized from a Previous mif2 Result Object, Invalidating Global Coverage
+### 1. Convergence failure: log-likelihood declines after iteration ~10 throughout the mif2 run
 
-In the Global Search code chunk, the first mif2 call within the foreach loop takes `mf1 <- mifs_local[[1]]` as its first argument:
+The trace plot (Figure 4) shows the log-likelihood peaking near ℓ ≈ −2700 within the first ten iterations and then drifting downward to approximately −3100 by iteration 300. The replicated pfilter evaluation at the final iterate gives −3235.17 — substantially worse than the early peak. This is a clear convergence failure: the reported MLE is at least 500 log-likelihood units below the best likelihood visited during the search.
 
-```r
-mf1 <- mifs_local[[1]]
-...
-mf1 |> mif2(params=c(guess, fixed_params)) |> mif2(Nmif=150) -> mf
-```
+The author correctly diagnoses this as arising from "over-diffuse random-walk perturbations combined with Monte-Carlo noise in the particle filter" and proposes three remedies (smaller rw.sd, more particles, fixing σ_proc). However, none of these remedies are implemented. The analysis is reported as if the terminal likelihood of −3235 is the MLE, when in fact the optimizer abandoned the best solution it found. This is a major flaw that invalidates downstream model comparisons: the POMP model's true MLE (at least −2700, possibly better) would substantially change the performance picture relative to the benchmarks. [CC-Yes; Error 1.8 — Missing convergence diagnostics for iterated filtering; Error 1.5 — Declining likelihood during iterated filtering]
 
-This passes a previous IF2 result object (the first local-search chain) as the base object rather than the original `hrv_pomp` pomp object. As a result, every global replicate inherits the internal cooling schedule and IF2 state from `mifs_local[[1]]`, which has already spent 300 iterations converging toward the local solution. With the cooling fraction already near exhaustion, the 96 new starting guesses drawn from the box have very little functional IF2 exploration before perturbations shrink to near zero, effectively anchoring the "global" search near the local solution rather than exploring the full parameter box. (See the `pomp-global-search-init-audit` skill for the exact anti-pattern.) The fix is to replace `mf1` in the `mif2()` call with `hrv_pomp` (the raw pomp object), ensuring each global replicate starts fresh.
+*Fix:* Re-run with a smaller cooling fraction (e.g., cooling.fraction.50 = 0.1), reduce rw.sd to 0.005 or smaller, or switch to the Kalman filter (see Issue 5) to obtain an exact and noiseless likelihood. Stop mif2 at the iteration of the peak loglik, and report the likelihood at that point rather than at the terminal iterate.
 
-This error explains the dramatic discrepancy: the global search reports a best log-likelihood of -7,936 (shown in the HTML output), while the local search achieves -3,235. The authors themselves note the discrepancy and attribute it to insufficient iterations, but the initialization fault is a structural reason the global chains cannot escape the inherited cooling decay.
+---
 
-### 2. Log-likelihood Comparisons Are Made on Incommensurable Objects
+### 2. ARIMA benchmark fitted to the differenced series; POMP model fitted to the original series — log-likelihoods are not comparable
 
-The report directly compares:
-- ARIMA(5,1,6) log-likelihood: -2,591, fitted to the **first-differenced** SDNN series (1,874 observations)
-- Linear regression log-likelihood: -3,025, fitted to the **levels** SDNN series (1,875 observations) with noise and activity covariates
-- POMP log-likelihood: -3,235, evaluated on the **levels** SDNN series (1,875 observations)
+The ARIMA(5,0,6) model is fitted to `d_sdnn_ts` (the first-differenced series, 1,874 observations), producing a log-likelihood of −2591.27. The POMP model is fitted to the original `sdnn` column (1,875 observations). A Gaussian linear regression is also fitted to the original (undifferenced) series, giving −3025.71. These three likelihoods are for different data — differenced vs. undifferenced, and in some cases different numbers of observations — and cannot be compared directly. The conclusion states "a purely empirical ARIMA(5, 1, 6) model fitted to the same differenced series achieved ℓ_max^ARIMA ≈ −2591" and then compares it in the same sentence to the POMP's −3235, which is the likelihood of the undifferenced data. This comparison is invalid.
 
-These likelihoods are not on the same scale. The ARIMA model is fitted to the differenced series, so its likelihood integrates over a different sample space than the POMP likelihood for the level series. A one-unit increase in the ARIMA log-likelihood does not correspond to the same improvement in predictive accuracy relative to the level-series models. The AIC comparison in the Conclusion section ("the POMP's much lower log-likelihood translates into a markedly worse AIC than either benchmark") is therefore invalid as stated: the ARIMA AIC cannot be directly compared to the POMP or regression AIC because the observation vectors differ. A valid benchmark comparison requires either (a) converting all likelihoods to the same scale via the Jacobian of the differencing transformation, or (b) using the ARIMA as a predictive model for the level series and evaluating its predictive likelihood on the same held-out observations as the POMP. See Wheeler et al. (2024), Practice 2: Benchmark comparison.
+Likelihoods from different model classes applied to *the same data* are directly comparable (course convention; MT2 Q4-01), but likelihoods computed on *different data* are not. The AIC values reported in the AIC table on page 6 are for ARMA models on the differenced data and similarly cannot be used to benchmark POMP on the undifferenced data. [CC-Yes; Error 2.2 — AIC comparison between ARIMA and POMP without noting non-comparability; here the problem is more fundamental because the data differ]
 
-### 3. No Profile Likelihoods or Confidence Intervals for Any Parameter
+*Fix:* Either (a) fit the ARIMA model to the original undifferenced series as `arima(sdnn_ts, order=c(5,1,6))`, which produces a likelihood on the same data as the POMP model, or (b) fit a POMP model that internally includes the differencing as part of the observation equation, ensuring all likelihoods are for the same observed data.
 
-No profile likelihoods are computed for any parameter, including the primary scientific quantity of interest — the noise coefficient b. The local-search trace plot (Figure 4) shows that b converges to a band around -0.30, but the width of that band and the true sampling uncertainty of the estimate are unknown without profile likelihoods. The authors report b ≈ -0.30 and interpret it as physiologically meaningful, but this is a point estimate from a non-converged local search (see Issue 4 below). Without profile likelihoods, there is no basis for stating that the noise-HRV relationship is "well identified by the data," as asserted on page 12. The MCAP procedure should be applied at minimum for b. See Wheeler et al. (2024), Practice 5: Parameter identifiability and uncertainty.
+---
 
-### 4. IF2 Optimization Has Not Converged: Log-likelihood Drifts Downward After Peak
+### 3. POMP fits substantially worse than the linear regression benchmark, yet no structural revision is attempted
 
-The trace plots in Figure 4 clearly show that the log-likelihood peaks near iteration 10 at approximately -2,700 and then drifts downward to approximately -2,900 by iteration 300. The authors correctly identify this as "a hallmark of over-diffuse random-walk perturbations combined with Monte-Carlo noise in the particle filter," but this diagnosis is also a statement that the maximum log-likelihood value of -3,235 reported after the local search is substantially worse than the optimum found mid-run at -2,700. A particle-filter re-evaluation at the best mid-run parameter snapshot — not just the final snapshot — would be needed to recover the true local optimum. As presented, the best log-likelihood of -3,235 from the local search is an artifact of evaluating only the final-iteration parameters rather than the best-visited parameters across all iterations. This is a critical convergence failure. See Wheeler et al. (2024), Practice 6: Computational adequacy.
+Even setting aside the ARIMA comparability problem, comparing likelihoods on the same undifferenced data: the linear regression achieves −3025.71 and the POMP achieves −3235.17. The POMP model has strictly more parameters and dramatically more computational effort, yet fits substantially worse than a simple regression by approximately 209 log-likelihood units. The author concludes that "the present model specification does not yet capture the dominant structure in the data," but does not revise the model before reporting. When the mechanistic model fits disastrously compared to even the weakest benchmark, the correct diagnostic step is to examine residuals and revise the model structure — not to retain the failed model and defer revision to future work. [CC-Yes; Error 1.15 — Increasing Np/Nmif as the first response when POMP fits poorly vs. benchmark; Error 1.6 — Not comparing to a non-mechanistic benchmark (present but ignored in model development)]
 
-### 5. Data Cannot Be Shared; Analysis Is Not Reproducible
+*Fix:* Investigate why the POMP underperforms. Likely candidates include: (a) the first-order AR dynamics are insufficient for daily SDNN which has longer-range structure; (b) the Gaussian measurement model is misspecified (log-normal may fit better); (c) the process noise σ_proc near zero is absorbing all variance into measurement error, effectively collapsing the model to a static regression. Each of these should be examined before declaring results.
 
-The underlying data are owned by Apple Inc. under a data-use agreement prohibiting distribution. All analyses were run inside Apple's secure VDI environment; neither the data file (`noise_hrv_531.csv`) nor the fully rendered HTML output can be exported. The report consists of annotated screenshots. This means:
-- The code cannot be executed by any reader.
-- The numerical results shown in screenshots cannot be verified.
-- The intermediate `.rds` bake files (`hrv_local_search.rds`, `hrv_lik_local.rds`, `hrv_global_search.rds`) are not archived anywhere accessible.
-- No synthetic or anonymized pseudo-data is provided as a substitute.
+---
 
-This is a complete reproducibility failure. See Wheeler et al. (2024), Practice 10: Reproducibility and extendability, and the Code-Supplement Checklist (Data Restrictions item).
+### 4. No profile likelihoods and no confidence intervals for any parameter
 
-### 6. Uniform rw.sd = 0.01 Applied to All Parameters Regardless of Scale Creates Mismatched Perturbations
+The parameter estimates (a ≈ 0.2, b ≈ −0.30, c ≈ 0.1, d ≈ 47–51, σ_proc ≈ 0, σ_obs ≈ 1, X_0 ≈ 34) are reported only as MLE point estimates from the trace plots, with no uncertainty quantification. No profile likelihoods are computed for any parameter. The author mentions "profile the likelihood on a much finer grid with a larger particle set" as future work. Without profiles, it is impossible to assess whether any parameter is identifiable. The trace plots themselves reveal strong collinearity between a, d, σ_proc, and σ_obs (acknowledged in the text), which profile likelihoods would formally characterize. The key scientific parameter b (noise effect on HRV) is reported with no confidence interval, so the main conclusion — that noise suppresses HRV by roughly 0.3 ms per dB — is unsupported by any formal uncertainty quantification. [CC-Yes; Error 1.9 — Profile likelihood too sparse to identify the maximum; Checklist #5 — Parameter identifiability and uncertainty]
 
-In the local search, `rw.sd` is set to 0.01 uniformly for every parameter (a, b, c, d, sigma_proc, sigma_obs, X_0). However, `d` (the intercept that sets the long-run mean of SDNN) has a starting value of 41 and converges near 47–51, while `b` and `c` are on the order of 0.01–0.5. A fixed perturbation of 0.01 constitutes roughly 0.02% of the scale of `d`, making that parameter almost immobile from its starting value under random-walk perturbations of this size. Conversely, 0.01 is a large fraction of the scale of `sigma_proc` (which converges near 0.05–0.1). Parameters should be perturbed on scales proportional to their expected uncertainty; the uniform choice here will impede convergence for large-scale parameters while over-perturbing small-scale ones. This is consistent with the observed slow movement of `d` in Figure 4 (the chains spread over 42–52 without tightening). The fix is to set `rw.sd` for `d` to approximately 0.5–1.0, for `X_0` to approximately 0.5, and retain 0.01 for the unit-scale parameters.
+*Fix:* Compute profile likelihoods for at least b (the noise effect) and a (the persistence parameter) using `mif2` at a fixed grid of target parameter values. Report MCAP-based or Wilks-based 95% confidence intervals. Note that switching to the Kalman filter (Issue 5) would make profile computation much faster.
 
-### 7. Global Search Box Excludes X_0 and Fixes It at a Single Value
+---
 
-In the global search, `X_0` is excluded from the uniform box and instead fixed at 34 via `fixed_params = c(X_0=34)`. This means all 96 global chains start with the same initial latent state, which is inconsistent with a genuine global search. Sensitivity of the likelihood surface to `X_0` was noted in the local search (traces show meaningful movement in X_0 in Figure 4), so fixing it at a single value in the global search suppresses a dimension of uncertainty that the local search found informative. The global box should include a range for X_0 (e.g., 30 to 38).
+### 5. The LG-POMP model admits exact Kalman filter likelihood evaluation; using a particle filter introduces avoidable Monte Carlo noise
 
-### 8. Model Validation Through Simulation Inadequate: Only Three Pre-optimization Simulations Shown
+The model is explicitly identified as a linear-Gaussian partially observed Markov process. For this model class, the Kalman filter delivers the exact likelihood in closed form — no Monte Carlo approximation is required. By instead using `pfilter` (a particle filter), the analysis introduces stochastic likelihood evaluation noise at every step of the optimization and at every pfilter call. This noise directly causes the likelihood-decline problem in Issue 1: the optimizer cannot distinguish between a genuine decrease in likelihood and a large negative Monte Carlo fluctuation, so the cooling schedule causes it to drift away from the optimum. None of the computational difficulties diagnosed in Issues 1, 4, and 6 would exist if the Kalman filter were used.
 
-Figure 3 shows three simulated trajectories from the initial guess parameters, which are unsurprisingly similar to the data range since the initial guess was chosen to match the empirical series. No simulation-based model validation is performed at the MLE: no simulations from the fitted model are overlaid against the observed SDNN, and no filtering-distribution simulations are presented. Simulation from the filtering distribution conditioned on the observed data would reveal whether the fitted model can reproduce the observed trajectory, as distinct from whether the data fall within the unconditional range of the process. The absence of any post-fit simulation diagnostics makes it impossible to assess model adequacy visually, compounding the lack of quantitative goodness-of-fit assessment. See Wheeler et al. (2024), Practice 4: Model diagnostics.
+*Fix:* Implement the Kalman filter likelihood for this LG-POMP model, which can be done analytically in closed form or using the `KFAS` or `dlm` packages. This would allow exact MLE via gradient-based optimization, profile likelihoods computed in seconds rather than hours, and reliable confidence intervals.
 
-### 9. Pooling Across Individuals Destroys Within-Person Dynamics and Introduces Ecological Fallacy Risk
+---
 
-The motivation for pooling all participants into a single daily median/mean time series is stated as computational convenience (irregular missing data in individual records), but this aggregation creates a fundamental interpretive problem: the POMP model assumes a single latent state governing all participants simultaneously. In reality, individuals will have heterogeneous baseline HRV levels, noise exposures, and activity patterns. Pooling the SDNN median suppresses between-person variation; the estimated b is thus an ecological association rather than an individual-level causal effect. The descending trend in the SDNN series from 2019 to 2024 (Figure 1, approaching -2 ms over 5 years) may reflect cohort attrition (e.g., older participants added over time, participants dropping out) rather than a genuine physiological trend. No sensitivity analysis or robustness check addresses this concern, and the biological interpretation in the text does not acknowledge the ecological fallacy risk.
+### 6. Global search result (−7936) is far below local search result (−3235); the global search cannot validate the local optimum
+
+The global search (Np = 2000, Nmif = 150, 96 chains) produces a maximum log-likelihood of −7936.22 — approximately 4,700 log-likelihood units below the local search result of −3235.17. The author attributes this to the global search being "scored at the terminal parameter vector" and using "a relatively small particle set," but this explanation does not salvage the comparison. If the global search reliably identifies the neighbourhood of the true optimum, its terminal likelihoods should be within reasonable Monte Carlo error of the local search value, not 4,700 units below. A gap of this magnitude means the global search has not converged at all, and the claim that "the high-likelihood points cluster in the same (a, b, c, d, σ_obs) neighbourhood found by the local search" does not resolve the discrepancy. The global search cannot serve as a validation that no better solution exists elsewhere in the parameter space. [CC-Yes; Error 1.8 — Missing convergence diagnostics; Checklist #6 — Computational adequacy]
+
+*Fix:* Increase Np and Nmif for the global search to values where the global terminal likelihoods are within a few units of the local result. Alternatively, use the global search only for initialising local runs, and validate the local result via several independently seeded local searches achieving similar terminal likelihoods.
+
+---
+
+### 7. Autoregressive coefficient a fails to converge in the local search
+
+The trace plot (Figure 4) shows a "drifts steadily upward from near zero toward 0.2–0.25 without ever plateauing" through 300 mif2 iterations. The author characterises this as expected because a is weakly identified, but weak identifiability leads to spread across multiple converged runs at a well-defined likelihood maximum — it does not produce a parameter that continues to trend upward throughout the full run. A trend through the entire run is evidence that the optimiser has not finished climbing; it signals that 300 iterations were insufficient for this parameter, not merely that the likelihood surface is flat around a converged value. [CC-Yes; Error 1.8 — Missing convergence diagnostics; see course note: what to look for is loglik converging upward, not parameter continuing to trend]
+
+*Fix:* Increase Nmif until a stops trending, or adopt a schedule in which Nmif is determined adaptively by monitoring the loglik improvement per iteration. If switching to the Kalman filter as in Issue 5, this problem disappears.
+
+---
+
+### 8. Data, analysis, and outputs are inaccessible; review is based on annotated screenshots
+
+The data-availability statement confirms that the underlying data is proprietary Apple Inc. property. The HTML notebook was generated inside Apple's VDI and cannot be exported. The submitted artefact is a PDF of annotated screenshots of the R Markdown console output and plots. This means no aspect of the analysis can be independently verified: the numerical results, the code execution, the completeness of the output, and the correctness of any figure are all unauditable. The screenshots substitute for but do not replace a reproducible analysis. Furthermore, no synthetic or anonymised dataset is provided that would allow readers to exercise the code structure. [Checklist #10 — Reproducibility and extendability]
+
+*Fix:* Request an exemption from Apple's data-sharing policy for a de-identified or aggregated dataset, or construct a synthetic dataset with statistical properties similar to the original that can be distributed alongside the code. At minimum, provide a complete, executable Rmd file that runs on the synthetic data.
+
+---
+
+## Computational and Diagnostic Assessment
+
+**Convergence:** The loglik trace climbs steeply in the first ten iterations to approximately −2700, then drifts downward to approximately −3100 by iteration 300. This pattern is the opposite of convergence. Multiple chains (48) are run but they all exhibit the same declining trajectory, meaning replication of the failure does not rescue the analysis. The author correctly identifies the cause but does not implement any fix.
+
+**Particle filter:** Np = 5000 for the local search and 2000 for the global search. The particle count is reasonable for local search but insufficient for the global search given the discrepancy in terminal likelihoods. No effective sample size (ESS) monitoring is shown.
+
+**Conditional log-likelihoods:** Not reported. Per-time-step log-likelihoods would help diagnose which periods of the 2019–2024 data are driving the poor fit (e.g., COVID-19 era behavioural changes or Apple Watch uptake effects).
+
+**Profile likelihoods:** Not computed. This is the most critical missing diagnostic for this report.
+
+**Computational scale:** The local search with 48 chains × Np 5000 × Nmif 300 is substantial, implying a well-resourced computing environment. However, the computational effort is wasted because the optimizer diverges from the best solution it found.
+
+---
+
+## Reproducibility Assessment
+
+**Code availability:** Not publicly available. All code executed within Apple's secure VDI.
+
+**Final parameters:** Not archived separately. Parameter values are visible in trace plot axes and text but not in a downloadable file.
+
+**Model-code consistency:** The mathematical model (Equations 1–2) matches the Csnippet code shown on page 9. The measurement model uses `dnorm(sdnn, X, sigma_obs, give_log)`, consistent with Y_t = X_t + ε_t, ε_t ~ N(0, σ_obs²).
+
+**Package versions:** Not reported. `sessionInfo()` output is absent. The `pomp` API is version-sensitive and without a pinned version, the code cannot be confirmed reproducible on current CRAN.
+
+**Auxiliary data:** The covariate table (`covar_df`) is constructed from the same proprietary CSV as the observations, so it is equally inaccessible.
+
+**HPC reproducibility:** The code uses SLURM environment variable `SLURM_NTASKS_PER_NODE`, confirming HPC use, but no SLURM job scripts or environment specifications are provided.
 
 ---
 
 ## Minor Issues
 
-### 10. The AIC Table Is Computed on the Differenced Series but Presented as if It Were the Benchmark for the Level-Series POMP
+- The decision to difference the SDNN series is made by visual inspection ("It looks like there is a descending trend") with no formal stationarity test and no consideration of whether the trend is deterministic (trend + ARMA noise) rather than stochastic (unit root). A downward trend in long-term HRV data could plausibly reflect COVID-19 pandemic effects or increasing Apple Watch adoption over 2019–2024, neither of which would be well-modelled by differencing. [CC-Yes; Error 2.1 — Treating differencing and detrending as equivalent]
 
-The caption of Table 1 reads "AIC of ARIMA(p,1,q), where p,q are from 0 to 6" and the code applies `aic_table` to `d_sdnn_ts` (the differenced series). This is correct for ARIMA model selection but the subsequent comparison of these AIC values to the POMP model AIC is inconsistent; the issue of incommensurability (Major Issue 2) is compounded by the fact that this is never flagged in the text.
+- No simulation-based post-fit diagnostics are shown. Figure 3 shows forward simulations from initial parameter guesses only. After fitting, there should be a comparison of simulated trajectories (from the filtering distribution or from the MLE parameters) to the observed data, to assess whether the model reproduces the data's range, seasonal amplitude, and autocorrelation structure.
 
-### 11. Log-likelihood Typo in Reported ARIMA Model
+- The Gaussian measurement model (Y_t = X_t + ε_t, ε_t ~ N(0, σ_obs²)) is applied to SDNN values (a strictly positive quantity measured in milliseconds). No justification is given for the Gaussian assumption, no QQ-plot of residuals is shown, and no overdispersion check is performed. The author notes in the conclusion that log-normal vs. Gaussian observation models should be compared; this should be part of the initial analysis, not deferred to future work.
 
-The code fits `arima(d_sdnn_ts, order=c(5,0,6))` (an ARMA(5,6) on the differenced series, which is equivalent to ARIMA(5,1,6) on levels), but the table caption reads "AIC of ARIMA(p,1,q)". This is consistent, but the code snippet on page 6 uses `order=c(5,0,6)` which corresponds to ARMA(5,0,6) — i.e., an MA(6) component with 5 AR lags and 0 differencing applied to the already-differenced series. The authors should clarify whether this is ARIMA(5,1,6) applied to levels or ARMA(5,6) applied to the once-differenced series; the two are equivalent but the notation in the text switches between them without acknowledgment.
+- The loglik computation for the linear regression (`logLik_lm <- -0.5*(aic_lm - 2*k)`) is algebraically correct given the AIC definition, but it relies on R's `AIC()` using the standard normalisation. The computation is correct but non-transparent; reporting `logLik(hrv_lm)` directly would be clearer.
 
-### 12. Missing `pomp` Package Version and `sessionInfo()`
+- The `rw.sd` for all parameters is set to 0.01, which is half the course-standard value of 0.02 (Ch 15, p31). While smaller perturbations can improve stability in principle, combined with 300 iterations and a cooling fraction of 0.5, the perturbation schedule may be insufficient to adequately explore the parameter space in early iterations where broader exploration is most needed. The author proposes "reducing random-walk step sizes" as a fix for the declining likelihood, but the step sizes are already small; the more likely fix is reducing the total number of iterations or the cooling rate.
 
-No `sessionInfo()` output is included, and the pomp package version is not pinned. The `pomp` API has changed substantially across versions; without a version specification, the code cannot be reproduced even in principle. An `renv` lockfile or at minimum `packageVersion("pomp")` output should be included. See Code-Supplement Checklist, Documentation (README) item.
+- The paired scatter plot (Figure 5) shows loglik values from the global search spanning from approximately −11,000 to −8,000. The range of these likelihoods — all far below the local search value of −3,235 — provides additional evidence that the global search is uninformative about the true MLE. The clustering of high-loglik points in a particular (a, b, c, d, σ_obs) region should be interpreted cautiously when "high" means −8,000 to −9,000 rather than near −3,235.
 
-### 13. Effective Sample Size of Particle Filter Not Monitored
+- The model conflates between-person heterogeneity with within-day measurement noise in σ_obs. Since observations are daily medians aggregated across participants, σ_obs captures both individual-level HRV variation across people and sensor noise. The pooling design masks between-person dynamics, and the model parameters (particularly b, the noise effect) estimate a population-average effect that may differ substantially from individual-level effects. The conclusion briefly acknowledges this but no sensitivity analysis is presented.
 
-The particle filter is run with Np = 5,000 in the local search and Np = 2,000 in the global search, but no ESS diagnostic is presented. For a 1,875-step time series with Gaussian observation noise, ESS collapse is unlikely, but the difference in Np between local and global searches (5,000 vs. 2,000) means the log-likelihood estimates from the two stages are not directly comparable. The authors use both to argue that the global search is worse than the local search, but particle-filter Monte Carlo noise with only 2,000 particles over 1,875 steps could account for several units of log-likelihood difference. See Wheeler et al. (2024), Practice 6; simulation checklist item 10.
+---
 
-### 14. Stationarity Claim Justified Only Visually; No Formal Test
+## Recommendation
 
-The decision to first-difference the series is supported solely by the visual observation "it looks like there is a descending trend" (page 4) and "now it looks like there is no trend" (page 5). No formal unit-root test (ADF, KPSS) is applied to justify the differencing. For a 1,875-point series this is feasible and should be done. More importantly, the POMP model is fitted to the undifferenced (levels) series, while the ARIMA benchmark is fitted to the differenced series — meaning the differencing decision affects only the benchmark, not the POMP model, which has its own intercept and persistence parameter. The authors should clarify whether the trend in the original series is addressed by the POMP intercept `d` and the autoregressive parameter `a`, or whether first-differencing within the POMP state equation would improve fit.
-
-### 15. Negligible sigma_proc Estimate Implies Degenerate Latent Structure
-
-The local search trace for sigma_proc (Figure 4) shows nearly all chains collapsing to values near 0.05–0.1 by iteration 300, while sigma_obs inflates to roughly 1.0. The authors note this pattern but do not evaluate its scientific implications: when sigma_proc approaches zero, the latent state X_t becomes a deterministic function of covariates and X_0, and the POMP model collapses to a regression model. At this limit, the particle filter is evaluating essentially the same deterministic trajectory for all particles, and the reported likelihood improvement from using a POMP framework over regression disappears. This near-degenerate regime should be diagnosed explicitly via a likelihood ratio test comparing sigma_proc = 0 (constrained) against the fitted model, to determine whether the stochastic latent process adds any statistical value at all.
+**Major Revision.** The analysis as submitted does not achieve a reliable MLE: the optimizer's trajectory demonstrates that the best likelihood found (approximately −2700) is substantially better than the reported value (−3235), and the key parameter a has not converged after 300 iterations. No uncertainty quantification (profile likelihoods or confidence intervals) is provided for any parameter, including the primary scientific quantity of interest (the noise effect b). The benchmark comparison is invalidated by fitting the ARIMA and POMP models to different data. The proprietary data restriction makes the analysis unverifiable. Before this work can be considered complete, the authors must: (1) achieve genuine convergence of the optimizer, ideally by switching to the Kalman filter for this LG-POMP model; (2) report profile likelihood confidence intervals for b; (3) ensure all compared log-likelihoods are evaluated on the same data; and (4) provide a reproducible analysis environment (even if using a synthetic dataset).
 
 ---
 
 ## Files Consulted
 
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/SKILL_pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-global-search-init-audit/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-profile-range-misalignment/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-rw-sd-magnitude-error/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project10/blinded.pdf`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project10/Makefile`
+**Skill files:**
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/SKILL_pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/assets/rev_template_pomp.qmd`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-conventions.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-weakness-reference.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/README.md`
+
+**Project files:**
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W25/project10/blinded.pdf` (all 16 pages, read as images)
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W25/project10/Makefile`

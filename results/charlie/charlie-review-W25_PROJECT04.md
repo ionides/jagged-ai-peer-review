@@ -1,127 +1,172 @@
-# Peer Review: W25 Project 04
-**COVID-19 Dynamics in Kerala: ARIMA, VAR, and SEIRS POMP Models**
+# Review: W25 Project 04
+## COVID-19 Dynamics in Kerala: ARIMA, VAR, and SEIRS POMP Models
+
+---
+
+## Paper Metadata
+
+| Field | Details |
+|-------|---------|
+| **Inference method** | IF2 (mif2) with particle filter (pfilter) |
+| **R packages used** | pomp, forecast, vars, fGarch, tidyverse |
+| **Code publicly available** | Partial — submitted via course repository; HPC scripts included |
+| **Data publicly available** | Yes — Kerala Government COVID-19 Dashboard |
+| **Benchmark comparison included** | Yes — ARIMA(5,1,5) log-likelihood compared to SEIRS models |
+
+---
+
+## POMP Checklist Scorecard
+
+| # | Practice | Status | Notes |
+|---|----------|--------|-------|
+| 1 | Likelihood-based inference | ~ | IF2 + replicated pfilter used; logmeanexp applied correctly |
+| 2 | Benchmark comparison | ~ | ARIMA compared to SEIRS; comparison is directionally correct but ARIMA/SEIRS are on different scales |
+| 3 | Quantitative goodness-of-fit reporting | ~ | Log-likelihoods reported; Monte Carlo SE reported in CSV but not always in text |
+| 4 | Model diagnostics | ~ | ESS shown for initial guess only; not shown post-convergence |
+| 5 | Parameter identifiability and uncertainty | ~ | Profile likelihoods computed for several parameters; mu_RS never profiled |
+| 6 | Computational adequacy | ~ | NP=5000, Nmif=200, 400–800 starts; Model 2 explicitly not converged |
+| 7 | Forecast methodology | N/A | No forecasting performed |
+| 8 | Model variations and nested comparisons | ~ | Multiple SEIRS variants developed; no formal LRT between variants |
+| 9 | Stochasticity | ~ | Binomial transitions, negative binomial measurement; but R compartment bug undermines process model |
+| 10 | Reproducibility and extendability | ~ | HPC scripts included; profile scripts reference missing data file |
+| 11 | Corroboration with scientific knowledge | ~ | Parameters discussed against literature; near-zero b3 accepted without revision |
+| 12 | Measurement model specification | ~ | Negative binomial with time-varying rho and k; code matches text |
+| 13 | Initial conditions | ~ | eta estimated; I_0 = 1000 fixed without justification |
 
 ---
 
 ## Summary
 
-This project models weekly COVID-19 confirmed case counts in Kerala, India (119 weeks, February 2020 – May 2022) using three classes of models: ARIMA(5,1,5), VAR(9), and a SEIRS compartmental model implemented in `pomp` with piecewise-constant transmission, reporting, and overdispersion parameters across three epidemic phases. The key contribution is a mechanistic SEIRS model that allows re-infection and time-varying observation parameters, fit via iterated filtering (IF2) with 5,000 particles and 200 iterations. The authors conduct local and global searches and present profile likelihoods for several key parameters.
+The paper applies ARIMA, VAR(9), and a stochastic SEIRS compartmental model to weekly COVID-19 confirmed case counts in Kerala, India (119 weeks, 2020–2022). The SEIRS model uses piecewise-constant transmission rates, reporting rates, and dispersion parameters across three epidemic phases, implemented in the `pomp` framework with IF2 and particle filtering. The final SEIRS candidates substantially outperform the ARIMA benchmark in log-likelihood.
 
-Strengths include a thoughtful multi-phase model structure, use of particle filter convergence diagnostics, profile likelihood computation for several parameters, an iterative model-development narrative in the appendix, and an available SLURM script indicating HPC-based computation. However, the primary conclusion — that SEIRS outperforms ARIMA based on log-likelihood — rests on an invalid comparison between fundamentally different likelihoods. Additional problems include a biologically implausible best-fit transmission rate for the Omicron phase, incorrect profile likelihood stratification for the eta parameter, the unexplained removal of the best-performing profile result, and initial conditions that break the closed-population assumption.
+**Strengths:** The iterative model development is clearly documented; intermediate problematic models are presented in the Appendix with honest discussion of their failure modes; computational parameters (NP=5000, Nmif=200) are at run-level 3; profile likelihoods are computed for multiple parameters with 443 points each; the authors correctly use `logmeanexp` for aggregating replicated particle filter runs.
+
+**Weaknesses:** All SEIRS model implementations contain a critical bug in the `rprocess` step — the R compartment is never decremented by the R→S transition, violating population conservation and creating phantom individuals. This bug directly corrupts parameter estimates across every SEIRS model in the paper. Additionally, SEIRS Model 2's optimization is explicitly reported as unconverged, and the near-zero transmission rate b3 ≈ 0.0024 in Model 1's Omicron wave is accepted without treatment as model misspecification.
 
 ---
 
 ## Major Issues
 
-### 1. Invalid log-likelihood comparison between ARIMA and SEIRS (Conclusion section)
+### 1. R Compartment Update Missing: Population Conservation Violated in All SEIRS Models
 
-The paper's core conclusion is that the SEIRS model outperforms ARIMA(5,1,5) because its log-likelihood (approx. -1240) is larger than ARIMA's (-1326.52). This comparison is invalid. The ARIMA model is fitted to the *differenced* confirmed-case series (118 observations) under a Gaussian error assumption; its log-likelihood quantifies the probability of the differenced increments. The SEIRS model is fitted to the *raw weekly counts* (119 observations) under a negative binomial measurement model; its log-likelihood quantifies the probability of the observed counts. These are different quantities computed on different data objects with different distributional families, and they cannot be compared on a common AIC or log-likelihood scale. The AIC table in the conclusion section (comparing ARIMA AIC ≈ 2675 vs. SEIRS AIC ≈ 2504) inherits this error. A valid benchmark would use a non-mechanistic model fitted to the same raw counts under the same or a comparable distributional family — for example, an auto-regressive negative binomial model as recommended by Wheeler et al. (2024), whose benchmark comparison in the Haiti cholera study was conducted on exactly this basis.
+All four SEIRS model implementations in the paper (main model `seirs_varying_k_rho`, plus all three Appendix variants) contain the same critical error. The `rprocess` Csnippet reads:
 
-**Fix:** Replace ARIMA as the benchmark with a model fitted to the raw weekly counts under a negative binomial distribution (e.g., ARMA-NegBin or simple SARIMA on log-counts). Report the log-likelihoods of both models evaluated on the same data and using the same observation distribution.
+```c
+S -= dN_SE - dN_RS;
+E += dN_SE - dN_EI;
+I += dN_EI - dN_IR;
+R += dN_IR;          // Bug: should be R += dN_IR - dN_RS
+H += dN_IR;
+```
 
----
+The S compartment gains `dN_RS` individuals (the R→S flow), but R is never decremented by `dN_RS`. Consequently, `dN_RS` individuals materialize in S from nowhere, and total population N = S+E+I+R increases by `dN_RS` at every time step. With the initialization `R ≈ (1−η)×N` and `mu_RS = 0.005` per week, the phantom inflow to S is approximately `0.000714 × R` per day — at Week 1 with η ≈ 0.71, R ≈ 10 million, yielding roughly 7,000 phantom new susceptibles per week at the outset, growing over time as R accumulates without bound.
 
-### 2. Biologically implausible b3 parameter estimate in SEIRS Model 1 (Section "Global Search")
+This bug causes S to remain artificially inflated throughout the simulation rather than depleting as infections spread, which distorts all transmission rate estimates, the reporting rate estimates, and the epidemiological interpretation of every SEIRS result in the paper. The fix is one line: change `R += dN_IR;` to `R += dN_IR - dN_RS;`. This error appears identically in `blinded.Rmd` (lines 787–792), and in all three appendix model scripts (`results/seirs_const/Global.R`, `results/seirs_varying_k/seirs_varyingk.R`, `results/seirs_global2/seirs_k_rho.R`).
 
-The best SEIRS Model 1 parameter has b3 ≈ 0.0024 (transmission rate in the Omicron phase). The implied basic reproduction number for that phase is R0 = b3 / mu_IR ≈ 0.0024 / 0.14 ≈ 0.017 — essentially zero. A pathogen with R0 < 1 cannot sustain an epidemic. This is incompatible with the well-documented Omicron surge in Kerala and with the paper's own observation that "Omicron has a basic reproduction number estimated to be 2–3 times higher than Delta." The authors note b3 is "very small" but claim the model mechanism is too complex to diagnose. They also note b3 is outside the stated global search range of [10, 50], which means the IF2 optimizer drifted far outside the initialization box. This is a sign of a poorly constrained parameter space and possible model misspecification, not a genuine biological signal.
+### 2. Near-Zero b3 in SEIRS Model 1 Not Treated as Evidence of Misspecification
 
-**Fix:** The authors must either explain mechanistically why an effectively zero transmission rate produces a third epidemic wave (and show the latent-state trajectory that drives this), or treat this as evidence of model misspecification and investigate the identifiability of b3. Profile likelihood for b3 should be computed. Lower and upper parameter constraints should be enforced using `parameter_trans()` with appropriate bounding (e.g., log-transformation with bounded initialization) to prevent implausible values.
+The first global search (SEIRS Model 1) yields b3 ≈ 0.0024 — an essentially zero transmission rate during the Omicron wave, which is the *largest* observed epidemic wave in the data. The paper acknowledges this is "actually very small" and "problematic," but the stated response is: "as the underlying model mechanism involves too many states and transmissions, we fail to track the number of people in each state... and conjecture reasonable explanations." No structural revision is attempted.
 
----
+Per Wheeler et al. (2024), implausible parameter estimates — especially parameters converging to a boundary value — are strong diagnostic signals of model misspecification, not simply numerical curiosities. A transmission rate of zero during the largest observed wave means the SEIRS Model 1 cannot be correctly describing Omicron dynamics; the model is compensating for the R compartment bug (inflated S) by suppressing β. The appropriate response is model revision, not acceptance.
 
-### 3. Profile likelihood for eta uses incorrect stratification variable (Eta_pro.R)
+### 3. SEIRS Model 2 Optimization Is Explicitly Reported as Unconverged
 
-The profile likelihood for the initial susceptible fraction eta is generated in `Eta_pro.R`. In that script, the global search results are grouped (stratified) by `round(mu_IR, 2)` — not by `round(eta, 2)`. This means the starting values for each profile run are binned by mu_IR, not eta. A proper profile likelihood for eta requires sweeping eta over a grid of fixed values (or ensuring starting values uniformly cover the eta range) and optimizing all other parameters for each fixed eta. The result is a pseudo-profile that does not systematically trace the likelihood as a function of eta. While the eta values in the results happen to span (0, 1) due to global search diversity, the coverage is non-uniform and the reported confidence interval (a single-point range) is unreliable.
+For SEIRS Model 2 (seirs_global2), the paper states: "The log-likelihood reaches -1,240 after 200 iterations and **still exhibits an upward trend**." An upward trend in the log-likelihood trace at the end of 200 iterations means the optimization has not converged. Parameter estimates extracted from an unconverged search are unreliable — the optimizer may move significantly with more iterations. Nevertheless, these parameters are presented as the "best model" and used for further profile likelihood computation. The global search improvement to -1,233 does not resolve this concern because each global search job also uses 200 iterations with the same insufficient convergence.
 
-**Fix:** Recompute the eta profile by creating a uniform grid of eta values (e.g., seq(0, 1, by = 0.02)), running mif2 for each fixed eta with all other parameters free to optimize, and ensuring the profile curve has the expected approximately quadratic shape near the maximum.
+To resolve this, either (a) increase Nmif until the log-likelihood trajectory genuinely plateaus across replicate runs, or (b) acknowledge explicitly that the presented values are preliminary and quantify the potential gap to the true MLE.
 
----
+### 4. mu_RS Fixed Without Profile or Sensitivity Analysis
 
-### 4. Unjustified removal of the highest-likelihood profile result (rho2 profile in SEIRS Model 1)
+The parameter `mu_RS = 0.005` (corresponding to 200 weeks ≈ 4 years of immunity) is fixed throughout all analyses. The paper notes: "we examined significant divergence results and worse local search and global search results when we try to increase mu_RS, so we give up on that and leave for future exploration."
 
-In the blinded.Rmd code for the rho2 profile (around line 1169), the authors sort the profile results and remove the top row with `arrange(rho_pro, desc(loglik))[-1, ]`. The removed entry has log-likelihood -1233.93, which is approximately 5.5 log-units above the otherwise consistent maximum of -1239.44 seen in the rho1 and rho3 profiles and the global search. The paper attributes this discrepancy to "numerical instability" and "potential maximization errors," but no diagnostic evidence is presented to support this claim. A 5.5-unit log-likelihood improvement is a substantial signal that should be investigated, not discarded. Notably, the eta profile independently finds a solution at -1234.25 in the same log-likelihood region, suggesting this region is reproducible. The removal shifts the profile maximum downward and changes the reported confidence interval, potentially making the confidence interval artificially narrow or wide.
+However, mu_RS is the structural parameter that defines the SEIRS model's advantage over SEIR. Fixing it at an arbitrary value — without estimating it, profiling it, or examining sensitivity to plausible alternatives (e.g., 26 weeks as mentioned in the initial parameter rationale) — means the central modeling choice of the paper is unjustified. The "divergence results" when increasing mu_RS likely reflect model misspecification or parameter identifiability issues that warrant investigation, not avoidance. At minimum, a profile likelihood over mu_RS should be computed to determine whether it is identifiable from the data.
 
-**Fix:** Do not remove points from profile likelihood plots without quantitative justification (e.g., excessively high loglik.se). If a point appears anomalous, investigate it as a possible better optimum and update the global search to include this region. Profile confidence intervals should be computed with the true maximum as the reference point.
+### 5. No ESS Diagnostics After Local or Global Search
 
----
+Effective sample size (ESS) is shown only for the initial parameter guess (the figure labeled "ESS Check and Simulations, Initial Guess"). For the local search and global search results of the main model (SEIRS Model 1), the paper explicitly states: "we don't include the effective sample size check here." For SEIRS Model 2, no ESS check is shown at any stage.
 
-### 5. Insufficient benchmark comparison: no non-mechanistic model on raw counts (Wheeler et al. 2024, Section 2)
-
-The paper uses ARIMA(5,1,5) as a benchmark, but as noted above, this comparison is on a different scale. More fundamentally, the paper does not compare the SEIRS model to any non-mechanistic statistical model evaluated on the same raw weekly counts with an appropriate observation model. Wheeler et al. (2024) document that among 32 published cholera models, not one included such a comparison, and the authors of that study found that some models failed to beat a simple auto-regressive negative binomial. The failure to include a valid benchmark makes it impossible to assess whether the SEIRS model captures meaningful biological structure beyond what a simpler statistical model would achieve.
-
-**Fix:** Fit an auto-regressive negative binomial model (or a comparable non-mechanistic model) directly to the weekly case counts and compare its log-likelihood to the SEIRS model's log-likelihood, both computed on the same 119-observation series.
-
----
-
-### 6. Parameter estimates suggest model may be near a boundary optimum, but this is not adequately explored (SEIRS Model 1 vs. Model 2 inconsistency)
-
-The profile likelihood analysis for mu_IR reveals two distinct local optima: one near mu_IR ≈ 0.15 (SEIRS Model 1) and one near mu_IR ≈ 0.84–1.17 (SEIRS Model 2). The combined profile (right panel) shows this bimodality clearly. Model 2 was specifically constructed to explore the second region, and it achieves a higher log-likelihood (-1233.21 vs. -1240.03). This multi-modality in a key epidemiological parameter (recovery rate) suggests that the likelihood surface is complex and neither global search can be considered definitive. The paper presents both models but does not conclude which is more reliable or attempt a more exhaustive search. Profile likelihoods for b1, b2, b3, k1, k2, k3, mu_EI, and mu_RS are never computed, leaving parameter identifiability largely unassessed. Wheeler et al. (2024, Section on parameter identifiability) specifically recommend profiling key parameters and treating boundary optima or implausible estimates as evidence of misspecification.
-
-**Fix:** Compute profile likelihoods for the transmission parameters b1, b2, b3 and for mu_EI to assess identifiability. Attempt a combined global search that covers both mu_IR regions simultaneously, rather than treating Models 1 and 2 as separate analyses.
+ESS collapse at specific time points in a fitted model indicates that the particle filter is degenerating — the model cannot plausibly generate observations at those times even with optimized parameters. This is a key diagnostic for identifying periods of model-data mismatch. The initial ESS plot already showed sharp collapse during weeks 10–30 (the first wave). Whether this is resolved after optimization is never demonstrated. Per the POMP checklist (Wheeler et al. 2024, §Model diagnostics), ESS must be monitored for fitted parameters, not just initial guesses.
 
 ---
 
-### 7. Initial conditions violate the closed-population assumption
+## Computational and Diagnostic Assessment
 
-The `seir_init` Csnippet sets `S = nearbyint(eta*N)`, `E = 0`, `I = 1000`, `R = nearbyint((1-eta)*N)`. This gives S + E + I + R = eta*N + 1000 + (1-eta)*N = N + 1000, which is 1000 individuals more than the stated population N = 34,530,000. The process model uses N as a fixed denominator in the force-of-infection term (`Beta * I / N`), so the compartments do not sum to N, violating the closed-population assumption stated in the model description. While the absolute discrepancy (0.003%) is small, the inconsistency undermines the mathematical integrity of the model and is trivial to fix.
+**Convergence:** For SEIRS Model 1, the local search log-likelihood trace shows convergence to approximately -1,250. For Model 2, the trace explicitly has not stabilized at 200 iterations. The global searches use 400–800 starting points each with NP=5000 and Nmif=200, which is a substantial computational effort; however, the per-job convergence issues undermine the global search results for Model 2.
 
-**Fix:** Change initialization to `I = nearbyint(I0 * N)` for a small fixed fraction I0 (e.g., I0 = 1/N or a small estimated fraction), and set `R = nearbyint((1 - eta - I0) * N)`, ensuring S + E + I + R = N.
+**Particle filter:** NP=5000 particles is appropriate for this 119-observation series. Profile computations use NP=5000 with Nmif=100 (Rho3_pro.R), which is reasonable. Replicated pfilter runs (10 replicates) with `logmeanexp` are used correctly (Error 1.1 avoided).
+
+**Conditional log-likelihoods:** Not shown at any stage. Per-time-step conditional log-likelihoods would help identify whether the poor first-wave fit visible in simulations corresponds to a genuine likelihood problem.
+
+**Profile likelihoods:** Computed for rho1, rho2, rho3, eta, and mu_IR with 443 grid points each — this exceeds the run-level 3 standard of 30 points significantly and provides dense coverage. The SE filter `loglik.se < 1` is permissive (the Wilks 95% threshold is only 1.92 log units), but typical SE values in the CSV are below 0.01, so this filter is not distorting results in practice. The rho2 profile shows messy structure that is acknowledged but not investigated further.
+
+**Computational scale:** Runs conducted on the Greatlakes HPC cluster; job scripts are included (rjob_runner.sbat). Total CPU-hours are not reported.
 
 ---
 
-### 8. Piecewise beta notation error with overlapping time intervals (Model Specification section)
+## Reproducibility Assessment
 
-In the mathematical description of the piecewise transmission rate, the paper defines:
-- beta(t) = b2 for t in [62, 96]
-- beta(t) = b3 for t in [63, 119]
+**Code availability:** All analysis scripts are present in the results subdirectory with clear organization.
 
-This creates an overlap: weeks 63–96 are assigned to both b2 and b3. The corresponding code uses a covariate-based `interval` variable (with counts 61, 35, 23) and an `if/else if/else` structure, which implements a non-overlapping partition. The code is correct; the mathematical notation is in error. The same overlapping notation appears for k(t) and rho(t).
+**Final parameters:** Global search results are archived as CSV files (e.g., `Global_rho_800.csv`, `Global_rho_jump.csv`), allowing parameter-based reproduction. This is good practice.
 
-**Fix:** Correct the piecewise definitions to reflect the actual partition: [1, 61], [62, 96], [97, 119].
+**Model-code consistency:** The measurement model in code (`dnbinom_mu(reports, k, mean_reports, give_log)`) is consistent with the mathematical specification NegBinom(ρH, ρH + (ρH)²/k). The process model has the R compartment bug described in Major Issue 1, creating a discrepancy between the stated ODE system and the implemented code.
+
+**Package versions:** No `sessionInfo()` or `renv` lockfile is provided. Package versions are not pinned.
+
+**Auxiliary data:** The primary data file `weekly_df.csv` is included. However, `Rho3_pro.R` (and likely other profile scripts) reads from `"SEIR_Global_rho_800.csv"` but only `"Global_rho_800.csv"` exists in the repository. This filename discrepancy makes the profile scripts non-reproducible from the provided code without manual correction.
+
+**HPC reproducibility:** SLURM job scripts (`rjob_runner.sbat`) are included. Worker counts and memory specifications are present in the R scripts (e.g., `plan(multicore, workers = 36)`).
 
 ---
 
 ## Minor Issues
 
-- **Commented-out vaccine data code throughout EDA section:** Lines like `#vaccine <- read.csv(...)` and `#vaccine.ts <- ...` appear multiple times in the rendered document (lines 90–98, 173–175, etc.), creating visual clutter and raising questions about whether the vaccination analysis was planned but abandoned. These should be removed.
+- **Piecewise interval boundary typo:** All three piecewise function definitions (β, k, ρ) in the main text specify the third interval as "t ∈ [63, 119]" rather than "t ∈ [97, 119]." The code correctly implements weeks 97–119 via `interval = c(61, 35, 23)`. This is a typographical error in the mathematical writeup that should be corrected to avoid confusion.
 
-- **Figure-caption mismatch:** Figure 4 is captioned "Figure 4: ARIMA(5,1,5) Fitted vs. Actual plot" but the corresponding variable assignment is `fig4 = "**Figure 4.** ..."` and the same variable name `fig4` is used twice (for Figure 3 and Figure 4). This is a copy-paste error that creates confusing cross-references (the text refers to "Figure 5" when describing what is Figure 4).
+- **I₀ = 1000 not justified:** The initial infectious count is hardcoded as `I = 1000` in `seir_init` across all models. For Kerala in early February 2020, there were only 3 confirmed cases. An initialization of 1,000 infectious individuals is substantially larger than the documented situation and is not defended in the text. Initial conditions are discussed elsewhere (η is estimated), but I₀ receives no justification.
 
-- **VAR log-likelihood is manually computed (Section "Model Fitting"):** The paper acknowledges computing the VAR(9) log-likelihood manually using the residual covariance matrix because the constant term "prevented direct extraction." This formula produces the Gaussian multivariate log-likelihood and is technically valid for a correctly specified VAR, but it should be noted that the resulting log-likelihood (-3229.10) is not comparable to the ARIMA or SEIRS values, since VAR models three series jointly while ARIMA and SEIRS model only confirmed cases.
+- **Figure caption/reference mismatch:** The text refers to "the time series plot (Figure 5)" immediately after the chunk labeled `fig4` (ARIMA fitted vs. actual plot). The figure is labeled as Figure 4 in the chunk but described as Figure 5 in the body text.
 
-- **mu_RS limitation statement is ambiguous:** The conclusion states that "mu_RS = 0.005 for SEIRS model, corresponds to 200 weeks immunity and is generally too large." A larger mu_RS corresponds to *faster* waning immunity (shorter duration). If the authors tried to increase mu_RS (e.g., to 0.02 for 50-week immunity) and obtained poor results, the limitation is that the model requires very slow immunity waning, not that the rate is "too large." The intended meaning should be clarified.
+- **Hard-coded local file path:** A commented-out line reads `#vaccine <- read.csv("/Users/cathy/Desktop/daily-vaccination-in-kerala.csv", ...)`. While inert, this reveals an absolute local path and is a reproducibility anti-pattern.
 
-- **Profile scripts use copy-paste structure with inconsistent group-by variables:** `Eta_pro.R`, `muir_pro.R`, and `Rho3_pro.R` all begin with `group_by(cut=round(mu_IR, 2))`, which was correct only for the mu_IR profile. The copy-paste origin of these scripts without updating the stratification variable is a coding quality issue. A comment in `Eta_pro.R` even reads "Fixed variable name from rho_pro," acknowledging this history.
+- **Vaccine data collected but not modeled:** The vaccination data file is included in the data folder and the first phase boundary explicitly marks vaccine rollout. A SEIRS model without a vaccinated compartment cannot distinguish natural immunity waning from vaccine-induced immunity. This is a meaningful structural limitation that deserves acknowledgment beyond the current brief mention.
 
-- **No pomp or R package version information provided:** The reproducibility checklist for POMP manuscripts requires pinning the `pomp` package version, as API changes across versions can break code silently. No `sessionInfo()` output or `renv` lockfile is present in the submission.
+- **rho3 ≈ 0.09 in SEIRS Model 2 unexplained:** In Model 2, the third-phase reporting rate rho3 ≈ 0.09 is "too small and beyond our expectation" and the paper states "we fail to explain" this. As with b3 in Model 1, an implausible parameter estimate at a boundary-like value suggests model misspecification, not just a difficult-to-explain result. This should at minimum be flagged as a diagnostic signal.
 
-- **Global Search 2 has half the starting points of Global Search 1 (400 vs. 800):** The second global search uses fewer starting points despite exploring a different, newly-identified region of parameter space. Since Model 2 achieves the overall best log-likelihood, the asymmetry in computational effort is not well justified.
+- **No formal comparison between SEIRS model variants:** The paper develops four SEIRS model variants (const, varying_k, varying_k_rho as Model 1, varying_k_rho as Model 2). These are nested or nearly nested models; a likelihood ratio test or AIC comparison table would clarify whether each structural addition is statistically warranted. The paper describes this iterative development qualitatively but provides no formal comparison.
 
-- **ARIMA frequency argument is inconsistent with weekly data:** The time series is specified as `ts(weekly_df$Confirmed, frequency = 7, start = c(2020, 31))`. For weekly data, `frequency = 1` (one observation per period) or `frequency = 52` (52 weeks per year) is conventional; `frequency = 7` implies daily sub-periods within a week, which creates incorrect x-axis labels and potentially affects how `forecast::Arima` handles the series.
+- **rho2 profile not investigated:** The rho2 profile is described as "much more messy" and attributed to computational difficulties. A messy profile can indicate weak identifiability or multimodality of the likelihood surface for rho2. This should be investigated (e.g., more starts, examining correlation with other parameters) rather than dismissed.
 
-- **No out-of-sample or holdout evaluation for any model:** The paper trains all three model types on the full dataset and evaluates in-sample fit only. A held-out evaluation period (e.g., the last 10 weeks) would provide a more objective comparison of predictive accuracy.
+- **Conclusion's AIC comparison parameter count inconsistency:** The code sets `seirs_best_model_num = 12`, while the ARIMA(5,1,5) has 11 free parameters (5 AR + 5 MA + 1 variance). This difference of 1 parameter is small relative to the log-likelihood gap (~90 units), so it does not affect the conclusion, but the count is not explained.
 
-- **b3 outside stated global search range:** The paper states the global search for b3 spans [10, 50], but the best SEIRS Model 1 result has b3 ≈ 0.0024, far below the lower bound. IF2 is allowed to move parameters outside the initialization box via the random-walk perturbations and log-transformation. The authors note b3 converges to near zero during local search but do not acknowledge that the final result lies outside the stated search range, which would alert readers to the optimizer's behavior.
+- **No discussion of whether SEIRS outperforms SEIR:** The paper motivates SEIRS over SEIR based on biological reasoning, but never formally tests this claim by fitting a SEIR model and comparing log-likelihoods. The simplest SEIRS variant (constant k and ρ) in the Appendix reaches only -1,800, which is well below the SEIR-equivalent benchmark, but a properly fitted SEIR with the same time-varying β structure is not shown.
+
+---
+
+## Recommendation
+
+**Major Revision.**
+
+The paper has genuine strengths: the iterative model-building documentation is informative, the computational effort is appropriate, the profile likelihood coverage is extensive, and the benchmark comparison is a positive methodological choice. However, the R compartment bug (Major Issue 1) is a fundamental error that invalidates all presented SEIRS parameter estimates and biological interpretations. This must be corrected before results can be trusted. The non-convergence of Model 2 (Major Issue 3) and the acceptance of near-zero b3 without misspecification investigation (Major Issue 2) further limit the credibility of the current conclusions. Following correction of the R compartment bug, re-running all SEIRS models is required, and the results should be assessed afresh against the biological interpretability checks and convergence standards described above.
 
 ---
 
 ## Files Consulted
 
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/SKILL_pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project04/blinded.Rmd`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project04/results/seirs_varying_k_rho/seirs_k_rho.R`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project04/results/seirs_varying_k_rho/Global_Rho.R`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project04/results/seirs_varying_k_rho/Eta_pro.R`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project04/results/seirs_varying_k_rho/muir_pro.R`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project04/results/seirs_varying_k_rho/Rho3_pro.R`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project04/results/seirs_varying_k_rho/rjob_runner.sbat`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project04/results/seirs_varying_k_rho/Global_rho_800.csv`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project04/results/seirs_varying_k_rho/Rho1_profile_800.csv`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project04/results/seirs_varying_k_rho/Rho2_profile_800.csv`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project04/results/seirs_varying_k_rho/Eta_profile_800.csv`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project04/results/seirs_varying_k_rho/muir_profile_800.csv`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project04/results/seirs_global2/seirs_k_rho.R`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project04/results/seirs_global2/Global_rho_jump.csv`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project04/results/seirs_global2/muir_profile.csv`
+### Skill Files
+
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/SKILL_pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/assets/rev_template_pomp.qmd`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-conventions.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-weakness-reference.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/README.md`
+
+### Project Files
+
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W25/project04/blinded.Rmd`
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W25/project04/results/seirs_varying_k_rho/seirs_k_rho.R`
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W25/project04/results/seirs_varying_k_rho/Rho3_pro.R`
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W25/project04/results/seirs_varying_k_rho/Global_rho_800.csv`
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W25/project04/results/seirs_global2/seirs_k_rho.R`

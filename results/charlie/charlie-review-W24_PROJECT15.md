@@ -3,105 +3,208 @@
 
 ---
 
+## Paper Metadata
+
+| Field | Details |
+|-------|---------|
+| **Inference method** | IF2 (mif2) with replicated pfilter likelihood evaluation |
+| **R packages used** | pomp, tidyverse, lubridate, tsibble, feasts, forecast, foreach, doParallel, doRNG |
+| **Code publicly available** | Yes (Git repository) |
+| **Data publicly available** | Yes (Kaggle/WHO dataset; included as weekly_clean.csv) |
+| **Benchmark comparison included** | Yes — ARMA(1,4) benchmark with log-likelihood reported |
+
+---
+
+## POMP Checklist Scorecard
+
+| # | Practice | Status | Notes |
+|---|----------|--------|-------|
+| 1 | Likelihood-based inference | ~ | IF2 + replicated pfilter used; but dmeas/rmeas mismatch corrupts the likelihood |
+| 2 | Benchmark comparison | ~ | ARMA(1,4) benchmark provided; LRT comparison methodology is flawed |
+| 3 | Quantitative goodness-of-fit reporting | ~ | Log-likelihoods reported; but values are suspect due to measurement model error |
+| 4 | Model diagnostics | ~ | ESS and pfilter plots shown; no conditional log-likelihood over time; no filtering-distribution simulations |
+| 5 | Parameter identifiability and uncertainty | ~ | Profile likelihood for rho_CH only; profile MLE at boundary; no CI for Beta or mu_IR |
+| 6 | Computational adequacy | ~ | Convergence traces shown; global search distribution not reported |
+| 7 | Forecast methodology | ✗ | No forecasting attempted |
+| 8 | Model variations and nested comparisons | ✗ | No alternative model structures tested |
+| 9 | Stochasticity | ✓ | Binomial transitions with NB measurement model |
+| 10 | Reproducibility and extendability | ~ | Code present; no sessionInfo or package version pinning; model.png referenced but not in folder |
+| 11 | Corroboration with scientific knowledge | ~ | R0 compared to Lin et al. (2018); rho_CH sanity check provided |
+| 12 | Measurement model specification | ✗ | dmeas mean is 4x too small relative to rmeas; critical inconsistency |
+| 13 | Initial conditions | ~ | Initial conditions estimated as parameters; no sensitivity analysis |
+
+---
+
 ## Summary
 
-This project analyzes weekly MERS-CoV case data from Saudi Arabia (January 2014 to May 2016) using two complementary approaches: an ARMA benchmark and a SEIRS POMP model. The SEIRS model treats camel-to-human spillover as the primary infection pathway, following Lin et al. (2018), with camels as the hidden state population. The authors successfully implement likelihood-based inference using iterated filtering (IF2) in the `pomp` package, conduct both local and global searches, and profile the spillover rate parameter. While the project demonstrates genuine engagement with POMP methodology and produces a model that beats the ARMA benchmark, several critical issues undermine the validity of the conclusions: the measurement model contains a fundamental inconsistency between `dmeas` and `rmeas`, the profile likelihood is truncated at the boundary of its search grid, the LRT between ARMA and SEIRS is statistically invalid, and parameter identifiability is acknowledged but not adequately resolved.
+This project fits a SEIRS camel-to-human spillover model to weekly MERS-CoV case counts in Saudi Arabia from January 2014 to May 2016, following Lin et al. (2018). The latent process models disease dynamics among the camel population (N = 270,000), and human cases are treated as an observation of infectious camel activity. An ARMA(1,4) benchmark is estimated and compared to the SEIRS model using log-likelihoods. A profile likelihood is constructed for the camel-to-human spillover rate rho_CH.
+
+**Strengths:** The project follows the standard STATS 531 POMP workflow competently: iterated filtering with a global search, replicated pfilter likelihood evaluation using logmeanexp, and convergence trace plots. The biological motivation for the camel-reservoir model is well-explained and draws on published literature. An ARMA benchmark is included, and a biological sanity check for rho_CH is provided.
+
+**Weaknesses:** The most critical flaw is an inconsistency between the dmeasure and rmeasure functions: the simulator generates total human cases as 4 × NB(mean = rho*C) but the density function evaluates against NB(mean = rho*C), omitting the factor of 4 from the mean. This means every log-likelihood value computed by pfilter is based on the wrong measurement model, and all downstream inferences are suspect. Additionally, the profile likelihood for rho_CH peaks at the upper boundary of the search range, making the reported confidence interval degenerate. The likelihood ratio test comparing ARMA to SEIRS misapplies Wilks' theorem to non-nested models.
 
 ---
 
 ## Major Issues
 
-### 1. Inconsistency between `dmeas` and `rmeas` in the measurement model
+### 1. Critical dmeas/rmeas inconsistency: factor-of-4 error in measurement model likelihood
 
-The density function (`dmeas`) and the simulation function (`rmeas`) implement different observation models, which is a direct reproducibility and correctness failure.
-
-In `dmeas` (line 426):
-```
-lik = dnbinom_mu(reports, k, rho*C, give_log);
-```
-This evaluates the likelihood that `reports` equals the raw count of primary camel-infected human cases, scaled only by the reporting rate `rho`.
-
-In `rmeas` (lines 429-432):
-```
+The model description states that total reported human cases = 4 × primary camel-to-human cases (C_i). The rmeasure correctly implements this:
+```c
 int total_to_primary = 4;
 reports = total_to_primary * rnbinom_mu(k, rho*C);
 ```
-This multiplies by 4 to convert primary cases to total human cases. The observation model in `dmeas` never applies this factor of 4.
+This generates `reports = 4 × NB(mean = rho*C)`, so E[reports] = 4 × rho × C.
 
-As a result, the likelihood is evaluated as though the data are primary cases alone, while the simulations (used visually to assess fit) produce total human cases. The model is fitting a different quantity than it is simulating, making the visual fit comparisons misleading and the reported log-likelihoods uninterpretable in terms of the stated observation model. Wheeler et al. (2024) document this exact class of code-text discrepancy as a concrete reproducibility failure. The authors must align `dmeas` and `rmeas` so both operate on the same observable quantity.
-
-### 2. Profile likelihood is truncated at the search boundary
-
-The profile for $\rho_{CH}$ is constructed over [0.0001, 0.001] (line 751), but the authors report that "the $\rho_{CH}$ with the largest log-likelihood is on the edge of the interval (0.001)." This means the MLE lies outside the profiled range. A profile likelihood whose maximum sits at the boundary provides no information about the confidence interval: the reported CI of "approximately 0.001" is simply the upper boundary of the grid, not a statistically meaningful interval.
-
-The authors acknowledge this problem in their text ("We would argue that we may choose a wider range") but do not fix it. The profile should be extended to bracket the true maximum, and the CI should be recomputed from the corrected profile. As it stands, the profile likelihood analysis provides no valid inference for $\rho_{CH}$. (Wheeler et al. 2024, §Parameter identifiability and uncertainty.)
-
-### 3. Likelihood Ratio Test between ARMA and SEIRS is statistically invalid
-
-The LRT comparing ARMA(1,4) (log-likelihood -422.77, 5 parameters) against the SEIRS model (log-likelihood -378.33, 8 parameters) is presented as a formal nested model comparison using the chi-squared approximation of Wilks' theorem (lines 683-697). This test is invalid for two reasons:
-
-First, the two models are not nested in any meaningful statistical sense. The ARMA model is a Gaussian linear time-series model for case counts, while the SEIRS model is a nonlinear stochastic mechanistic model with a negative-binomial measurement model. Wilks' theorem does not apply to non-nested comparisons.
-
-Second, even if the models were treated as nested, the Wilks approximation requires that both models be estimated on the same likelihood scale with identical observation models. Given the `dmeas`/`rmeas` discrepancy described in Issue 1, the SEIRS log-likelihood is not comparable to the ARMA log-likelihood anyway.
-
-The comparison of log-likelihoods as an informal indication of relative fit is reasonable and should be retained, but the formal p-value and chi-squared test should be removed or replaced with an explicit acknowledgment that this is an informal comparison.
-
-### 4. Global search uses only a single IF2 run per starting value (inadequate computational effort)
-
-In the global search (lines 643-657), each of the 400 starting points runs `mif2()` once using inherited settings from `mf1`, followed by `mif2(Nmif=50)`. There is only one IF2 chain per guess, meaning there is no convergence check per starting point. More critically, the second call `mif2()` at line 774 in the profile search is called with no arguments at all — it simply repeats the previous run unchanged, contributing no additional optimization.
-
-The local search itself uses only Nmif=100 iterations. Evidence of convergence requires multiple independent chains from diverse starting values reaching similar likelihoods. The convergence traces show that $\mu_{RS}$ has not converged after 100 iterations, yet this is dismissed as not problematic. Insufficient computation can make a well-specified model appear to fit poorly and undermines the reported MLE. (Wheeler et al. 2024, §Computational adequacy.)
-
-### 5. Initial conditions are partially misspecified: `R` initialization does not sum to `N`
-
-In `seirs_rinit` (lines 417-423):
+However, the dmeasure evaluates:
+```c
+lik = dnbinom_mu(reports, k, rho*C, give_log);
 ```
-S = nearbyint(eta*N);
-E = nearbyint(eta2*N);
-I = nearbyint(eta2*N);
-R = nearbyint((1-eta-eta2-eta2)*N);
+This treats the observed `reports` (total human cases) as if they follow NB(mean = rho*C), i.e., with a mean that is 4 times too small. The likelihood function therefore evaluates the probability of seeing total human cases under a distribution parameterized by primary case counts.
+
+As a result, pfilter computes a log-likelihood for the wrong distribution, and all reported log-likelihood values (-843.17 at initial parameters, -378.33 at the global optimum) are based on this incorrect density. Since rho = 1 is fixed, the effective mean used in dmeas is C rather than 4C. The correct dmeas should use `4*rho*C` as the mean, or equivalently, the raw accumulation should be `C += 4 * dN_IR * rho_CH`.
+
+This is a direct analog of the measurement model discrepancy identified by Wheeler et al. (2024) as a concrete reproducibility failure in their evaluated models. All conclusions about model comparison rest on flawed log-likelihood estimates.
+
+**Actionable fix:** Replace `dnbinom_mu(reports, k, rho*C, give_log)` with `dnbinom_mu(reports, k, 4*rho*C, give_log)` in the dmeas snippet, and correspondingly replace `rnbinom_mu(k, rho*C)` with `rnbinom_mu(k, 4*rho*C)` in the rmeas (dropping the hard-coded `total_to_primary` multiplier). Re-run all optimization and likelihood evaluation after the fix.
+
+---
+
+### 2. Profile likelihood MLE at the boundary of the search range
+
+The profile likelihood for rho_CH is constructed over the range [0.0001, 0.001] with 40 profile points (nprof = 5 starting values per point). The text itself acknowledges: "The rho_CH with the largest log-likelihood is on the edge of the interval (0.001) we choose to construct the plot." The maximum was not found within the searched interval.
+
+As a consequence, the reported 95% confidence interval — "approximately around 0.001" — is degenerate: the upper confidence limit coincides with the upper boundary of the profile grid. The profile does not identify the true MLE and cannot support a valid confidence interval. The statement "the 95% confidence interval is approximately around 0.001, which is quite narrow" is misleading; a flat or boundary-hitting profile does not indicate precision.
+
+Additionally, the global search (which searched rho_CH up to 0.001) found its best estimate at exactly rho_CH = 0.001, consistent with the profile finding. This further confirms the MLE lies at or beyond the boundary.
+
+**Actionable fix:** Extend the profile range to at least [0.0001, 0.005] or larger, and re-run the profile until the likelihood clearly declines on both sides of the maximum. Also expand the global search upper bound for rho_CH accordingly. Only after the profile has a well-defined interior maximum should the CI be reported.
+
+---
+
+### 3. Likelihood ratio test applied to non-nested models
+
+The authors compare ARMA(1,4) (log-likelihood = -422.77, D = 5 parameters) and SEIRS (log-likelihood = -378.33, D = 8 parameters) using a chi-squared likelihood ratio test with df = 3:
+
+```r
+cat(paste("p-value:", 1 - pchisq(2 * ll_diff, df=d_diff)))
 ```
-The formula for R is `(1-eta-eta2-eta2)*N = (1-eta-2*eta2)*N`. Combined, S+E+I+R = eta*N + eta2*N + eta2*N + (1-eta-2*eta2)*N = N. This is algebraically correct.
 
-However, if `nearbyint` rounding causes S+E+I+R to differ from N by small integer amounts, the constraint S+E+I+R=N is violated silently. No validation is performed. More substantively, the step function adds `dN_Nmu` new susceptibles (births) drawn from `rbinom(N, 1-exp(-mu*dt))`, where N is the fixed parameter. If the actual S+E+I+R total drifts from N, the birth rate becomes decoupled from the living population, breaking the constant-population assumption. This should be checked.
+The Wilks approximation — under which 2(ℓ₁ − ℓ₀) follows a chi-squared distribution under H₀ — requires that H₀ is nested within H₁. ARMA(1,4) and the SEIRS POMP model are not nested: neither can be obtained from the other by fixing parameters. Applying the chi-squared LRT to non-nested models produces an invalid p-value and an incorrect basis for rejecting H₀.
 
-### 6. No model diagnostics beyond ESS: conditional log-likelihoods and filtering simulations absent
+Comparing log-likelihoods and AIC values across model classes is legitimate (as taught in the course: likelihoods for different models of the same data are directly comparable). However, a formal chi-squared LRT requires nesting. The correct approach is to compare AIC values or simply note the 44-unit log-likelihood difference as strong practical evidence in favor of SEIRS.
 
-The project does not plot per-observation (per-time-step) conditional log-likelihoods from the particle filter, which are the most informative diagnostic for identifying periods of model-data mismatch. The authors note that the model cannot capture the peak around week 80 (line 473) but use only visual trajectory comparison to reach this conclusion.
+Note: This is related to course-confirmed Error 2.2 in the STATS 531 weakness reference — students were explicitly tested on the distinction between valid likelihood comparison and the specific requirements for the Wilks approximation.
 
-No filtering-distribution simulations are shown. All simulation plots use forward simulation from estimated initial conditions. Filtering-distribution simulations (conditioned on all data up to each time point) and forward simulations serve distinct diagnostic purposes and should be distinguished. (Wheeler et al. 2024, §Model diagnostics; Simulation-study checklist §10.)
+**Actionable fix:** Remove the chi-squared LRT and replace with an AIC comparison (ΔAIC = −2 × 44.44 + 2 × 3 = −82.88 in favor of SEIRS), or simply state the log-likelihood difference and note that it provides strong evidence for the SEIRS model without appealing to the Wilks distribution.
 
-### 7. Profile likelihood constructed using mifs_local[[1]] rather than the global MLE
+---
 
-At line 763, the profile search initializes with `mf1 <- mifs_local[[1]]`, which is the first (not best) result from the local search. The global search identifies a MLE of -378.33, substantially better than the local search results shown in the traces. By initializing the profile from a suboptimal local-search run, the profiled likelihoods may be systematically too low, resulting in a CI that is too wide or incorrectly centered. The profile should be initialized from the global MLE. (Wheeler et al. 2024, §Parameter identifiability and uncertainty.)
+### 4. mif2 internal log-likelihood used to claim superiority over ARMA benchmark
+
+In the local search section, the trace plot commentary states: "The log-likelihood converges to above -400, which is better than the ARMA(1,4) model." This uses the mif2 internal log-likelihood (from convergence trace plots) rather than the properly evaluated likelihood from replicated pfilter calls.
+
+The mif2 internal log-likelihood is not reliable for inference: parameter perturbations are applied throughout optimization, and the perturbation-included likelihood is a biased estimate of the true log-likelihood at the converged parameters. The course convention (531-conventions.md) explicitly flags this: "mif2's internally reported likelihood is NOT reliable for inference." The proper comparison comes from the global search result (-378.33), which was correctly evaluated via replicated pfilter with logmeanexp.
+
+**Actionable fix:** Remove or qualify the statement comparing the mif2 trace log-likelihood to the ARMA benchmark. The local search section should state that the trace shows convergence direction, and direct the reader to the global search section for proper likelihood values.
+
+---
+
+### 5. No profile likelihoods or confidence intervals for key parameters (Beta, mu_IR, R0)
+
+The basic reproduction number R0 = Beta / mu_IR = 2.6 is presented as a point estimate with no uncertainty. Neither Beta nor mu_IR has a profile likelihood or confidence interval. Given that R0 is the primary scientific summary of transmission intensity, reporting it without uncertainty is insufficient.
+
+The trace plots show that Beta and mu_IR do appear to converge during local search (noted in the text), but convergence of the optimizer does not imply a narrow likelihood. Profiles are needed to assess identifiability and provide valid CIs.
+
+The course standard (531-conventions.md, §Profile likelihoods) requires profiles for key parameters, particularly those used in scientific interpretation.
+
+**Actionable fix:** Compute profile likelihoods for at least Beta and mu_IR, and propagate uncertainty into the R0 estimate. A profile for Beta/mu_IR jointly or a derived-quantity profile could also be used.
+
+---
+
+### 6. Global search: no distribution of likelihoods across 400 starting points
+
+The global search runs 400 starting points and reports only the single best result (log-likelihood = -378.33). No histogram, scatter plot, or summary of the distribution of likelihoods across runs is presented. Without seeing how the 400 runs distribute, it is impossible to assess whether the global search genuinely explored the parameter space or whether results cluster near the best value (indicating convergence) or scatter widely (indicating insufficient optimization per starting point).
+
+The pairs plot shown uses results from the profile likelihood section (via `read_csv("saudi_mers_params_profile.csv")` in the profile code), not the global search results directly.
+
+**Actionable fix:** Show a scatter plot or histogram of log-likelihoods across the 400 global search runs. A pairs plot of loglik vs. each parameter from the global search (as done in the local search section) would provide evidence of convergence and identifiability.
+
+---
+
+## Computational and Diagnostic Assessment
+
+**Convergence:** Trace plots from the local search (10 runs × 100 iterations, Np = 2000) are shown. The loglik panel shows upward convergence, which is good. The global search (400 starting points, inherited Np and Nmif from mf1 plus 50 additional iterations) has no associated trace plots or loglik distribution, making convergence assessment for the global phase impossible.
+
+**Particle filter:** ESS is plotted for the initial parameter check (Np = 2000, single run). ESS drops near the outbreak peaks but remains above 500, which the authors interpret as acceptable. This single pfilter run at initial parameters lacks a Monte Carlo SE (no replicate calls), which is a minor issue since it is used only for preliminary checking, not inference.
+
+**Conditional log-likelihoods:** No per-time-step conditional log-likelihood plot is produced. Such a plot would identify whether the model systematically fails to fit specific periods (e.g., the peak around week 80 that the initial simulation did not capture). This is a missed diagnostic opportunity (Wheeler et al. 2024, §Model diagnostics).
+
+**Profile likelihoods:** Profile computed only for rho_CH, and the MLE falls at the search boundary (see Major Issue 2). No profiles for Beta, mu_IR, eta, or eta2.
+
+**Computational scale:** Parallelization via doParallel is used. Total CPU-hours are not reported. The Np = 2000 and Nmif = 100 (local search) / Nmif = 100+50 (global search) are reasonable run_level=2 to run_level=3 settings. The very small rw.sd for eta2 (ivp(0.0001)) and rho_CH (0.0001) may limit exploration, but these are minor parameter-tuning concerns.
+
+---
+
+## Reproducibility Assessment
+
+**Code availability:** Code is embedded in the Rmd file and data is included (weekly_clean.csv). The RDS caching pattern (bake/readRDS) is used to avoid re-running expensive computations.
+
+**Final parameters:** MLE parameter vectors are archived to CSV files (saudi_mers_params.csv, saudi_mers_params_profile.csv), which is good practice consistent with Wheeler et al. (2024).
+
+**Model-code consistency:** As described in Major Issue 1, the measurement model in code does not match the mathematical description. The text says reports = 4 × C_i (where C_i ~ NB with mean Z_i × rho), but dmeas evaluates the likelihood of reports against NB(mean = rho × C), omitting the factor of 4. This is a material discrepancy.
+
+**Package versions:** No sessionInfo() output, renv lockfile, or package version pinning is provided. The pomp API has changed substantially across versions; results may not reproduce on current CRAN releases.
+
+**Auxiliary data:** The data file weekly_clean.csv is present. The file model.png is referenced in the Rmd (`![SEIRS Model Structure](model.png)`) but is not present in the project folder, causing a missing figure in the rendered output.
+
+**HPC reproducibility:** The code checks for SLURM_NTASKS_PER_NODE and uses detectCores() as fallback, suggesting cluster use. No SLURM job scripts or environment specifications are included. A CLUSTER.R file is sourced if present, but this file is not in the repository — its contents and purpose are opaque.
 
 ---
 
 ## Minor Issues
 
-- **References section is empty.** The References section at the end of the document contains no entries despite several inline footnote citations to Lin et al. (2018), Shumway and Stoffer (2017), and others throughout the text. These should be compiled into a formal reference list.
+- **Single pfilter run without Monte Carlo SE at initial parameters:** The line `saudiSEIRS |> pfilter(Np=2000) -> pf; cat("Log-likelihood:", round(logLik(pf), 2))` reports -843.17 from a single run with no standard error. This is used only for a preliminary check (not for inference), but noting the MC noise would be good practice (Error 1.4 in 531-weakness-reference.md).
 
-- **`rho` is fixed at 1 without justification from data.** The authors state "almost all camel-infected human cases are recorded" as justification for fixing `rho=1`. However, MERS surveillance in Saudi Arabia is known to be imperfect, and reporting rates estimated in the literature are substantially below 1. Sensitivity to the fixed value of `rho` should be assessed, or the justification should cite surveillance data explicitly.
+- **Non-Gaussian ARMA residuals not addressed:** The histogram and QQ plot show heavy tails and non-Gaussian residuals. The authors note this but take no action (no log transformation, no investigation of consequences). For overdispersed count data, a log transform or Poisson/NB ARMA would be more appropriate (Error 2.5 in 531-weakness-reference.md).
 
-- **The $R_0$ formula omits mortality.** The reproduction number is computed as $R_0 = \beta / \mu_{IR}$ (line 731). In a SEIRS model with non-negligible mortality rate $\mu$ (here $\mu = 1/(52 \times 14)$ per week), the correct formula for the camel-endemic equilibrium is $R_0 = \beta / (\mu_{IR} + \mu)$. Given $\mu_{IR}$ is estimated near 1.75/week while $\mu \approx 0.00137$/week, the correction is negligible numerically, but the formula stated is technically incorrect.
+- **rw.sd very small for rho_CH and eta2:** In both local and global searches, rw.sd for rho_CH is 0.0001 and for eta2 is ivp(0.0001). The rho_CH range spans 0.0001 to 0.001 (a factor of 10), so a perturbation of 0.0001 on the natural scale is at most one-tenth of the range. This may severely limit IF2's ability to move in the rho_CH direction. Perturbations should typically be specified on a transformed scale (log or logit) to achieve scale-invariant exploration.
 
-- **ACF/PACF interpretation leading to AR(1) is overconfident.** The conclusion that "the process underlying the data could be modeled as AR(1)" is based solely on the PACF cutting off after lag 1. The AIC table then selects ARMA(1,4), which includes MA(4) terms that are not anticipated by the PACF analysis. The ARMA(1,4) selection should take precedence over the preliminary ACF/PACF-based AR(1) suggestion.
+- **fmin clamping may break population conservation:** The step function uses `fmin(S, dN_SE + dN_Smu)` and analogous constructions to prevent negative compartments. When activated, this clamping changes the effective transition counts and will not in general preserve S + E + I + R = N = 270,000. The authors mention this as a check, but do not verify that conservation holds in practice. For large compartments (N = 270,000), deviations are likely rare but should be acknowledged.
 
-- **Seasonality analysis period of 7 months is dismissed without exploring structural reasons.** The smoothed periodogram identifies a dominant period of approximately 7 months. The authors discard this finding because it does not match common calendar periods, but the MERS literature discusses seasonal patterns linked to camel calving and Hajj pilgrimage timing. A brief engagement with whether 7 months might reflect a biological seasonality would strengthen the analysis.
+- **No filtering-distribution simulations:** Simulations are generated forward from estimated initial conditions (forward simulations). No simulations conditioned on the filtering distribution (which incorporates all observed data up to each time point) are shown. These serve different diagnostic purposes and should not be conflated (Wheeler et al. 2024, §Forecast methodology). The visual fit comparison would benefit from filtering-distribution trajectories.
 
-- **`rw.sd` for $\eta_2$ is 0.0001 in the logit-transformed space, which may be too small.** The random-walk standard deviation for `eta2` is set to `ivp(0.0001)` (line 545). Since `eta2` is logit-transformed, this corresponds to an extremely small perturbation on the logit scale for an initial-value parameter that ranges roughly from 0 to 0.01. Nonconvergence of `eta2` traces may be partly attributable to this too-small perturbation rather than genuine weak identifiability.
+- **No out-of-sample evaluation:** The model is fit to 2014-2016 data and no held-out evaluation or forecast is attempted. Even a brief comparison to 2016-2017 data would strengthen the scientific conclusions.
 
-- **`saudi_mers_params.csv` is written conditionally but read unconditionally.** The code at line 595 reads `saudi_mers_params.csv` inside an `else` branch, but the initial particle filter block (lines 499-518, marked `eval=F`) that creates this file is never executed during normal knitting. If the file does not exist prior to running the Rmd, the local search likelihood evaluation will fail. The dependency chain for pre-computed files is not clearly documented.
+- **R0 uncertainty:** R0 = Beta/mu_IR = 2.6 is reported as a point estimate with no confidence interval or uncertainty quantification. Given that Beta and mu_IR are estimated parameters with uncertainty, the derived R0 should carry propagated uncertainty.
 
-- **No `sessionInfo()` or package version documentation.** The supplement does not record R or `pomp` package versions. The `pomp` API has changed substantially across versions and results may not reproduce on current CRAN releases without version pinning. (Code supplement checklist, §Documentation.)
+- **model.png missing from repository:** The Rmd references `![SEIRS Model Structure](model.png)` but the file is absent from the project folder. This produces a broken image in the rendered output.
 
-- **Model diagram (`model.png`) referenced but not present in the submitted files.** The Rmd includes `![SEIRS Model Structure](model.png)` (line 374), but only `blinded.Rmd`, `blinded.html`, `Makefile`, and `weekly_clean.csv` are present in the project folder. The figure may be embedded in the HTML but is not archived as a standalone file for reproducibility.
+- **CLUSTER.R referenced but absent:** The line `if (file.exists("CLUSTER.R")) { source("CLUSTER.R") }` references a file not in the repository. Its purpose and contents are unclear.
+
+- **Conclusion overstates profile likelihood result:** "We constructed profile likelihood for the spill-over rate rho_CH with narrow confidence interval" — this is inaccurate given that the profile MLE is at the search boundary and the CI is degenerate (see Major Issue 2).
+
+---
+
+## Recommendation
+
+**Major Revision.** The project demonstrates solid methodological intent and applies the POMP workflow competently, but contains a critical error in the measurement model (Major Issue 1) that invalidates all reported log-likelihood values and model comparisons. The profile likelihood also fails to identify the MLE (Major Issue 2), and the LRT methodology is incorrect for non-nested models (Major Issue 3). These issues must be addressed before any conclusions about model fit or parameter uncertainty can be trusted. After correcting the dmeas/rmeas inconsistency, all optimization and inference should be re-run, and the profile likelihood for rho_CH should be extended to find the true interior maximum.
 
 ---
 
 ## Files Consulted
 
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/SKILL_pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W24/project15/blinded.Rmd`
+**Skill files:**
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/SKILL_pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/assets/rev_template_pomp.qmd`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/README.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-conventions.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-weakness-reference.md`
+
+**Project files:**
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W24/project15/blinded.Rmd`
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W24/project15/blinded.html`
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W24/project15/weekly_clean.csv` (existence confirmed; content not read)
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W24/project15/Makefile` (existence confirmed; content not read)

@@ -2,7 +2,7 @@
 name: Alex
 description: "Use to generate a POMP peer review."
 tools: Bash, Glob, Grep, Read, Write
-model: sonnet
+model: claude-sonnet-4-6
 color: red
 ---
 

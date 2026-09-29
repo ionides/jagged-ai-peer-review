@@ -1,88 +1,254 @@
 # Peer Review: W24 Project 13
-## Taiwan COVID-19 SIQRIQR POMP Analysis
+
+**Semester:** Winter 2024
+**Project:** 13 — COVID-19 in Taiwan: SARIMA and SIQRIQR POMP Model
+
+---
+
+## Paper Metadata
+
+| Field | Details |
+|-------|---------|
+| **Inference method** | IF2 (mif2) + replicated pfilter |
+| **R packages used** | pomp, forecast, ggplot2, doFuture, tidyverse |
+| **Code publicly available** | Partial — data loading uses a hard-coded local path |
+| **Data publicly available** | Partial — primary data from Google COVID-19 Open Data API; second-wave CSV is a local file |
+| **Benchmark comparison included** | No — visual comparison only, no quantitative comparison of ARIMA vs. POMP likelihoods |
+
+---
+
+## POMP Checklist Scorecard
+
+| # | Practice | Status | Notes |
+|---|----------|--------|-------|
+| 1 | Likelihood-based inference | ~ | mif2 + replicated pfilter with logmeanexp; correct aggregation method used |
+| 2 | Benchmark comparison | ✗ | SARIMA and POMP likelihoods not compared on the same scale |
+| 3 | Quantitative goodness-of-fit reporting | ~ | Top-10 loglik tables printed but not discussed relative to any baseline |
+| 4 | Model diagnostics | ✗ | No conditional log-likelihoods, no ESS monitoring; simulation plots shown but no quantitative fit assessment |
+| 5 | Parameter identifiability and uncertainty | ✗ | No profile likelihoods, no confidence intervals; non-convergence of eta acknowledged but not addressed |
+| 6 | Computational adequacy | ~ | Nmif=50, Np=2000 for both local and global searches; borderline for a 13-parameter model |
+| 7 | Forecast methodology | N/A | No forecasts presented |
+| 8 | Model variations and nested comparisons | ✗ | Single SIQRIQR model only; no alternative structures tested |
+| 9 | Stochasticity | ✓ | Binomial transitions throughout; negative binomial measurement model |
+| 10 | Reproducibility and extendability | ✗ | Hard-coded local path; TW_last_days.csv not archived; no sessionInfo() |
+| 11 | Corroboration with scientific knowledge | ~ | Parameter estimates printed but not compared to known COVID-19 natural history |
+| 12 | Measurement model specification | ✗ | Accumulator H tracks Q→R recoveries rather than I→Q (case detection) transitions; biological mismatch |
+| 13 | Initial conditions | ~ | eta estimated; other initial compartments fixed (100 in Q_o at t=0) without justification |
 
 ---
 
 ## Summary
 
-This project analyzes Taiwan's COVID-19 pandemic data in two phases, using SARIMA models for both phases and an SIQRIQR (Susceptible-Infected-Quarantined-Recovered, with reinfection) POMP model specifically for the second (Omicron) wave. The authors motivate the two-compartment infectious disease structure by citing Taiwan's strict quarantine policy and the biological possibility of reinfection across two strains. The project includes a local and global parameter search using `mif2` with `Np=2000` and `Nmif=50`.
+This project analyzes Taiwan's COVID-19 pandemic using a SARIMA model for the first wave (2021) and a custom SIQRIQR POMP model for the second wave (2022, Omicron). The SIQRIQR model extends the standard SIR framework by adding quarantine compartments and allowing reinfection by a second strain, motivated by Taiwan's notable quarantine policy. The authors conduct both local and global mif2 searches, use logmeanexp for likelihood aggregation, and select a negative binomial measurement model.
 
-Key strengths include a clearly motivated epidemiological model, use of a negative binomial measurement model, and a working global search across a reasonable parameter range. However, the analysis suffers from critical code defects that render the R-implementation version of the step function non-executable, an undeclared/unused parameter (`Beta_or`) in the Csnippet, hard-coded absolute file paths, absence of any quantitative goodness-of-fit comparison against a non-mechanistic benchmark, no profile likelihoods or confidence intervals for any parameter, and insufficient computational effort (Nmif=50 with no convergence justification). These issues substantially undermine confidence in all reported results.
+**Strengths:**
+- Creative compartmental model design that incorporates quarantine dynamics and dual-strain reinfection
+- Correct use of logmeanexp for aggregating replicated particle filter likelihoods
+- Negative binomial measurement model appropriately handles overdispersion
+- Both local and global parameter searches are conducted
+- Biological motivation for the model structure is clearly explained
+
+**Weaknesses:**
+- The rprocess uses the force of infection from quarantined (Q) rather than infectious (I) compartments — a fundamental model specification error
+- The accumulator variable H tracks Q→R recoveries rather than I→Q case-detection transitions, creating a systematic mismatch between model output and the data being fit
+- A hard-coded local Windows file path makes the POMP section entirely non-reproducible
+- An undocumented event injection (100 individuals inserted at t=125) is not scientifically justified
+- No profile likelihoods or confidence intervals are computed for any parameter
+- No quantitative comparison between SARIMA and POMP models
 
 ---
 
 ## Major Issues
 
-### 1. Non-functional R prototype step function uses undefined variables
+### 1. Force of infection uses quarantined rather than infectious compartments
 
-In the R-language version of `siqriqr_step` (lines 448-467), the state update for `S` references `dN_SE_o` and `dN_SE_b` (line 459), which are never defined anywhere in the function. The function computes `dN_SI_o` and `dN_SI_b` but then uses different, non-existent variable names in the update. Similarly, lines 454-457 use `dt` as the time-step variable, but the function signature at line 449 names it `delta.t`. This prototype is broken and non-executable, meaning no one can verify its logic. While the Csnippet version (lines 504-522) does not share these exact bugs, the R prototype is also submitted as part of the code and cannot be relied upon for reasoning about model correctness.
+The rprocess Csnippet specifies:
 
-### 2. Parameter `Beta_or` declared but never used in the Csnippet or described in the model
+```
+double dN_SI_o = rbinom(S, 1-exp(-Beta_o*Q_o/N*dt));
+double dN_SI_b = rbinom(S-dN_SI_o, 1-exp(-Beta_b*Q_b/N*dt));
+```
 
-`Beta_or` appears in `paramnames` (lines 552-554), in the initial parameter vector (lines 559-560, 576-578), in `partrans` (line 584), and in `rw.sd` (line 599), yet it does not appear anywhere in the Csnippet body (lines 504-522) and is not mentioned in the model equations or verbal description. This is a declared but dead parameter: it is being estimated but plays no role in the dynamics. Its presence inflates the effective parameter count, distorts the optimization geometry, and makes results uninterpretable. This is a concrete model misspecification.
+The force of infection is `Beta_o * Q_o / N` and `Beta_b * Q_b / N`, meaning quarantined individuals drive new infections. This is biologically backward: quarantined individuals are isolated and removed from community contact. The infectious source should be the `I_o` and `I_b` compartments. As specified, individuals can only be infected by people who have already been detected and removed from circulation, while the truly infectious undetected individuals (I compartments) infect no one. This inverts the intended epidemiological logic and will produce model dynamics that bear no meaningful relationship to the process being described.
 
-### 3. Infection force in the Csnippet is driven by Q (quarantined), not I (infectious)
+**Fix:** Change the force of infection to use `I_o` and `I_b`, respectively: `Beta_o * I_o / N * dt` and `Beta_b * I_b / N * dt`.
 
-Both `dN_SI_o` (line 505) and `dN_SI_b` (line 509) in the Csnippet use `Q_o/N` and `Q_b/N` as the infection force, i.e., transmission is driven entirely by the quarantined population. This is epidemiologically backwards: quarantined individuals are specifically those who have been isolated and cannot transmit. The infectious populations `I_o` and `I_b` do not appear in the infection force at all. Similarly in the R prototype (line 451). This structural error means the model does not represent the intended dynamics and all estimated transmission parameters (`Beta_o`, `Beta_b`, `Beta_r`) are uninterpretable.
+---
 
-### 4. No benchmark comparison against a non-mechanistic model
+### 2. Measurement accumulator tracks recoveries rather than new case reports
 
-The POMP model is never compared to any non-mechanistic statistical baseline. The SARIMA models fit to the second wave are not used as a quantitative benchmark; the paper only notes informally that the SARIMA fit for wave two is poor. There is no log-likelihood or AIC comparison between the POMP model and any ARMA or negative-binomial autoregressive benchmark. As Wheeler et al. (2024) note, none of the reviewed Haiti cholera models performed such a comparison, and their benchmark revealed that some mechanistic models failed to outperform a simple statistical model. Without this comparison, it is impossible to assess whether the SIQRIQR model captures meaningful epidemiological structure.
+The accumulator variable is updated as:
 
-### 5. No profile likelihoods or confidence intervals reported
+```
+H += (dN_QR_o + dN_QR_b);
+```
 
-No profile likelihoods are computed for any parameter, and no confidence intervals (e.g., via MCAP) are reported anywhere in the paper. The pairs plots from the local and global searches are the only characterization of parameter uncertainty, and these do not provide inferential guarantees. Several parameters, including `eta` (acknowledged not to converge in the local search at line 630), `Beta_or` (dead parameter), and the rates `mu_QR_o`, `mu_QR_r`, `mu_QR_b` (fixed without sensitivity analysis), are not given any uncertainty characterization. As Wheeler et al. (2024) note in their identifiability section, missing profile likelihoods make it impossible to determine whether parameters are identifiable from the data.
+This accumulates individuals transitioning from quarantine to recovery (Q→R). However, the observed data (`reports`) represents new confirmed COVID-19 cases, which correspond to the moment of detection and quarantine entry (I→Q transitions). The correct accumulation is `dN_IQ_o + dN_IQ_b`. Using Q→R introduces a systematic temporal displacement between modeled and observed case counts equal to the average quarantine duration. This mismatch distorts all parameter estimates, particularly the transmission rates.
 
-### 6. Insufficient computational effort with no convergence justification
+**Fix:** Change to `H += (dN_IQ_o + dN_IQ_b)`.
 
-The global search uses `Nmif=50` and `Np=2000` for a model with 8 free parameters and a 174-day time series. The convergence traces shown do not provide evidence that 50 iterations are sufficient; the paper acknowledges that the log-likelihood has not converged ("it may need more particles or iterations," line 684). The local search uses `%do%` (sequential, not parallel), so 20 replicates run serially, further limiting effective exploration. No sensitivity analysis of particle count or iteration count is provided. This means the reported maximum log-likelihoods may be far from the true MLE, undermining all downstream conclusions (Wheeler et al. 2024, computational adequacy).
+---
 
-### 7. Hard-coded absolute path prevents reproducibility
+### 3. Hard-coded local file path makes POMP analysis non-reproducible
 
-Line 394 contains `read_csv(paste0("C:/Users/USER/Desktop/Time Series Analysis/Projects/TW_last_days.csv"))`. This path is specific to the authors' Windows machine and will fail on any other system. Although `TW_last_days.csv` is included in the project folder, the code does not use a relative path to read it, meaning the project cannot be reproduced without manual path editing. Per the code supplement checklist, hard-coded absolute paths to the author's local filesystem are a reproducibility red flag.
+The POMP section loads data with:
 
-### 8. Three rate parameters fixed without justification or sensitivity analysis
+```r
+read_csv(paste0("C:/Users/USER/Desktop/Time Series Analysis/Projects/TW_last_days.csv"))
+```
 
-`mu_QR_o`, `mu_QR_r`, and `mu_QR_b` (quarantine-to-recovery rates) are placed in `fixed_params` (line 635) and excluded from both the local and global search. The values 0.03, 0.05, and 0.01 (lines 576-578) are asserted without citation or biological justification. No sensitivity analysis examines whether results change under different fixed values. Fixing these parameters without justification may substantially affect estimated transmission rates and reported log-likelihoods. Wheeler et al. (2024) note that initial condition and fixed-parameter choices can shift AIC by tens of units.
+This path cannot be resolved by any reader. The `TW_last_days.csv` file is included in the project submission directory but the path is not relative. This means the entire POMP analysis — the model definition, all local and global searches, and all results — cannot be reproduced by any reader. This is a reproducibility failure documented in the code-supplement checklist.
+
+**Fix:** Use a relative path (`read_csv("TW_last_days.csv")`) consistent with the file's location in the project directory.
+
+---
+
+### 4. Undocumented ad-hoc event injection at t=125
+
+The Csnippet contains:
+
+```c
+double e = 0;
+if (t == 125) e = 100;
+...
+I_b += dN_SI_b + dN_RI_b - dN_IQ_b + e;
+```
+
+One hundred individuals are inserted into the I_b compartment at time step 125, with no justification in the text, no citation to an external event, no estimation of the magnitude, and no sensitivity analysis. This is a hard-coded intervention that directly manipulates the latent state rather than modeling an intervention as a parameter or covariate. The text describes the model as capturing "quarantine policy relaxation" but provides no connection between t=125 and any policy event. This approach is not a principled modeling technique and its influence on parameter estimates cannot be assessed.
+
+**Fix:** Either remove this term, model the external event as an estimated parameter with a clear biological interpretation, or connect it to a covariate (e.g., a documented policy change date) and estimate its magnitude.
+
+---
+
+### 5. No profile likelihoods or confidence intervals
+
+No uncertainty quantification is provided for any of the estimated parameters. The local search explicitly flags that eta "Does not seem to converge which is concerning," yet no follow-up analysis is performed. Profile likelihoods are not computed for any parameter, and no confidence intervals of any kind are reported. Without these, it is impossible to assess whether any parameter is identifiable from the data, and the printed point estimates from the global search cannot be interpreted. This also means there is no diagnostic for the convergence issue with eta. See Wheeler et al. (2024), Section on parameter identifiability.
+
+**Fix:** Compute profile likelihoods for key parameters (at minimum Beta_o, Beta_b, rho, eta) using mif2 with the target parameter fixed at a grid of values.
+
+---
+
+### 6. Wrong seasonal frequency specification in ts() objects
+
+The code uses:
+
+```r
+ts_data1 <- ts(tw_df_first$new_confirmed, frequency = 52)
+ts_data2 <- ts(tw_df_second$new_confirmed, frequency = 52)
+```
+
+The data is daily, and the ACF analysis correctly identifies a 7-day (weekly) seasonal pattern. For daily data with weekly seasonality, the correct specification is `frequency = 7`. Using `frequency = 52` defines the seasonal period as 52 days, causing `auto.arima` to search for a 52-day seasonal cycle rather than the 7-day cycle documented in the EDA. The selected seasonal model orders from auto.arima are therefore based on an incorrect periodicity assumption, undermining the SARIMA analysis throughout.
+
+**Fix:** Change both `ts()` calls to `frequency = 7`.
+
+---
+
+### 7. No quantitative benchmark comparison between SARIMA and POMP
+
+The paper's stated goal is to "compare and contrast the performances of an ARIMA and POMP model," but this comparison is only visual. The SARIMA model is fit to the first wave; the POMP model is fit to the second wave. No common holdout period or common data segment is used to compare the two approaches on the same likelihood scale. The POMP log-likelihoods are printed in R output tables but never referenced in the discussion. Without a quantitative comparison — even an informal one noting the log-likelihood of a SARIMA model applied to the second-wave data — the stated comparative goal is not achieved.
+
+**Fix:** Report the log-likelihood of the SARIMA model on the second-wave data and compare it to the POMP log-likelihood, acknowledging any differences in observation model when interpreting the comparison.
+
+---
+
+### 8. Broken R-language rprocess prototype
+
+The R-language prototype `siqriqr_step` (used before the Csnippet implementation) contains multiple errors that prevent execution:
+
+- Uses `dt` (undefined in this scope) instead of `delta.t` (the argument name declared in the function signature)
+- Refers to `dN_SE_o` and `dN_SE_b` (undefined) instead of `dN_SI_o` and `dN_SI_b`
+- `rbinom` calls are missing the `n=1` and `size=` argument names (e.g., `rbinom(R_o, 1-exp(...))` should be `rbinom(n=1, size=R_o, prob=1-exp(...))`)
+- The function has no return statement and modifies only local variables
+
+While the Csnippet implementation that follows is used for actual computations, including non-functional R code in the report creates confusion about the model specification and undermines the presentation.
+
+**Fix:** Either correct the R prototype to be syntactically valid and consistent with the Csnippet, or remove it and present only the Csnippet with a clear mathematical description of the transitions.
+
+---
+
+### 9. Unused parameters in paramnames inflate complexity without contributing to dynamics
+
+The `paramnames` argument lists `Beta_or` and `mu_QR_r`, but neither appears in the Csnippet rprocess. They are included in the initial parameter vector and in the rw.sd specification for mif2, meaning they are perturbed during iterated filtering without affecting model dynamics. This wastes computational budget on non-contributing parameters and adds noise to the optimization without benefit. The parameter `mu_QR_r` is described in the compartment list but never appears in the transition equations.
+
+**Fix:** Remove `Beta_or` and `mu_QR_r` from paramnames and from the mif2 random walk specification, or incorporate them into the rprocess if they were intended to play a role.
+
+---
+
+### 10. No convergence diagnostics for global search; eta instability unresolved
+
+The local search acknowledges that eta "does not seem to converge." The global search is described as providing "better convergence," but no trace plots are shown for the global runs. For the local search, trace plots are computed but the text discussion focuses on qualitative convergence without quantifying whether runs agree in their terminal log-likelihood values. The global search uses `Nmif=50` with `Np=2000` — a relatively low computational budget for a model with 8 free parameters. No evidence is presented that further iterations would not change the estimates substantially.
+
+**Fix:** Show likelihood traces for the global search; report the spread in terminal log-likelihoods across global runs; increase Nmif to at least 100 and verify stability.
+
+---
+
+## Computational and Diagnostic Assessment
+
+**Convergence:** Trace plots are computed for the local search and shown in the report. However, convergence of the log-likelihood panel across runs is not explicitly assessed. Several parameters (notably eta and Beta_r) show visible spread without clear plateau. No trace plots are shown for the global search.
+
+**Particle filter:** No ESS monitoring is performed or reported. The particle count is Np=2000, which is reasonable for a daily time series but not verified via sensitivity analysis. No evidence of filter degeneracy assessment.
+
+**Conditional log-likelihoods:** Not computed. Per-observation log-likelihood plots would help diagnose whether the event injection at t=125 improves model fit at specific time points.
+
+**Profile likelihoods:** Not computed. See Major Issue 5.
+
+**Computational scale:** The local search is run sequentially (`%do%` rather than `%dopar%`). The global search uses parallel execution with Nseq=50 starting values. Total computation time is not reported.
+
+---
+
+## Reproducibility Assessment
+
+**Code availability:** The Rmd file and TW_last_days.csv are included in the submission. However, the POMP section depends on a hard-coded Windows path. The data loading section for the ARIMA analysis fetches from a live API URL, which may not remain stable.
+
+**Final parameters:** Top-10 parameter vectors from local and global searches are printed as R output. These are readable but not archived as standalone CSV or RDS files for direct re-use.
+
+**Model-code consistency:** The measurement model specification (negative binomial via dnbinom_mu) is consistent between the text and code. However, the accumulator variable H measures Q→R rather than I→Q transitions, which is inconsistent with the stated interpretation that H measures new confirmed cases.
+
+**Package versions:** No `sessionInfo()` output is provided. Package versions for pomp, forecast, and ggplot2 are not reported.
+
+**Auxiliary data:** TW_last_days.csv is present in the submission directory, resolving the data dependency if the path is corrected.
+
+**HPC reproducibility:** No cluster-based analysis; not applicable.
 
 ---
 
 ## Minor Issues
 
-### 9. Accumulator variable `H` tracks recoveries, not case reports
+- The AIC table for the first wave searches non-seasonal ARIMA orders (`arima(data, order=c(p,1,q))`) without seasonal terms, but the paper's motivation is SARIMA. The table is not directly comparable to the `auto.arima` result, which includes seasonal structure.
 
-The measurement model (`dmeas`) links `reports` to `rho*H`, where `H` accumulates `dN_QR_o + dN_QR_b` (lines 521, 466) - i.e., transitions from quarantine to recovery. However, the observed variable is daily new confirmed cases, which should correspond to newly entering quarantine (`dN_IQ_o + dN_IQ_b`), not leaving it. A delay introduced by routing observations through the quarantine compartment may affect parameter estimates, particularly the rates `mu_IQ` and `mu_QR`. This inconsistency should be explicitly justified or corrected.
+- No residual ACF plot is shown for either SARIMA model. Only QQ plots and visual fits are presented. Ljung-Box test or residual ACF would be expected diagnostics.
 
-### 10. Ad hoc impulse at t=125 is undocumented and unjustified
+- The compartment description contains two entries for $R_b$ (lines 419 and 430 of the Rmd) and omits $R_o$. The text also states "O denotes beta" for $I_b$, which is a copy-paste error (should read "b denotes beta").
 
-Line 513 introduces `if (t == 125) e = 100;` which adds 100 individuals to `I_b` at day 125. This is an undocumented impulse with no explanation in the text, no citation, and no sensitivity analysis. Day 125 of the 174-day second-wave window corresponds to approximately late August or September 2022. There is no discussion of what epidemiological event this is meant to represent. Such an ad hoc intervention can substantially distort the inference if the optimizer simply exploits it.
+- Causal language is used throughout ("assess the effectiveness of government policies") without a causal identification strategy. The POMP model describes association and dynamics, not causal effects of policy interventions.
 
-### 11. Model state inconsistency: `R_b` described twice, `R_o` description missing
+- Typos: "fous" (→ "focus"), "dtrains" (→ "strains"), "acll" (→ "call"), "Futhermore" (→ "Furthermore").
 
-In the model description (lines 422-432), `R_b` is listed twice - once as "people who have recovered from the beta variant" and once more at the end of the list with the same label. `R_o` (recovered from Omicron) is never defined in the verbal description despite appearing in the state vector and step function. This is a notation/documentation inconsistency that undermines the clarity of the model specification.
+- No `sessionInfo()` output or package version documentation is included anywhere in the report.
 
-### 12. SARIMA model identified as WARIMA(4,1,1) but auto.arima returns different orders
+- The initial condition places 100 individuals in Q_o at t=0 without justification. Given the force-of-infection error (Issue 1), this means Q_o is the sole driver of transmission, so the initial value of Q_o functions as the seed for the entire epidemic. Sensitivity to this choice is not explored.
 
-The text states (line 207) that the first approach (`auto.arima`) suggests WARIMA(4,1,1), while the AIC table approach suggests (3,1,5). But later (line 310) the inverse root plot is described as being for the "(4,1,1) model for the first phase," while line 318 states "our model is a WARIMA(3,1,2)". It is unclear which model is ultimately used for the second wave and why. The AIC comparison table only covers the first wave's data. No AIC table is presented for the second wave.
+---
 
-### 13. Stationarity claims are inconsistent with SARIMA assumptions
+## Recommendation
 
-The text (lines 106-107) states the differenced data shows "mean stationarity" but that "strict stationarity is unlikely" due to heteroskedastic variance. The authors then proceed to fit SARIMA models that assume homoskedastic, normally distributed errors. The QQ plot deviations are noted but dismissed without testing (e.g., no Ljung-Box or ARCH test). The decision to continue with SARIMA despite acknowledged non-normality and heteroskedasticity is not adequately justified.
+**Major Revision — with core model re-specification required.**
 
-### 14. `loglik > max(loglik) - 1000` filter is too permissive
-
-Line 679 filters the global search results to include runs within 1000 log-likelihood units of the maximum. For a 174-observation model, a window of 1000 log-likelihood units is extremely wide and includes virtually all runs regardless of quality. A threshold of 10-20 units is standard (corresponding roughly to a factor of e^10 in likelihood). This permissive filter means the pairs plots in the global search summary may not actually reflect the geometry near the MLE.
-
-### 15. No model diagnostics or forward simulation comparison to data
-
-After the global search, there is no figure comparing forward simulations from the best-fit parameters to the observed data for the POMP model. The only simulation comparison shown is from the initial guesses (lines 557-568), before any fitting. Post-fitting, the analysis jumps directly to pairs plots of parameter estimates. No conditional log-likelihoods, ESS traces, or filtering-distribution plots are provided, making it impossible to assess where the model fits well or poorly (Wheeler et al. 2024, model diagnostics).
+The two fundamental model errors (force of infection driven by quarantined rather than infectious individuals; accumulator variable measuring recoveries rather than case detections) mean that the SIQRIQR analysis as presented does not model the intended epidemiological process. All parameter estimates and conclusions from the POMP section are derived from a misspecified model and should not be interpreted. These issues, together with the non-reproducible local file path and the undocumented state injection, represent the minimum revisions required before the analysis can be evaluated. Profile likelihoods and a quantitative SARIMA–POMP comparison are also necessary for the paper's stated goals to be achieved.
 
 ---
 
 ## Files Consulted
 
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/SKILL_pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W24/project13/blinded.Rmd`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W24/project13/TW_last_days.csv`
+**Skill files:**
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/SKILL_pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/assets/rev_template_pomp.qmd`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-conventions.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-weakness-reference.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/README.md`
+
+**Project files:**
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W24/project13/blinded.Rmd`
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W24/project13/TW_last_days.csv`

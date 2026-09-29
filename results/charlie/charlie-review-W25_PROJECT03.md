@@ -1,149 +1,169 @@
-# Peer Review: W25 Project 03 — "Flu Cases in Michigan"
+# Review: W25 PROJECT03
+## *Flu Cases in Michigan*
+
+---
+
+## Paper Metadata
+
+| Field | Details |
+|-------|---------|
+| **Inference method** | IF2 (mif2) via iterated filtering, local and global search |
+| **R packages used** | pomp, forecast, ggplot2, doParallel, doRNG |
+| **Code publicly available** | Yes — Git repository (no separate DOI archive) |
+| **Data publicly available** | Yes — CDC FluView (flu_michigan.csv included in repo) |
+| **Benchmark comparison included** | Yes — ARMA and SARMA compared to POMP by log-likelihood (but comparison is invalid; see Major Issue 1) |
+
+---
+
+## POMP Checklist Scorecard
+
+*checkmark = satisfies practice, ~ = partially satisfies, x = does not satisfy, N/A = not applicable*
+
+| # | Practice | Status | Notes |
+|---|----------|--------|-------|
+| 1 | Likelihood-based inference | ~ | mif2 used correctly; but profile and local-search likelihood evaluation are noisy (single pfilter) |
+| 2 | Benchmark comparison | ~ | ARMA/SARMA comparison attempted but invalid (different response variables) |
+| 3 | Quantitative goodness-of-fit reporting | ~ | Log-likelihoods reported but comparison is not apples-to-apples |
+| 4 | Model diagnostics | x | Only visual simulation comparison; no ESS monitoring, no conditional log-likelihoods |
+| 5 | Parameter identifiability and uncertainty | ~ | Profile likelihood attempted but too sparse, single pfilter per point, only 4 of 8 parameters covered |
+| 6 | Computational adequacy | ~ | Global search uses only 10 starts; no convergence traces for global search |
+| 7 | Forecast methodology | N/A | No forecasting conducted |
+| 8 | Model variations and nested comparisons | x | No alternative model structures tested |
+| 9 | Stochasticity | checkmark | Binomial transitions with exponential probabilities; negative binomial measurement model |
+| 10 | Reproducibility and extendability | ~ | Code present; data path in Rmd is incorrect; no package version pinning |
+| 11 | Corroboration with scientific knowledge | x | No R0 or epidemiological parameter interpretation |
+| 12 | Measurement model specification | ~ | H tracks I->R flow (recoveries) rather than E->I flow (new cases); introduces unmotivated lag |
+| 13 | Initial conditions | checkmark | Population-proportion initialization estimated as parameters |
 
 ---
 
 ## Summary
 
-This project applies ARMA, SARMA, and a POMP-based SEIRS model to weekly influenza case counts in Michigan from 2023 through early 2025 (approximately 116 observations). The authors implement seasonal transmission, perform local and global IF2 searches, and attempt profile likelihood analysis for four parameters. The SEIRS model achieves a substantially higher log-likelihood than the ARMA/SARMA baselines. While the project covers a reasonable breadth of methods and shows awareness of POMP infrastructure, it suffers from several serious methodological flaws: the profile likelihoods are computed with a single IF2 restart and single particle-filter evaluation per grid point, making all reported confidence intervals statistically invalid; the log-likelihood comparison between ARIMA (on differenced data, Gaussian) and POMP (on counts, negative binomial) is not a valid direct numerical comparison; the global search is underpowered (10 replicates, Np = 1000, total Nmif = 100); and the `phase` parameter in the rho profile grid is centered narrowly on the MLE, potentially missing the true likelihood surface. The paper also lacks convergence diagnostics for the global search, model diagnostics beyond visual trajectory inspection, and any assessment of the biological plausibility of fitted parameter values.
+The paper applies ARMA, SARMA, and a SEIRS POMP model to weekly influenza case counts in Michigan (2023–2025), asking whether POMP can effectively capture flu dynamics. The SEIRS model incorporates a cosine seasonal transmission function, is fitted via iterated filtering (mif2), and profile likelihoods are attempted for four parameters. The reported log-likelihood improvement from ARMA to POMP is substantial, but the comparison is confounded by the two model classes being fitted to different transformations of the data (differenced vs. original). Additional major flaws include noisy single-pfilter profile likelihood evaluation, too-sparse profile grids yielding collapsed singleton CIs, and absent convergence diagnostics for the global search.
+
+**Strengths:**
+- Coherent modeling pipeline from data exploration through POMP inference
+- Correct use of logmeanexp in the global search likelihood evaluation
+- Negative binomial measurement model appropriately accounts for overdispersion
+- Thoughtful acknowledgment of computational limitations in the profile analysis
+- Well-structured report with clear section organization
+
+**Weaknesses:**
+- The ARMA/SARMA–POMP log-likelihood comparison is not valid (different response variables)
+- Profile likelihood evaluation relies on a single noisy pfilter call per grid point with no logmeanexp
+- Profile grids are too sparse (10 points) and the resulting singleton CIs are misinterpreted
+- No convergence trace plots or diagnostics for the global search
+- rw.sd for rho (0.00001) is orders of magnitude below the course standard (0.02)
 
 ---
 
 ## Major Issues
 
-### 1. Profile likelihoods are computed with a single IF2 restart and a single pfilter evaluation per grid point, making all reported confidence intervals invalid
+### 1. Log-likelihood comparison between ARMA/SARMA and POMP is not valid
 
-The profile likelihood loops (Section 6, chunk beginning around line 701) follow this structure for every profiled parameter: a single `mif2()` call is initialized from `MLE_params` with the profiled parameter overwritten, followed by a single `pfilter(..., Np = 5000)` call. The CI cutoff is then `max(profile_X$loglik) - qchisq(0.95, 1) / 2`, where the maximum is taken over the profile results rather than anchored to the global search maximum.
+The comparison table in Section 5 places ARMA log-likelihood (-497.31), SARMA log-likelihood (-495.40), and SEIRS log-likelihood (-375.79) side by side and concludes a "substantial improvement" from the mechanistic model. However, the ARMA and SARMA models are fitted to `diff_flu_ts` (the first-differenced series), while the POMP model is fitted to the original `flu_data$cases`. These are different response variables. Log-likelihoods are only directly comparable when both models are evaluated against the same observed data. An ARMA model fitted to the first-differenced series gives the joint density of week-to-week *changes* in cases, not of the case counts themselves, so the two likelihoods measure goodness-of-fit to different quantities. The correct approach is to either (a) fit an ARIMA(0,1,1) model to the original case counts in a single call, or (b) compute the likelihood of a chosen ARIMA specification on the original (undifferenced) series and compare that to the POMP likelihood. As written, the main conclusion in Section 7.1 — that the SEIRS model "significantly outperformed" ARMA/SARMA — cannot be supported.
 
-This procedure has three compounding flaws (Wheeler et al. 2024; skill: `pomp-profile-single-restart-audit`):
+### 2. Profile likelihood uses a single pfilter run per grid point (no logmeanexp)
 
-1. A single restart from the MLE provides no diversity in the constrained optimization. At grid points far from the MLE, the constrained optimizer may fail to reach the constrained maximum, causing the profile to drop too steeply.
-2. A single `pfilter` evaluation introduces Monte Carlo noise of approximately 1–5 log-likelihood units for typical epidemic models with Np = 5000. With only 10 grid points and no replicated evaluations, the profile curve is dominated by noise rather than signal.
-3. The CI reference should be the global search maximum, not the maximum within the profile. If the two differ by more than Monte Carlo error, the chi-squared threshold is applied at the wrong baseline.
+In Section 6, each profile likelihood value is evaluated with a single `pfilter` call at Np = 5000: `profile_amp$loglik[i] <- logLik(pf)`. The particle filter is a stochastic estimator; each run produces a different log-likelihood estimate with non-negligible Monte Carlo variance. The course-standard method (as implemented correctly in the global search) is `logmeanexp(replicate(N, logLik(pfilter(...))), se=TRUE)`. With a single noisy estimate per grid point, the apparent shape of the profile curve reflects Monte Carlo noise as well as the true likelihood surface. The Wilks cutoff for a 95% CI is approximately 1.92 log-likelihood units below the maximum. If the Monte Carlo standard error is on the order of 1 log unit (typical for Np = 5000 on a 110-observation dataset), the noise is comparable to the threshold, making the CI endpoints unreliable. The singleton CIs reported for phase and rho are very likely an artifact of this noise rather than genuine identifiability information (see also Major Issue 3).
 
-The consequence is immediate: the reported singleton CIs for `phase` (95% CI: [2.7, 2.7]) and `rho` (95% CI: [0.00015, 0.00015]) are almost certainly artifacts of a single noisy pfilter evaluation being above the cutoff while its neighbors are not, not evidence of genuine non-identifiability. The authors' interpretation ("limited identifiability," "poor identifiability") may be qualitatively correct but is not supported by these computations.
+### 3. Profile likelihood too sparse: 10 grid points per parameter
 
-Fix: Use `profile_design()` seeded from a high-likelihood box, run multiple IF2 restarts (at least 5–10) per grid value, evaluate log-likelihood via `logmeanexp(replicate(K, logLik(pfilter(...))), se=TRUE)` with K >= 10, and apply the chi-squared cutoff against the global search maximum.
+Each profile is computed over only 10 grid points. The course standard at run_level = 3 is 30 points; at run_level = 2 it is 5 points. Ten points is between these levels, but combined with the single-pfilter noise described above, 10 points is insufficient to reliably identify the profile maximum and the CI endpoints. The profile for `amp` covers a range of only 0.2 units (MLE ± 0.1), and the profile for `phase` covers ± 10 weeks. With only 10 equally spaced points in each range, the CI is determined by which adjacent points bracket the cutoff — a procedure that is sensitive to Monte Carlo noise at each point. Specifically, the collapsed CIs [2.7, 2.7] for phase and [0.00015, 0.00015] for rho suggest the cutoff is exceeded between consecutive grid points in both directions, which could simply mean the curvature of the true profile at those points is not resolved by 10 equally spaced evaluations. The authors attribute these results to "limited identifiability" and "poor identifiability" respectively (Section 6.2) without acknowledging that a denser, replicated profile is needed to support this conclusion.
 
----
+### 4. rw.sd for rho is orders of magnitude below course standard
 
-### 2. Direct log-likelihood comparison between ARIMA/SARMA and POMP is statistically invalid
+The perturbation standard deviation for `rho` is set as `rho = 0.00001` in `rw_sd`. The `rho` parameter has logit partrans, meaning optimization is performed on the logit scale. In pomp's mif2, perturbations are applied on the transformed (estimation) scale. The MLE value of rho is approximately 0.00015, so logit(rho) ≈ -8.8. A perturbation of 0.00001 standard deviations on the logit scale is approximately zero — rho would effectively be frozen at its starting value throughout the iterated filtering run. The course standard is rw.sd = 0.02 on the transformed scale. If rho is not being meaningfully perturbed, the MLE reported for rho reflects the starting value rather than a likelihood-maximized estimate, which undermines the profile likelihood and the comparison in Section 5. The correct fix is to use `rho = 0.02` as the rw.sd (on the logit scale), consistent with course conventions.
 
-Section 5.1 (Table comparing log-likelihoods: ARMA = -497.31, SARMA = -495.40, SEIRS = -375.79) presents these as directly comparable and concludes that the SEIRS model is "significantly better." This comparison is invalid because the three likelihoods are evaluated under fundamentally different observation models and data transformations (skill: `sarima-baseline-audit`):
+### 5. Local search: single pfilter per mif2 run used to select the best result
 
-- The ARMA/SARMA log-likelihoods are evaluated on the first-differenced time series (`diff_flu_ts`) under a Gaussian measurement model.
-- The SEIRS (POMP) log-likelihood is evaluated on the original weekly case counts under a negative binomial measurement model (`dnbinom_mu`).
+In the local search (Section 4.2), each of the 10 mif2 runs is evaluated with a single pfilter run to obtain its log-likelihood:
 
-A likelihood on differenced data is not on the same scale as a likelihood on the original data. Likewise, a Gaussian likelihood and a negative binomial likelihood over the same count series are not numerically comparable. The ~120-unit difference in log-likelihoods cannot be used to assert that SEIRS "significantly outperformed" the ARMA/SARMA models.
+```r
+lik_local <- lapply(mif_local, function(mf) {
+  pf <- pfilter(mf, Np = 2000)
+  c(coef(mf), loglik = logLik(pf))
+})
+```
 
-Fix: To make a valid comparison, either (a) evaluate both models on the original counts under the same observation model (e.g., a negative binomial SARMA benchmark via the `TSGLM` or `tscount` package), or (b) evaluate both models using a proper scoring rule (e.g., continuous ranked probability score) on held-out data. The current table should be removed or clearly qualified as an informal comparison of incompatible likelihoods.
+The run with the highest single-run log-likelihood is then selected as the best parameter set. Because each particle filter evaluation is stochastic, the "best" run may simply be the one with the luckiest draw, not the one that achieved the highest true log-likelihood. The correct approach is to replicate the pfilter evaluation for each run and use logmeanexp to obtain stable estimates before comparing. The global search section correctly uses `logmeanexp(replicate(10, logLik(pfilter(mf, Np = 2000))), se = TRUE)`, but this good practice is absent from the local search selection step.
 
----
+### 6. No convergence trace plots for the global search
 
-### 3. Global search is severely underpowered: 10 replicates, low particle count, and no convergence evidence
-
-Section 4.3 runs only 10 global search replicates (`start_designs` is `replicate(10, ...)`), each with Np = 1000 particles and total Nmif = 100 (50 + `continue(Nmif=50)`). The particle count and replicate count are far below the standard for a model of this complexity. For comparison, Wheeler et al. (2024) used thousands of CPU-hours for profile likelihoods alone. With 10 replicates, the probability that the global maximum was found is low, and the "best global search result" may be a local optimum. Crucially, the global search best log-likelihood (-375.77) is only marginally better than the local search best (-375.83), consistent with the global search failing to meaningfully explore beyond the local search starting point. No convergence traces for the global search are shown; the text only presents a parameter-vs-loglik scatter plot and a pairs plot.
-
-Fix: Increase global search to at least 50–100 replicates from diverse starting points with Np >= 2000 and Nmif >= 100 per stage. Show log-likelihood convergence traces across IF2 iterations for the global search to demonstrate convergence.
+Section 4.3 reports the global search results (10 starting points, 100 Nmif iterations) and identifies a best log-likelihood of -375.77, but no trace plots are shown for the global search. Trace plots of log-likelihood across mif2 iterations from multiple starting values are the standard diagnostic for verifying that the optimizer has converged to a consistent maximum. Without these, there is no evidence that the global search converged rather than terminating at disparate local optima. The local search does include trace plots, but the global search — which is more important for validating the MLE — lacks them entirely.
 
 ---
 
-### 4. Profile likelihood grid for `rho` spans only ±20% around the MLE — range too narrow to detect identifiability issues
+## Computational and Diagnostic Assessment
 
-The profile grid for `rho` is defined at line 822: `seq(MLE_params["rho"] * 0.8, MLE_params["rho"] * 1.2, length.out = 10)`. This spans only ±20% around the MLE (approximately [0.00012, 0.00018]). A range this narrow is insufficient to detect non-identifiability: if the likelihood surface is flat or slowly declining away from the MLE, the narrow grid will look artificially well-identified simply because it does not extend far enough to reveal the flat region. The reported singleton CI for `rho` cannot be interpreted as evidence of poor identifiability or tight identifiability — the grid does not resolve the likelihood surface adequately (skill: `pomp-profile-range-misalignment`).
+**Convergence:** Trace plots are provided for the local search (Section 4.2), which is good. However, no trace plots are shown for the global search (Section 4.3), which is the more consequential run. The discussion mentions that the global search produced a "slightly better log-likelihood (-375.77 versus -375.83)" but without convergence traces, it is unclear whether either search reached the true MLE.
 
-Fix: Profile `rho` over at least one order of magnitude on each side of the MLE (e.g., `seq(MLE_rho / 10, MLE_rho * 10, length.out = 25)` on a log scale). Reporting the profile on a log scale for `rho` is also preferable given its small absolute magnitude.
+**Particle filter:** The local search uses Np = 1000 for mif2 and Np = 2000 for pfilter evaluation. The global search uses Np = 1000 for mif2 and Np = 2000 for replicated pfilter evaluation. The profile likelihood uses Np = 5000 for a single pfilter call. No ESS monitoring is reported at any stage. Given the Michigan population size (N ≈ 10^7) and the small fraction infected, particle filter degeneracy is a real risk that should be documented.
 
----
+**Conditional log-likelihoods:** Not reported. There is no plot of per-observation log-likelihoods across the time series. This diagnostic would be particularly informative for identifying whether the model captures the large spike around week 110 (2024-2025 season).
 
-### 5. No model diagnostics beyond visual simulation comparison
+**Profile likelihoods:** Attempted for four parameters (amp, Beta0, phase, rho), but compromised by single pfilter evaluation per point and too-few grid points (10). Three of the four parameters have not been profiled (mu_EI, mu_IR, mu_RS, k), so identifiability of the bulk of the model parameters is unknown.
 
-The paper assesses model fit only by overlaying 20 simulated trajectories against the observed data (Sections 4.1 and 4.3). No quantitative diagnostics are provided: there are no per-observation conditional log-likelihoods, no effective sample size (ESS) monitoring of the particle filter, no filtering-distribution simulations (conditioned on data) compared to forward simulations, and no summary statistics comparing simulated to observed data. Wheeler et al. (2024) explicitly state that "visual comparisons alone are only a weak and informal measure of goodness-of-fit" and demonstrate that models that looked visually reasonable had substantially lower likelihoods than achievable. The absence of any diagnostics makes it impossible to identify where and how the model fails.
-
-Fix: Report (a) the per-time-step conditional log-likelihood trace from `pfilter()`, (b) ESS across time to detect particle collapse, and (c) at least one summary statistic comparison (e.g., peak timing, total seasonal burden) between simulated and observed data.
+**Computational scale:** Total computational effort is not reported. Given run_level-2-scale parameters (Np=1000, Nmif=100, 10 starts), the analysis appears to be preliminary-grade. For a final project, run_level = 3 with Np = 5000 and at least 20 global starts is more appropriate.
 
 ---
 
-### 6. No benchmark comparison against a non-mechanistic statistical model evaluated on the original count scale
+## Reproducibility Assessment
 
-The study includes ARMA and SARMA models, but as noted in Issue 2, these are fitted to differenced data under a Gaussian model and cannot serve as valid benchmarks. There is no comparison of the SEIRS model against a non-mechanistic count-data model such as a negative binomial auto-regression or a SARIMA fitted to the original count series. Wheeler et al. (2024) document that none of the 32 papers in their Haiti cholera review performed such a comparison and that some mechanistic models failed to beat simple benchmarks. Without a valid benchmark, it cannot be established that the SEIRS model captures meaningful structure beyond a well-fitted statistical baseline.
+**Code availability:** Code is embedded in the Rmd file within the Git repository. No separate archive with a DOI is provided, which is acceptable for a course project.
 
-Fix: Fit at least one count-data benchmark (e.g., a negative binomial auto-regression via `tscount::tsglm`, or a Poisson INGARCH model) to the original weekly counts and compare log-likelihoods or AIC on the same data and same observation scale.
+**Final parameters:** The best global parameter vector is printed in the Rmd output and available in the R session. Parameters are not saved as a separate CSV or RDS file, so reproducing Section 6 without re-running the full optimization is not straightforward.
 
----
+**Model-code consistency:** The measurement model (`dnbinom_mu(cases, k, rho * H, give_log)`) uses H, which accumulates `dN_IR` (I→R transitions, i.e., recoveries). The text and model equations describe the model as tracking epidemic dynamics, and cases are described as "new infections" in the introduction. However, H counts recoveries, not infections, introducing an implicit delay of approximately 1/mu_IR ≈ 0.56 weeks. This is a discrepancy between the narrative and the code, though with weekly data and a short infectious period the practical effect may be small.
 
-### 7. Parameters N, S0, E0, I0, R0 are not perturbed in IF2: initial state fractions are frozen during optimization
+**Package versions:** No `sessionInfo()` output, no `renv` lockfile, and no pinned package versions. The `pomp` package has undergone API changes across major versions; results may not reproduce on a different installed version.
 
-The `rw_sd` definition (lines 368–378) includes only `Beta0`, `amp`, `phase`, `mu_EI`, `mu_IR`, `mu_RS`, `rho`, and `k`. The initial state proportion parameters `S0`, `E0`, `I0`, and `R0` (which are declared in `partrans` with `barycentric` transformation) and population `N` are not included in the random-walk perturbations. This means the IF2 optimization never updates the initial conditions. The initial proportions `S0 = 0.07, E0 = 0.01, I0 = 0.035, R0 = 0.3` remain fixed at their manually chosen values throughout both local and global searches. Since initial conditions can substantially affect model fit (Wheeler et al. 2024, §Initial conditions), this choice either artificially constrains the optimization or implicitly asserts that these values are known without uncertainty — neither of which is discussed.
+**Data file path:** The code reads `data <- read.csv("../Data/flu_michigan.csv")` but the data file `flu_michigan.csv` is located in the project03 directory alongside the Rmd, not in a parent `Data/` directory. This path will fail if the Rmd is knitted from its own directory. The Makefile or the correct relative path should be verified.
 
-Fix: Either include `S0`, `E0`, `I0`, `R0` in `rw_sd` so the optimizer can estimate them, or fix them at scientifically justified values and explicitly assess sensitivity to alternative initializations.
+**Auxiliary data:** Only the main case count CSV is needed and is included. No covariate matrices or spatial structure are required for this model.
 
 ---
 
 ## Minor Issues
 
-### 8. Frequency analysis conclusion is inconsistent with the data
+- **Spectral period vs. SARMA period inconsistency:** The frequency analysis (Section 2.2) identifies a dominant period of approximately 60 weeks (frequency ≈ 0.0167 cycles/week). The SARMA model in Section 3.2 uses a seasonal period of 52 weeks, corresponding to an annual cycle. The report does not acknowledge or reconcile this discrepancy. If the data truly exhibits a 60-week dominant cycle, using period=52 in the SARMA model requires justification. The discrepancy likely arises from the short time span (≈ 2.25 years), which makes 52-week periodicity difficult to distinguish from 60-week periodicity.
 
-Section 2.2 identifies a dominant frequency of approximately 0.0167, corresponding to a period of ~60 weeks (~1.15 years), and states "seasonal patterns occur approximately every 60 weeks." However, influenza has a well-established annual (52-week) cycle, and the data spans only about 116 weeks with two flu season peaks. A 60-week period is inconsistent with both prior scientific knowledge and the two visible peaks (one around week 60 and another around week 110, which are approximately 50 weeks apart). The dominant frequency at 0.0167 may reflect the asymmetry between the two seasons or the overall upward trend, not the true seasonal period. The SARMA model uses a period of 52, creating an internal inconsistency: the frequency analysis concludes 60 weeks but the SARMA assumes 52. This inconsistency is not acknowledged.
+- **Singleton CIs for phase and rho attributed to identifiability:** Section 6.2 interprets the singleton CIs as indicating "limited identifiability" and "poorly identifiable" parameters. Given that these CIs arise from a single noisy pfilter call per 10-point grid, the more likely explanation is Monte Carlo variance in the profile, not a genuine likelihood property. The claim that "the data contains insufficient information about the seasonal timing" is not supported by the evidence presented.
 
----
+- **H accumulates I→R flow rather than E→I flow:** The accumulator variable H is incremented by `dN_IR` (recoveries) in the step function. In most SEIR model implementations and course examples, H is used to track new infections (the E→I flow, `dN_EI`), since reported influenza cases correspond to individuals becoming symptomatic. Using recoveries introduces an additional delay of approximately 1/mu_IR ≈ 0.56 weeks on average. With weekly data this is a small but biologically unmotivated shift that should be noted and justified.
 
-### 9. SARMA model is fitted to differenced data but the period is fixed at 52 in the non-differenced data's terms
+- **Global search uses only 10 starting points:** The global search samples 10 random starting points for a 13-parameter model. The course standard for run_level = 2 is Nreps_global = 20 and for run_level = 3 is 100. With only 10 starts in a high-dimensional space, the search may miss the global maximum. The slight log-likelihood improvement over the local search (0.06 log units) is well within Monte Carlo noise, suggesting the two searches may be finding similar optima rather than the global MLE.
 
-The SARMA model (Section 3.2) fits `SARMA(0,1)×(1,0)₅₂` to `diff_flu_ts` (first-differenced flu series) with `period = 52`. First differencing a series with period 52 transforms it; the seasonal period of the differenced series remains 52 only if the differencing order is appropriate (i.e., `d=0` in the ARIMA notation, not a seasonal difference). The authors apply a non-seasonal first difference (`diff_flu_ts <- diff(flu_ts)`) and then fit a seasonal component with period 52 to the result. This combination — non-seasonal differencing followed by seasonal AR — is an unusual specification that should be motivated and cross-validated. The AIC improvement from ARMA to SARMA is only 1.91 units (from -497.31 to -495.40), which is negligibly small and does not justify the additional seasonal parameter under the standard AIC penalty.
+- **No biological parameter interpretation:** The fitted parameter estimates (Beta0 ≈ 3.77, mu_EI ≈ 0.9, mu_IR ≈ 1.8 per week) are reported but not interpreted in biologically meaningful terms. For example: mean incubation period ≈ 1/mu_EI ≈ 1.1 weeks ≈ 7.8 days (epidemiologically, influenza incubation is ~2 days, suggesting possible model misspecification or unit issues); mean infectious period ≈ 1/mu_IR ≈ 0.56 weeks ≈ 3.9 days (plausible); the basic reproduction number R0 = Beta0/mu_IR ≈ 2.1 (plausible for seasonal flu). Computing and comparing these to independent epidemiological knowledge (Wheeler et al. 2024, item 11) would substantially strengthen the analysis.
 
----
+- **Profile likelihood covers only 4 of 8+ estimated parameters:** Profile likelihoods are computed for amp, Beta0, phase, and rho, but not for mu_EI, mu_IR, mu_RS, or k. The identifiability and uncertainty of the remaining four parameters are completely unknown. The authors acknowledge this limitation, but since mu_EI and mu_IR govern the core transmission dynamics, their profiles are arguably more important than phase and rho.
 
-### 10. The `amp` parameter is declared as `logit`-transformed but is used in the cosine formula without a [0,1] constraint being necessary
+- **rw.sd for phase may be too small for global search:** The phase parameter has rw.sd = 0.1 (in natural units of weeks). In the global search, phase is initialized uniformly over [0, 52] weeks from the MLE. With Nmif = 100 iterations and cooling.fraction.50 = 0.5, the effective random walk displacement over 100 steps is roughly 0.1 × sqrt(100) × cooling_adjustment ≈ 0.5–1 week. If the starting value is far from the optimal phase, the optimizer may not be able to travel far enough to find the true MLE for phase, contributing to poor global search performance for this parameter.
 
-The `amp` parameter controls the amplitude of seasonal forcing in `Beta(t) = Beta0 * (1 + amp * cos(...))`. With `logit` transformation, `amp` is constrained to (0, 1). If `amp` approaches 1, the transmission rate can drop to near zero (`1 + 1 * cos(π) = 0`), which may be appropriate. However, the `logit` transform is declared but `amp` is initialized at 0.47 (a plausible value) and its profile is computed over [0.426, 0.626]. The profile maximum at `amp ≈ 0.548` lies in the interior of the grid, consistent with the model. However, the text should note that the logit transformation prevents `amp` from exceeding 1 and explain the biological interpretation of this constraint.
+- **Missing model diagnostics:** Beyond forward simulations, no model diagnostics are presented. Effective sample size (ESS) traces from the particle filter, conditional log-likelihood plots by week, or filtering-distribution simulations would help identify specific periods (e.g., the large 2024-2025 spike around week 110) where the model may be misspecified.
 
----
-
-### 11. The reporting rate `rho` has an implausibly small MLE value (approximately 0.00015) that is not discussed
-
-The best global search result reports `rho ≈ 0.00015`, meaning the model infers that approximately 1 in 6,700 infectious individuals per week is reported as a flu case in Michigan. Michigan has a population of approximately 10 million. With `I0 ≈ 0.035 × 10^7 = 350,000` initially infectious, this would imply weekly reports on the order of `0.00015 × 350,000 ≈ 52` cases at baseline, which is consistent with the early data (e.g., 42 cases in week 2). While internally consistent, the authors do not compare this estimate to known CDC reporting rates or literature estimates of influenza detection fractions. Per Wheeler et al. (2024), implausible parameter estimates should be flagged as potential signs of misspecification or confounding. The extreme sparsity of reported cases relative to estimated true infections deserves explicit discussion.
+- **Data path error may prevent reproduction:** The Rmd reads from `../Data/flu_michigan.csv` but the file exists at the project level. This will cause a file-not-found error when knitting from the project directory. The path should be corrected to `"flu_michigan.csv"` or a relative path consistent with the project structure.
 
 ---
 
-### 12. The data file path in the code references a parent directory that may not exist in the project folder
+## Recommendation
 
-Line 38 reads: `data <- read.csv("../Data/flu_michigan.csv")`. However, the project folder contains `flu_michigan.csv` directly (not in a `../Data/` subdirectory). This path will fail unless the working directory is set to a subdirectory of the project folder, which is inconsistent with standard Rmd rendering behavior. The `flu_michigan.csv` file is present in the project root, but the code as written will not read it unless the user sets a non-standard working directory. This reproducibility failure should be corrected to use the local path `"flu_michigan.csv"`.
+**Major Revision.**
 
----
-
-### 13. Only 4 of 13 parameters are profiled; no profile likelihoods for the rate parameters mu_EI, mu_IR, mu_RS, and k
-
-Section 6.1 explicitly acknowledges that profiles for `mu_EI`, `mu_IR`, `mu_RS`, and `k` were not computed due to computational constraints. These are arguably the most biologically interesting parameters: the latent period (`1/mu_EI`), infectious period (`1/mu_IR`), and immunity duration (`1/mu_RS`) are key epidemiological quantities with literature comparators. Without profile likelihoods for these parameters, it is impossible to assess whether they are identifiable or whether the estimates are consistent with known influenza biology.
-
----
-
-### 14. The `phase` parameter in the global search is not bounded appropriately and the best value of 52.64 weeks is outside the natural [0, 52] cycle range
-
-The global search box for `phase` is `runif(1, 0, 52)` (Section 4.3, line 527), but the best global result reports `phase = 52.64`. Since `phase` appears in `cos(2π(t + phase)/52)`, values at 0 and 52 are equivalent (both give `cos(2πt/52)`). A best estimate of 52.64 is essentially equivalent to ~0.64, suggesting the optimizer drifted slightly outside the natural [0, 52] period boundary. This should be noted and the `phase` parameter should be constrained or its periodic equivalence discussed. Additionally, the profile for `phase` is computed over a range centered on `MLE_params["phase"]` — if this is 52.64, the grid `seq(52.64 - 10, 52.64 + 10)` = [42.64, 62.64] spans across the 52-week periodicity boundary, making the profile geometrically non-monotone and the CI interpretation unclear.
-
----
-
-### 15. Pairs plot interpretation overstates confidence in identifiability from only 10 global replicates
-
-Section 4.3 states that the pairs plot of global search results "provides insight into the parameter identifiability and sensitivity" and identifies clear patterns for `amp` and `phase`. With only 10 global replicates, a pairs plot shows 10 points; any apparent patterns or correlations between parameters are not statistically meaningful with such a small sample. The text interprets these patterns as if they reflect the shape of the likelihood surface, but with n = 10 observations in a 13-dimensional parameter space, the pairs plot is essentially noise. This overinterpretation should be corrected or the pairs plot removed.
+The project demonstrates a solid understanding of the POMP framework and implements a reasonable SEIRS model for influenza dynamics. However, several methodological issues materially affect the validity of the reported conclusions. The most critical are: (1) the log-likelihood comparison between ARMA/SARMA and POMP is not valid because the models are fitted to different data transformations; (2) profile likelihoods are evaluated with a single noisy particle filter run per grid point rather than the required replicated logmeanexp; and (3) the profile grid is too sparse (10 points) to support valid CI determination, rendering the identifiability conclusions in Section 6 unreliable. Additional issues — particularly the absence of convergence diagnostics for the global search, the near-zero effective rw.sd for rho, and the missing model diagnostics — further undermine confidence in the parameter estimates. Addressing items 1–4 above is required for the analysis to reach an acceptable standard.
 
 ---
 
 ## Files Consulted
 
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/SKILL_pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-profile-single-restart-audit/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-global-search-box-misalignment/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-accumvar-double-reset/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-rw-sd-magnitude-error/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-global-search-init-audit/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-static-population-audit/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-pseudo-profile-audit/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/sarima-baseline-audit/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/stationarity-test-conclusion-audit/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-simdata-benchmark-error/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-profile-range-misalignment/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project03/blinded.Rmd`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project03/flu_michigan.csv`
+**Skill files:**
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/SKILL_pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/assets/rev_template_pomp.qmd`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-conventions.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-weakness-reference.md`
+
+**Project files:**
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W25/project03/blinded.Rmd`
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W25/project03/flu_michigan.csv` (existence confirmed, not fully read)

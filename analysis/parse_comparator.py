@@ -1,15 +1,16 @@
 """
 Parses comparator comparison markdown files and regenerates comparator_results.csv.
 
-Each comparator file contains per-reviewer A-F count tables. This script reads
-those tables directly and aggregates them into a single CSV, providing an
-independently verifiable alternative to the Claude-generated CSV.
+Each comparator file contains per-reviewer A-F count tables and coverage
+records. This script reads those directly from the assembled markdown files
+and aggregates them into a single CSV, deterministically, from the current
+state of results/comparator/.
 
 Usage:
     python parse_comparator.py
 
 Output:
-    comparator_results_parsed.csv  (compare against comparator_results.csv to verify)
+    comparator_results.csv
 """
 
 import re
@@ -18,13 +19,11 @@ import os
 from pathlib import Path
 
 NED_CLEAN_DIR = Path(__file__).parent.parent / "results" / "comparator"
-OUTPUT_FILE = Path(__file__).parent / "comparator_results_parsed.csv"
+OUTPUT_FILE = Path(__file__).parent / "comparator_results.csv"
 
 REVIEWERS = ["Alex", "Charlie", "Doug", "Evan"]
 
 def parse_filename(filename):
-    """Extract semester and project number from filename."""
-    # handles both 'comparator-W21_PROJECT02.md' and 'comparator-w21_PROJECT06.md'
     match = re.match(r"comparator-([Ww]\d{2})_PROJECT(\d{2})\.md", filename)
     if not match:
         return None, None
@@ -33,11 +32,6 @@ def parse_filename(filename):
     return semester, project
 
 def parse_reviewer_counts(text, reviewer):
-    """
-    Extract A-F counts from a reviewer's count table within the file.
-    Looks for the section '## {reviewer}' and finds the first Category|Count table after it.
-    """
-    # Find the reviewer section
     section_pattern = rf"^## {reviewer}\s*$"
     section_match = re.search(section_pattern, text, re.MULTILINE)
     if not section_match:
@@ -45,12 +39,10 @@ def parse_reviewer_counts(text, reviewer):
 
     section_text = text[section_match.end():]
 
-    # Find the next ## heading to limit scope
     next_section = re.search(r"^## ", section_text, re.MULTILINE)
     if next_section:
         section_text = section_text[:next_section.start()]
 
-    # Parse the Category | Count table
     counts = {}
     for letter in "ABCDEF":
         pattern = rf"\|\s*{letter}\s*\([^|]+\)\s*\|\s*(\d+)\s*\|"
@@ -62,13 +54,49 @@ def parse_reviewer_counts(text, reviewer):
 
     return counts
 
-def compute_metrics(counts):
+def parse_reviewer_coverage(text, reviewer):
+
+    section_match = re.search(rf"^## {reviewer}\s*$", text, re.MULTILINE)
+    if not section_match:
+        return {}
+    section_text = text[section_match.end():]
+    next_section = re.search(r"^## ", section_text, re.MULTILINE)
+    if next_section:
+        section_text = section_text[:next_section.start()]
+
+    coverage = {}
+    in_coverage = False
+    for line in section_text.split("\n"):
+        if "**Coverage record:**" in line:
+            in_coverage = True
+            continue
+        if in_coverage:
+            if line.startswith("**"):
+                break
+            m = re.match(
+                r"^- Human Issue #(\d+)\s*(?:\([^)]*\))?\s*:\s*(missed|covered|contradiction)",
+                line,
+                re.IGNORECASE,
+            )
+            if m:
+                coverage[int(m.group(1))] = m.group(2).lower()
+    return coverage
+
+
+def compute_metrics(counts, coverage):
     a, b, c, d, e, f = (counts[k] for k in "ABCDEF")
     total_ai = a + b + c + d
-    denominator = b + d + e
-    human_recall = (b + d) / denominator if denominator > 0 else 0.0
+    n_cov = sum(1 for v in coverage.values() if v == "covered")
+    n_mis = sum(1 for v in coverage.values() if v == "missed")
+    total_human = n_cov + n_mis
+
+   
+    # Human Overlap = 1 - E / (total human issues)
+    human_overlap = 1 - (n_mis / total_human) if total_human > 0 else 0.0
+    # AI-Unique Rate = (A+C) / (A+B+C+D)
     ai_unique_rate = (a + c) / total_ai if total_ai > 0 else 0.0
-    return total_ai, human_recall, ai_unique_rate
+
+    return total_ai, human_overlap, ai_unique_rate
 
 def main():
     rows = []
@@ -95,7 +123,10 @@ def main():
                 continue
 
             a, b, c, d, e, f = (counts[k] for k in "ABCDEF")
-            total_ai, human_recall, ai_unique_rate = compute_metrics(counts)
+            coverage = parse_reviewer_coverage(text, reviewer)
+            if not coverage:
+                errors.append(f"  MISSING coverage record: {filepath.name} / {reviewer}")
+            total_ai, human_overlap, ai_unique_rate = compute_metrics(counts, coverage)
 
             rows.append({
                 "Semester": semester,
@@ -103,16 +134,15 @@ def main():
                 "Reviewer": reviewer,
                 "A": a, "B": b, "C": c, "D": d, "E": e, "F": f,
                 "Total_AI_Findings": total_ai,
-                "Human_Recall": round(human_recall, 4),
+                "Human_Overlap": round(human_overlap, 4),
                 "AI_Unique_Rate": round(ai_unique_rate, 4),
-                "Human_Recall_Pct": f"{human_recall * 100:.1f}%",
+                "Human_Overlap_Pct": f"{human_overlap * 100:.1f}%",
                 "AI_Unique_Rate_Pct": f"{ai_unique_rate * 100:.1f}%",
             })
 
-    # Write CSV
     fieldnames = ["Semester", "Project", "Reviewer", "A", "B", "C", "D", "E", "F",
-                  "Total_AI_Findings", "Human_Recall", "AI_Unique_Rate",
-                  "Human_Recall_Pct", "AI_Unique_Rate_Pct"]
+                  "Total_AI_Findings", "Human_Overlap", "AI_Unique_Rate",
+                  "Human_Overlap_Pct", "AI_Unique_Rate_Pct"]
 
     with open(OUTPUT_FILE, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)

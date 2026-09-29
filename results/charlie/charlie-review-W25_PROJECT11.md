@@ -1,93 +1,102 @@
 # Peer Review: W25 Project 11
-## Time Series Analysis of Apple Stock Price
+**"Time Series Analysis of Apple Stock Price"**
 
 ---
 
 ## Summary
 
-This project compares two volatility modeling frameworks — ARMA-GARCH variants (sGARCH, EGARCH, GJR-GARCH) and a discrete-time stochastic volatility POMP model — applied to Apple Inc. (AAPL) daily log-returns from January 2020 to early 2025. The paper is well-structured and covers both a classical econometric pipeline (ACF analysis, model selection by AIC, residual diagnostics) and a state-space approach with IF2-based parameter estimation, local and global searches, and a profile likelihood for the persistence parameter phi. Key strengths include thorough GARCH diagnostics, clear mathematical exposition of the stochastic volatility model, and an honest acknowledgment of POMP model limitations.
-
-However, the POMP analysis suffers from several critical methodological errors: the global search box excludes the region containing the global MLE for mu_h by more than an order of magnitude; the global search uses a previous mif2 result as its first argument rather than the base pomp object; the GARCH and POMP log-likelihoods are compared as if they were on the same scale when they are computed on different data transformations (mean-subtracted vs. non-mean-subtracted); and the diagnostics figure for GJR-GARCH is actually computed from the eGARCH model. These errors collectively undermine the central comparative conclusion.
+This project applies ARMA-GARCH and POMP-based discrete-time stochastic volatility models to Apple Inc. (AAPL) daily log returns from 2020 to 2025. The authors fit a standard GJR-GARCH model and a leverage-effect stochastic volatility model following Bretó (2014), then compare their log-likelihoods. The project demonstrates familiarity with both frameworks and includes convergence diagnostics, profile likelihood analysis, and model selection discussion. However, several serious flaws undermine the analysis: the GARCH diagnostic section is run on the wrong model (eGARCH rather than gjrGARCH), the profile likelihood uses an order of magnitude fewer particles than the main analysis, the profile's upper confidence bound is artificially truncated at the search boundary, and the log-likelihoods being compared derive from different datasets. The local search convergence is also questionable given the authors' own report of a ~100 log-unit spread.
 
 ---
 
 ## Major Issues
 
-### 1. Global search box excludes the region containing the global MLE for mu_h
+### 1. GARCH diagnostics are run on eGARCH, not the selected gjrGARCH model (CC-Yes)
 
-The global search box is defined as `mu_h = c(-1, 0)` (blinded.Rmd, line 735). However, the best parameter set returned by the global search has `mu_h = -8.58` (verified from `box_eval_2.rda`), which lies more than 8 units below the box's lower bound of -1. The profile likelihood data in `eta_profile.rds` further confirms that mu_h at the profile maximum is approximately -8.7.
+The selected model for downstream analysis is `gjrGARCH_std`. However, on line 465 of the Rmd, the diagnostic object is assigned as:
 
-This means the global search could only reach the high-likelihood region by IF2 drifting the parameter far outside the specified box during optimization — an accidental escape rather than systematic coverage. Only one replicate out of 50 reached a log-likelihood above 3285 (matching the best value of 3288.956); the others cluster around 3200-3260, confirming poor coverage. The reported "global maximum" does not represent a reliable global optimum.
+```r
+model_to_test <- models[["eGARCH_std"]]
+```
 
-The fix is to extend the mu_h box to bracket the region identified by the local search, for example `mu_h = c(-12, 0)`.
+All statistics reported in the GARCH diagnostics section (skewness, kurtosis, Jarque-Bera test, ARCH-LM test, Ljung-Box tests, Figure 5.1) are therefore properties of the eGARCH-std model, not the gjrGARCH-std model. The conclusion "gjrGARCH successfully captures volatility clustering" is stated without any diagnostic evidence for that model. This invalidates the entire diagnostic section for the chosen GARCH model. The authors must re-run diagnostics on `models[["gjrGARCH_std"]]`.
 
-### 2. Global search initialized from a previous mif2 result rather than the base pomp object
+### 2. Profile likelihood evaluated with Np=100 while main analysis uses Np=1000 (CC-Yes, Error 1.9)
 
-The global search code (blinded.Rmd, line 766) calls `mif2(if1[[1]], params=apply(apple_box,1,function(x)runif(1,x)))`, using `if1[[1]]` (the first mif2 result from the local search) as the first argument. The correct pattern for a global search is `mif2(apple.filt, params=...)`, where `apple.filt` is the base pomp object. Passing a previous mif2 result inherits the cooling schedule from the completed local chain, so the perturbation scale at the start of the global search is already at or near its terminal cooling state. The new random starting parameters are effectively explored with near-zero perturbations, making the global search a weak reseeding of the local chain rather than genuine box-wide exploration. This compounds the box misalignment issue (Issue 1) and further reduces confidence in the reported global MLE.
+The profile likelihood code (line 898) uses:
 
-### 3. GARCH and POMP log-likelihoods are not directly comparable
+```r
+mf |> pfilter(Np=100) |> logLik()
+```
 
-The comparison table in the Analysis section reports:
-- sGARCH_norm: 3289.09
-- GJR-GARCH: 3328.37
-- POMP model: 3288.55
+This is ten times fewer particles than the Np=1000 used throughout the local and global searches. With Np=100, the standard error of the particle filter log-likelihood estimate is approximately 3--5x larger than with Np=1000 for typical financial time series, producing a noisy profile on which the confidence interval cannot be trusted. The resulting CI of (0.959, 0.99) is computed from noisy evaluations and should not be reported as a valid confidence interval. The profile must be re-evaluated with at least Np=1000 particles per point.
 
-The GARCH models are fitted to `na.omit(df$log_return)` (the raw log returns), while the POMP model is fitted to `deMeanRtn` (the mean-subtracted log returns). Although the numerical difference between mean-subtracted and non-mean-subtracted returns is small, the GARCH models include an explicit ARMA mean component (`armaOrder = c(1,1)`), while the POMP measurement equation is `Y_n = exp(H_n/2) * epsilon_n` with zero mean. The log-likelihoods of these models are defined over different distributional families and different normalizations of the data. Presenting these values in the same table and concluding that GJR-GARCH fits better conflates two non-comparable likelihood scales. A valid comparison would require fitting both model families to identical data with the same observation model structure, or computing out-of-sample predictive likelihoods on a held-out set.
+### 3. Profile likelihood CI upper bound is truncated at the search boundary (CC-Yes)
 
-### 4. Diagnostics figure mislabeled and computed from wrong model
+The phi profile spans `seq(0.85, 0.99, length=10)`, and the reported 95% CI upper bound is 0.99 -- the exact maximum of that grid. This is not a data-derived upper bound; it is the boundary of the search range. When the CI endpoint coincides with the boundary of the parameter grid, the CI is truncated: the true upper bound may extend beyond 0.99. Similarly, the global search box constrains `phi = c(0.5, 0.99)`, meaning neither the optimization nor the profile has explored phi values above 0.99. Since phi is the log-volatility persistence parameter and the MLE appears to cluster near the boundary, the authors cannot exclude the possibility that the true MLE lies at phi > 0.99. The profile must be extended to phi closer to 1 (e.g., 0.999) to determine whether the CI is genuinely bounded below 1.
 
-The diagnostic analysis in Section 5 (GARCH) states "Based on all these observations, gjrGARCH successfully captures volatility clustering" and the figure is captioned "Figure 5.1: gjrGARCH Diagnostics Plots." However, the code at line 465 sets `model_to_test <- models[["eGARCH_std"]]` and passes this to `garch_residual_diagnostics()`. The diagnostics — skewness, kurtosis, ARCH-LM test, Ljung-Box tests, and all plots — are computed from the eGARCH model, not from the GJR-GARCH model. The authors state they "selected gjrGARCH for further analysis" but then validate the wrong model. The conclusion that gjrGARCH adequately captures volatility clustering is not supported by the diagnostics shown.
+### 4. Log-likelihood comparison between GARCH and POMP uses different datasets
 
-### 5. Insufficient computational effort for both local and global POMP searches
+The GARCH models are fitted to `na.omit(df$log_return)` (line 292), which is the raw daily log-return series. The POMP model is fitted to `deMeanRtn` (line 119, used in line 586), which is `diff(apple_ts) - mean(diff(apple_ts))` -- the mean-centered log-return series. Because the two likelihoods are evaluated on different data (one mean-centered, one not), the values in Table 7.1 (sGARCH: 3289.09, gjrGARCH: 3328.37, POMP: 3288.55) are not directly comparable. The log-likelihoods are densities evaluated at different observed values, so the comparison is invalid. To make a valid comparison, both models must be applied to the same dataset with consistent preprocessing.
 
-The local search uses `Np=1000` particles, `Nmif=50` iterations, and `Nreps_local=50` replicates. The global search uses the same settings with `Nreps_global=50` replicates. From the convergence diagnostics (Figure 6.1), the authors themselves observe that "the parameter values across different runs vary significantly," and from the global search results only one replicate approaches the best log-likelihood. The log-likelihood spread across local-search replicates is reported as "approximately 100 log units" — a range of 100 log-likelihood units indicates the optimization has not converged (well-converged chains should cluster within a few units of the true MLE). With 1000 particles and 50 iterations, the likelihood estimates are also subject to non-trivial Monte Carlo noise. Wheeler et al. (2024) demonstrate that "large improvement in log-likelihood was primarily attributed to increasing the computational effort." The authors acknowledge these limitations but do not attempt to quantify whether their best-reported log-likelihood is near the true MLE.
+### 5. Local search convergence is not achieved: ~100 log-unit spread across runs (CC-Yes, Error 1.8)
 
-### 6. Profile likelihood range likely excludes the global MLE for phi
+The authors write (line 695): "the log-likelihood shows good convergence, with a dispersion range of approximately 100 log units." A 100 log-unit spread across replicate searches is not convergence -- it indicates that many runs are far from the optimum and the reported maximum may not be near the MLE. Course convention requires that multiple independent searches reach similar terminal log-likelihoods (within a few units) before conclusions can be drawn. The very wide spread likely reflects Nmif=50 being insufficient (the run_level=2 standard is 100 iterations). The global search and profile likelihood built on top of this unconverged local search inherit this problem. The authors acknowledge the issue but dismiss it without remediation.
 
-The profile likelihood is computed over `phi = seq(0.85, 0.99, length=10)`. The global search produces two qualitatively different solutions: the best result has `phi = 0.91`, while several other results have `phi ≈ 0.9999` with `sigma_eta > 20`. The fact that many global search replicates converged to the phi ≈ 1 boundary suggests there may be a second local optimum near phi = 1. The profile range (0.85–0.99) does not include the phi ≈ 0.9999 region, so the reported confidence interval cannot speak to whether the model is identifiable across the full persistence range. Additionally, the profile uses only 10 phi grid points and 15 replicates per point (150 total evaluations), which is quite sparse. The profile maximum of 3305.177 exceeds the global search best of 3288.956 by approximately 16 log-likelihood units, which is unexpected: the global search should achieve a log-likelihood at least as high as the profiled maximum. This discrepancy suggests the global search did not adequately explore the phi ≈ 0.91 region with the optimal mu_h value, consistent with the box misalignment in Issue 1.
+### 6. Profile likelihood too sparse: only 10 grid points across a narrow range (CC-Yes, Error 1.9)
 
-### 7. Model selection rationale for GARCH is internally inconsistent
-
-The authors state (Section 4) that they choose GJR-GARCH over sGARCH-norm because the goal is "to capture the financial volatility dynamics" rather than forecast accuracy. However, sGARCH-norm achieves the lowest AIC — the standard metric for balancing fit and parsimony — while GJR-GARCH achieves the highest log-likelihood. The argument that GJR-GARCH captures dynamics better because it has higher log-likelihood contradicts the AIC-based selection used for ARMA model choice earlier in the same paper. The paper does not report AIC values for the asymmetric GARCH models (EGARCH, GJR-GARCH), so readers cannot verify whether the complexity penalty offsets the log-likelihood gain. If AIC were consistently applied, sGARCH-norm would be the preferred model.
+The phi profile evaluates only 10 values across [0.85, 0.99]. The authors' own text states "only a few points falling within this interval," meaning the CI is derived from fewer than 5 observations above the Wilks cutoff. A profile with so few points in the confidence region cannot reliably locate the profile maximum or bound the CI endpoints. Furthermore, the range [0.85, 0.99] excludes the lower tail (no points between 0.5 and 0.85) and hits the upper boundary as discussed in issue 3. At run_level=2, at least 15--20 profile points distributed across a well-chosen range are needed to support a credible CI.
 
 ---
 
 ## Minor Issues
 
-- **Figure numbering error**: Two figures are labeled "Figure 4.2" — the ACF plot of log returns (line 142) and the ARMA diagnostics plot (line 230). The second should be numbered 4.3 or higher.
+### 7. Figure caption "Figure 4.2" is used twice
 
-- **STL decomposition applied to non-stationary price level**: The STL decomposition in Figure 3.2 is applied to `1 + log(Close)`, which retains the trend and is non-stationary. STL decomposition is designed to separate trend, seasonality, and remainder from a series that may be non-stationary in level, but the resulting "seasonality" component should be interpreted with caution for a stock price series — there is no a priori reason to expect a periodic seasonal component with frequency 260 (trading days per year), and the seasonality detected may be spurious. The authors conclude "the seasonal pattern is not very obvious," which is correct but the decomposition adds little to the analysis.
+Line 143 assigns the caption "Figure 4.2: ACF plots of Log Returns" and line 230 assigns "Figure 4.2: ARMA Diagnostics Plots." The duplicate numbering makes figure references ambiguous throughout the ARMA section.
 
-- **Density plot title mislabeled**: The code for Figure 3.1 sets the title to "Density Plot of Gold Prices" (line 88) when it should read "Apple Stock Price." This is a copy-paste artifact.
+### 8. Density plot title says "Gold Prices" instead of "Apple Stock Prices"
 
-- **apple_params.csv is polluted with results from earlier runs**: The csv file contains 40 rows at the top with log-likelihoods in the 8000–9000 range (inconsistent with the analysis run at run_level=2), followed by repeated duplicate blocks of rows from multiple append operations. While the analysis does not read from this file (results come from the cached .rda files), the csv is listed as a supplementary artifact and is misleading to anyone attempting to reproduce the analysis.
+Line 89 contains `labs(title = "Density Plot of Gold Prices", ...)`. This is evidently a copy-paste artifact from a template or another project. The title should refer to Apple stock prices.
 
-- **Profile likelihood uses `%dofuture%` while parallel backend is `doParallel`**: The profile computation at line 886 uses `%dofuture%` but the registered backend at line 633 is `doParallel` (via `registerDoParallel`). This may cause the profile to run sequentially rather than in parallel, or may trigger a fallback to a default future plan. The `doFuture` package is loaded (line 36) but no `plan()` call is made to set up a future backend. A `plan(multisession)` or `plan(cluster)` call is needed for `%dofuture%` to run in parallel.
+### 9. Pairs plot threshold is 100 log units, reducing diagnostic utility
 
-- **No simulation-based model validation for POMP model**: The paper does not produce forward simulations from the fitted POMP model to check whether simulated trajectories resemble the observed log-return series. The evaluation code (lines 810–850) generates simulations but only uses them as a vehicle to re-run the particle filter — the simulated data are never plotted or compared to the observed series. Wheeler et al. (2024) emphasize simulation-based diagnostics as essential for assessing model adequacy.
+The local search pairs plot (line 726) uses `logLik>max(logLik)-100` as the filter. Given the 100 log-unit convergence spread, this effectively includes all runs and obscures the parameter patterns near the optimum. A tighter threshold (e.g., 20 log units) would better reveal the structure of the likelihood surface near the MLE.
 
-- **Log-likelihood scale not discussed**: The comparison table reports log-likelihoods of approximately 3288–3328 across all models, but the authors do not acknowledge that a difference of ~40 log-likelihood units between GJR-GARCH and sGARCH-norm is large (corresponds to a likelihood ratio test p-value that is effectively zero). This suggests the normal-distribution assumption in sGARCH-norm is strongly rejected by the data, yet the paper treats the choice as a trade-off between AIC and log-likelihood rather than a statistical rejection.
+### 10. Simulation code in evaluation section ignores simulated data
 
-- **No acknowledgment that log-likelihood values can only be compared within the same model class**: The comparison table places GARCH log-likelihoods (computed via the rugarch package using exact normal/t-distribution densities) alongside the POMP log-likelihood (estimated via particle filter with Monte Carlo noise). The POMP log-likelihood estimate has standard error ~0.44 (from evaluation.rds), so the numerical comparison is approximate. This should be noted.
+Lines 821--829 simulate 50 datasets from the model (`sims <- simulate(...)`) but the subsequent `sapply` call `function(sim) { logLik(pfilter(apple.filt, params=current_params, Np=apple_Np)) }` never uses its `sim` argument. The code runs 50 independent particle filter evaluations of the original data, not 50 evaluations of 50 simulated datasets. The text claiming "we simulated each set 50 times" (line 852) misrepresents this. While the resulting `logmeanexp` of 50 pfilter runs is a valid likelihood estimate, the description is misleading.
 
-- **Redundant library calls**: `library(forecast)` is called twice at lines 37 and 39; `library(ggplot2)` is called twice at lines 34 and 43. These are minor code quality issues.
+### 11. Profile analysis limited to phi; other parameters not assessed for identifiability
 
-- **"Acknowledgments" is misspelled as "Ackonwledgments"** in the section header.
+The authors raise identifiability concerns throughout but profile only phi. Parameters such as `mu_h`, `sigma_eta`, and `sigma_nu` are not profiled, leaving their identifiability entirely unassessed. Even a coarse profile for `sigma_eta` (directly related to the leverage effect) would strengthen the analysis.
+
+### 12. Model selection narrative for ARMA is inconsistent
+
+Section 4.1 states ARMA(1,1) was selected "due to its relatively low AIC value and simple structure" and notes ARMA(4,4) also has "very low AICs." However, the printed AIC table is not visually shown in full detail in the rendered text -- the reader cannot verify that ARMA(1,1) is genuinely the parsimony-optimal choice or assess the magnitude of the AIC differences between models. The authors should display the AIC table clearly and confirm that ARMA(1,1) is preferred over all sub-models by a reasonable margin.
+
+### 13. Nmif=50 is below the run_level=2 standard of 100 iterations
+
+The run_level switch sets Nmif to 50 (line 622), which is between the run_level=1 value of 10 and the run_level=2 standard of 100. The authors do not explain why 50 iterations were used rather than 100. Given the convergence problems observed (issue 5), using the full 100 iterations may have substantially improved performance. This choice should be justified.
+
+### 14. No out-of-sample evaluation or forecasting exercise
+
+The project compares in-sample log-likelihoods only. Given the stated goal of understanding "forecasting stock price volatility," no out-of-sample forecast evaluation is performed. At minimum, a brief rolling-window or train/test split analysis would strengthen the claim that either model is useful for prediction.
+
+### 15. ARMA model notation inconsistency
+
+The ARMA model equation on line 163 uses $\psi$ in the description ("Terms with $\psi$ are moving average terms") but the equation uses $\theta_j$ for MA coefficients. The two notations are inconsistent and should be harmonized throughout Section 4.
 
 ---
 
 ## Files Consulted
 
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/SKILL_pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-global-search-box-misalignment/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-global-search-init-audit/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-profile-range-misalignment/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-profile-rw-sd-drift-error/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project11/blinded.Rmd`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project11/references.bib`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project11/apple_params.csv`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project11/evaluation.rds`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project11/eta_profile.rds`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project11/box_eval_2.rda`
+**Skill files:**
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/SKILL_pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-conventions.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-weakness-reference.md`
+
+**Project files:**
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W25/project11/blinded.Rmd`

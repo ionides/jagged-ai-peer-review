@@ -3,106 +3,171 @@
 
 ---
 
+## Paper Metadata
+
+| Field | Details |
+|-------|---------|
+| **Inference method** | IF2 (mif2), particle filter (pfilter) for POMP; ARIMA and ARCH via rugarch for classical |
+| **R packages used** | pomp, rugarch, FinTS, forecast, doParallel, doFuture, foreach |
+| **Code publicly available** | Yes (git repo submission) |
+| **Data publicly available** | Partial — CDC NNDSS data used; auxiliary files (births, deaths, vaccination) included in repo |
+| **Benchmark comparison included** | Partial — ARCH vs. SEIR POMP comparison is attempted but methodologically compromised |
+
+---
+
+## POMP Checklist Scorecard
+
+| # | Practice | Status | Notes |
+|---|----------|--------|-------|
+| 1 | Likelihood-based inference | ~ | IF2 + replicated pfilter used correctly; logmeanexp applied properly |
+| 2 | Benchmark comparison | ~ | ARCH vs. POMP comparison attempted but invalid due to different data transformations |
+| 3 | Quantitative goodness-of-fit reporting | ~ | Log-likelihoods reported but comparison is problematic |
+| 4 | Model diagnostics | ~ | Trace plots shown for SIR and main SEIR; trace plots for comparison SEIR are commented out |
+| 5 | Parameter identifiability and uncertainty | ✗ | No profile likelihoods; no confidence intervals for any parameter |
+| 6 | Computational adequacy | ~ | Global searches with Np=5000, nseq=500, Nmif=100; moderate effort |
+| 7 | Forecast methodology | N/A | No forecasting performed |
+| 8 | Model variations and nested comparisons | ~ | SIR and SEIR compared; SEIRV attempted; no formal likelihood ratio test |
+| 9 | Stochasticity | ~ | Stochastic process model with negative binomial measurement; overdispersion k fixed |
+| 10 | Reproducibility and extendability | ~ | bake() caching used; no renv; sessionInfo absent |
+| 11 | Corroboration with scientific knowledge | ~ | Implausible SIR parameters noted qualitatively but not formally |
+| 12 | Measurement model specification | ✗ | Accumulator H tracks I→R transitions, not S→I new infections; epidemiologically atypical |
+| 13 | Initial conditions | ~ | Eta estimated; E, I, H initialized to fixed non-zero constants without justification |
+
+---
+
 ## Summary
 
-This project applies time-series and mechanistic modeling to weekly pertussis (whooping cough) case counts for East North Central states (Michigan, Ohio, Indiana, Illinois, Wisconsin) from 2017 to early 2025, with particular focus on the 2024 outbreak. The authors fit an ARIMA(2,1,4)/ARCH(1)-X baseline and then develop SIR and SEIR POMP models, ultimately attempting to compare statistical and mechanistic approaches. While the project is ambitious in scope and the motivation is well-grounded in an interesting public-health event, the analysis contains several fundamental methodological errors that undermine its main conclusions: the central log-likelihood comparison between the ARCH and SEIR models is not valid, both POMP models yield biologically implausible parameter estimates that are not discussed, and key model-diagnostic outputs are commented out of the code. The paper does not compute profile likelihoods, does not compare to a proper non-mechanistic benchmark on the count scale, and does not corroborate parameter estimates against known pertussis natural history.
+This project applies ARMA, ARCH, SIR, and SEIR models to weekly whooping cough case counts for five East North Central states (2017–2025), with a focus on the large 2024 outbreak. The authors correctly identify and implement IF2 with replicated pfilter evaluation, appropriately use logmeanexp for likelihood aggregation, and pursue a genuinely interesting modeling challenge involving epidemic dynamics, missing data, and covariate incorporation. However, the project has several significant methodological weaknesses: the primary ARCH-vs.-POMP comparison is invalid because the two models are fit to different data transformations; no profile likelihoods are computed, leaving all parameters without confidence intervals or formal identifiability assessment; and the accumulator in both compartmental models tracks recoveries (I→R) rather than new infections, which is epidemiologically atypical for a disease where cases are diagnosed at onset of illness.
+
+**Strengths:** Proper use of logmeanexp for likelihood aggregation; bake() caching for reproducibility of expensive computations; honest acknowledgment of model limitations; engagement with real covariate data (vaccination, births, deaths); multiple model structures explored; global search with reasonable computational effort (Np=5000, nseq=500 starting points).
+
+**Weaknesses:** Invalid likelihood comparison between ARCH (differenced data) and SEIR POMP (original data); no profile likelihoods for any parameter; measurement model accumulator tracks the wrong transition; missing convergence diagnostics for the version of the model used in the key comparison; and no confidence intervals reported for any estimated parameter.
 
 ---
 
 ## Major Issues
 
-### 1. Invalid log-likelihood comparison between ARCH and SEIR models
+### 1. Invalid likelihood comparison between ARCH and SEIR POMP models
 
-The paper's central quantitative claim—that the ARCH model outperforms the SEIR POMP model because its log-likelihood (−1203) exceeds the SEIR's (−1442)—is based on an incorrect statistical argument. The authors write: "Since first differencing is a linear transformation with a constant Jacobian, we can directly compare these fits after accounting for the dropped initial term." This reasoning is wrong. A Jacobian correction converts a density for a transformed variable back to the original variable's scale only when both densities describe the *same* distributional family applied to a 1-to-1 transformation. Here, the ARCH model assigns a Gaussian density to first-differenced counts, whereas the SEIR model assigns a negative binomial density to raw counts. These are fundamentally different probability models for different outcomes; no Jacobian adjustment can make their log-likelihoods commensurable. The comparison is therefore meaningless, and the conclusion that the ARCH model is "superior" is unsupported. To compare the two approaches quantitatively, the authors would need to express both as predictive distributions for the same observable (e.g., the raw weekly count), then evaluate each on held-out data using proper scoring rules or a comparable likelihood.
+The core comparison in the paper compares the ARCH model log-likelihood (−1203) against the SEIR POMP log-likelihood (−1442), concluding that "the ARCH model demonstrated superior performance." The authors justify this by noting that "first differencing is a linear transformation with a constant Jacobian." This justification is insufficient for two reasons.
 
-### 2. Accumulation variable H tracks recoveries rather than new infections
+First, the ARCH model is fit to the differenced series `pertussis_diff` (Δy_t = y_t − y_{t−1}), while the SEIR POMP model is fit to the original case count series y_t. These are not the same data. The standard course principle that likelihoods across model classes are comparable (MT2 Q4-01) applies only when both models are evaluated on the same observed sequence. The Jacobian of a simple difference transform for continuous densities is indeed 1, but here the underlying data are discrete counts (not continuous), and the ARCH model imposes a Gaussian distribution on the differenced counts — a misspecification that makes the likelihood scale non-equivalent to the POMP likelihood on the original count data.
 
-In all three rprocess snippets (SIR, SEIR, and the SEIR with one observation removed), the accumulation variable H is incremented by `dN_IR` (the I→R transition), not by new infections (`dN_SI` in the SIR or `dN_EI` in the SEIR). The measurement model then uses `rho * H` as the expected number of reported cases. Pertussis cases are reported at symptom onset (which coincides with early infectious period, not recovery), so H should track new entries into the infectious compartment, not exits from it. The current formulation introduces a systematic lag equal to the mean infectious period between true case counts and the modeled measurement. Given the estimated mu_IR = 6.92 per week in the SIR model (implying infectious period ≈ 1 day), the lag is negligible for the SIR, but for the SEIR model with mu_IR = 64.2 per week (infectious period ≈ 0.11 days), the model degenerates. This is a textbook `accumvars` semantic error; see the pomp-accumvar-semantic-audit skill for analogous cases.
+Second, the SEIR POMP model fit to original data (ll = −1442) is being compared to an ARCH model fit to a different data object that also uses linearly interpolated values for the 2022 gap (from `interpolated_cases.csv`), while the SEIR POMP treats those weeks as missing via the ISNA check. The two models therefore differ in both the data transformation and the handling of missing observations.
 
-### 3. Biologically implausible parameter estimates not discussed
+This comparison should either be abandoned or restructured by fitting an ARMA-class model directly to the original count data (e.g., a negative-binomial INGARCH) on the same observations used for the POMP model, enabling a valid apples-to-apples comparison. As stated in 531-conventions.md, likelihoods from different model classes ARE comparable — but only for the same data. (Error 2.2, CC-Yes, Major.)
 
-The best-fitting SEIR parameter vector from the global search yields mu_IR = 64.2 per week, implying an infectious period of 1/64.2 weeks ≈ 2.6 hours. The true infectious period for pertussis is 1–3 weeks. Furthermore, the estimated initial susceptible fraction eta = 0.787 (78.7% of 48 million = 37.8 million susceptible individuals) is inconsistent with reported vaccination coverage of ≈71–75%. The two transmission rates base_beta = 8.76 and outbreak_beta = 8.72 are nearly identical, indicating the time-varying beta structure failed to identify distinct pre-outbreak and outbreak transmission dynamics. Wheeler et al. (2024) emphasize that implausible parameter estimates should be interpreted as evidence of model misspecification, not biological findings. The authors do not discuss any of these issues, and no comparison to external evidence (e.g., CDC estimates of pertussis infectious period, US pertussis under-reporting rates) is provided. This violates POMP best practice checklist item 11 (corroboration with scientific knowledge).
+### 2. No profile likelihoods computed; no confidence intervals reported
 
-### 4. Severe parameter non-identifiability not addressed with profile likelihoods
+Neither the SIR nor the SEIR model includes profile likelihood computations for any parameter. As a result, the project cannot formally assess whether any parameter is identifiable from the data, and no confidence intervals are reported for beta, mu_IR, eta, rho, or k. The authors note qualitatively that mu_IR appears not to be identifiable in the SIR global search pairs plot, but this observation is informal. For parameters like rho (reporting rate) and eta (initial susceptible fraction), identifiability is directly relevant to interpreting whether the model reveals anything about the 2024 outbreak dynamics.
 
-The SIR global search places 196 of 600 starting points within 4 log-likelihood units of the maximum. Among those, mu_IR ranges from 1.9 to 59.8 (essentially spanning its entire prior box of 0–60), Beta ranges from 4.6 to 409, and eta ranges from 0.017 to 0.90. The text acknowledges that "mu_IR is not identifiable" but does not mention the identifiability failures for Beta and eta, and no profile likelihoods are computed to quantify these. Without profile likelihoods, no confidence intervals for any parameter can be given and it is unclear whether any reported point estimate is meaningful. Wheeler et al. (2024, §Parameter identifiability and uncertainty) and POMP checklist item 5 require that profile likelihoods be computed for all key parameters.
+Profile likelihoods require optimizing over all other parameters at each fixed value of the target parameter (not merely slicing through the likelihood at fixed values). The course explicitly tested this distinction (Q10-02). Without profiles, the reported point estimates are unverified and the biological interpretation of any parameter is unsupported.
 
-### 5. rw.sd argument uses data vector rather than time variable in SEIR local searches
+To address this, compute profile likelihoods for at least the key parameters (rho, eta, base_beta, outbreak_beta) using the course standard approach: fix the target parameter on a grid of at least 20–30 values (run_level=3) and re-optimize over remaining parameters at each grid point. (Error 1.9, CC-Yes, Major.)
 
-In the SEIR local search (and in the repeated version with one observation removed), the random-walk perturbation intensities are specified as:
+### 3. Measurement model accumulator tracks recoveries, not new infections
 
-```r
-rw.sd = rw_sd(
-  base_beta = ifelse(whoop$week < 332, 0.02, 0),
-  outbreak_beta = ifelse(whoop$week > 332, 0.02, 0), ...
-)
-```
+In both the SIR and SEIR models, the accumulator variable H is updated as `H += dN_IR` (transitions from I to R), and the measurement model predicts reported cases as proportional to H. This means the model conceptualizes reported cases as proportional to the number of people leaving the infectious compartment — i.e., recoveries.
 
-The expression `ifelse(whoop$week < 332, 0.02, 0)` is evaluated in the calling environment at construction time and produces a 381-element numeric vector, not a time-indexed expression. In pomp, `rw_sd()` stores the expression as a `safecall` object evaluated at each mif2 iteration with the current observation time available as `time`. The correct usage would reference the `time` variable, e.g., `ifelse(time < 332, 0.02, 0)`. Passing a pre-evaluated vector may result in only the first element being used for every time step, or trigger recycling behavior—either way, the intended time-varying perturbation schedule is not implemented correctly, and the local search results should be considered suspect.
+For pertussis (whooping cough), cases are reported when diagnosed, which typically occurs during or shortly after onset of symptoms — that is, when individuals enter the infectious compartment (transitions S→I in SIR, or E→I in SEIR), not when they leave it. The standard POMP compartmental approach for disease surveillance data is to accumulate new infections: `H += dN_SI` (SIR) or `H += dN_EI` (SEIR). Using I→R transitions systematically shifts the predicted timing of the outbreak peak relative to the observed data, since H captures "resolved" cases rather than "incident" cases. This measurement model mismatch contributes to poor model fit and may be partially responsible for the simulations failing to capture the outbreak surge.
 
-### 6. No non-mechanistic benchmark comparison on the count scale
+The fix is to replace `H += dN_IR` with `H += dN_SI` (SIR) or `H += dN_EI` (SEIR), corresponding to the transition that best represents the moment of detection in the surveillance system. (POMP Checklist Item #12, Major.)
 
-Wheeler et al. (2024, §Benchmark comparison) identify absence of a non-mechanistic benchmark as the single most common deficiency in published mechanistic epidemic models. The authors frame the ARCH model as serving this benchmark role, but as explained in Major Issue 1, the ARCH is fit to differenced data under a Gaussian likelihood and cannot be compared to the SEIR on the raw count scale. A proper benchmark would be an auto-regressive negative binomial or Poisson model fit to the raw weekly counts, evaluated using the same log-likelihood. Without this, it is impossible to assess whether the mechanistic model captures any structure beyond a simple statistical model.
+### 4. Missing convergence diagnostics for the SEIR model used in the ARCH comparison
 
-### 7. Key diagnostics commented out; effective sample size never reported
+The SEIR model that produces the comparison log-likelihood of −1442 (the "SEIR Model for ARCH Comparison" section) has its local search trace plots commented out in the code (lines 1134–1141 of blinded.Rmd). This means there is no graphical evidence that the iterated filtering converged for the exact model instance driving the primary comparison result. The reader cannot verify whether the optimizer reached a stable neighborhood of the MLE or whether −1442 is a reliable estimate of the optimized likelihood.
 
-Three particle-filter diagnostic calls are present in the code but commented out:
-- `#plot(pf)` (at lines 501, 812, 1092) — would show per-observation log-likelihood contributions and effective sample size (ESS)
-- `#min(pf@eff.sample.size)` (line 502) — would report minimum ESS across time
+The main SEIR model (not the comparison variant) does show trace plots, but these apply to a slightly different model (with one additional data point). The comparison variant's optimization diagnostics are entirely absent from the rendered output.
 
-ESS monitoring is essential for detecting particle filter degeneracy, which can produce silently misleading log-likelihood estimates. Wheeler et al. (2024, §Computational adequacy) and POMP checklist item 6 require ESS to be reported. Additionally, the global SEIR pairs plots are also commented out (lines 962–965), so readers cannot visually assess parameter identifiability for the main SEIR model. These omissions prevent assessment of computational adequacy.
+To address this, the trace plots for the comparison SEIR model should be rendered and included. At minimum, the log-likelihood panel of the mif2 trace should be shown to confirm convergence. (Error 1.8, CC-Yes, Major.)
+
+### 5. SEIR model consistently fails to capture the outbreak without structural revision
+
+Both the main SEIR global search and the comparison SEIR global search produce simulations that "fail to capture the surge in reported whooping cough cases." The authors correctly acknowledge this failure but treat it only as motivation for future work (births/deaths, better vaccination data), without pursuing iterative model revision.
+
+When a mechanistic model's simulations systematically underperform — even after a 500-point global search from diverse starting values — the appropriate response is to diagnose what structural feature the model is missing. In this case, candidates include: (a) the measurement model accumulating the wrong transition (Issue 3 above), (b) the overdispersion parameter k being fixed at an unjustified value (see Issue 9), (c) the outbreak start time being hard-coded rather than estimated, and (d) the absence of waning immunity (pertussis immunity wanes substantially over 5–10 years, which would affect the susceptible pool). The paper does not systematically work through these possibilities.
+
+Per Error 1.15 (CC-Yes), when the POMP model fits substantially worse than a simpler benchmark, the right first step is to revise model structure — not accept the poor fit and move on. (Error 1.15, CC-Yes, Major.)
+
+---
+
+## Computational and Diagnostic Assessment
+
+**Convergence:** The SIR local search trace plots are shown and the log-likelihood panel appears to converge upward across 50 mif2 iterations. The main SEIR local search also shows trace plots with apparent convergence. However, as noted in Issue 4, the comparison SEIR variant's trace plots are absent. For the global searches, the pairs plots provide some evidence that the optimizer explored the parameter space, but convergence diagnostics (log-likelihood vs. iteration traces for representative runs) are not shown for the global search phase.
+
+**Particle filter:** Replicated pfilter evaluation uses Np=2000 for local searches and Np=5000 for global searches with 10 replicates each, combined via logmeanexp — this is correct course practice. The reported standard errors (loglik.se) are small in the shown outputs, suggesting adequate Monte Carlo precision. ESS is not reported, but this omission is minor.
+
+**Conditional log-likelihoods:** Per-time-step log-likelihoods are not plotted. These would be informative for identifying which time periods (e.g., the 2024 surge) the model fails to explain. Their absence limits diagnostic insight.
+
+**Profile likelihoods:** Not computed for any parameter. This is a major gap as described in Issue 2.
+
+**Computational scale:** The global search uses nseq=500 starting points with Nmif=100 and Np=5000 per evaluation. This is a reasonable effort for a student project. Total CPU time is not reported, which is a minor omission.
+
+---
+
+## Reproducibility Assessment
+
+**Code availability:** Code is included in the submission via the blinded.Rmd file. The bake() calls cache expensive computations to .rds files, which are present in the data/ subdirectory — this is good practice.
+
+**Final parameters:** The best-fit parameter vectors are written to CSV files (whoop_truncated_params_SIR.csv), and the archived .rds files allow rerunning downstream analysis without re-optimizing. This partially satisfies the reproducibility standard.
+
+**Model-code consistency:** The measurement model accumulator (H += dN_IR) is not described in the mathematical specification — the text presents the standard transition equations but does not explicitly state that reported cases are proportional to I→R transitions. This is a specification gap that should be clarified (and likely corrected per Issue 3).
+
+**Package versions:** No sessionInfo() output or renv lockfile is present. Given that pomp's API has changed across versions, results may not be exactly reproducible on a different version.
+
+**Auxiliary data:** All auxiliary data files (births, deaths, vaccination, population) are included in the data/ directory. This is good practice.
+
+**RNG seeds:** Seeds are set for the simulations and bake() calls use per-job seeds via .options.future. This is adequate for approximate reproducibility.
 
 ---
 
 ## Minor Issues
 
-### 8. Missing data interpolation not documented
+- **Vaccination data from one state extrapolated to five.** The vaccination coverage used for all five East North Central states comes from Michigan county immunization report cards only. The text notes this limitation but provides no sensitivity analysis. Vaccination hesitancy patterns vary significantly by state, and Indiana and Wisconsin had notably different vaccination coverage trajectories during this period. The assumption of uniform coverage across states is not validated.
 
-The ARMA and ARCH analyses use `data/interpolated_cases.csv`, which contains no missing values, while the POMP analyses use `data/all_data.csv`, which has 79 NAs (44 in 2021 alone, and all 6 available 2022 records are NA). No code for constructing the interpolated dataset is present in the supplement. Inspection of the interpolated file reveals values of 1.0–1.7 for the 2022 period—a linear interpolation between values just before and after the reporting gap—which may understate true incidence and distort the ARCH model. The paper should either include the interpolation code, explain the method explicitly, and justify why linear interpolation is appropriate when data are missing due to reporting failures.
+- **Overdispersion parameter k fixed without justification.** In the SIR model, k=10 is fixed; in the SEIR, k=5 is fixed. Neither value is estimated or motivated by data. An incorrectly fixed k can cause the measurement model to systematically under- or over-report uncertainty, affecting the particle filter and the reported log-likelihoods. The authors should either include k in the optimization or justify the fixed value by reference to exploratory analysis.
 
-### 9. ARMA log-likelihood inconsistency between sections
+- **Missing data treatment for POMP not stated in text.** The SEIR model handles NA observations via `(ISNA(Cases)) ? 0 : dnbinom_mu(...)`, contributing 0 to the log-likelihood for missing weeks. This is a legitimate approach (treating missing as unobserved) but is never mentioned in the text. The reader has no way to know how the ~127 missing weeks are handled without reading the C snippet.
 
-The text reports the ARMA(2,4) log-likelihood as −1368 in the ARMA section (line 358) but as −1366 in the comparison section (line 1238). The computed value from the code is −1367.999 ≈ −1368. The comparison section value of −1366 is incorrect and should be corrected.
+- **Initial H value set to 1 instead of 0 in SEIR.** In `seir_rinit`, H is initialized to 1 (`H = 1`). The accumulator H should be initialized to 0 at t0 since it accumulates transitions within each observation interval and is reset at each observation. Starting with H=1 biases the first predicted observation.
 
-### 10. ARMA(2,4) convergence failure not addressed
+- **Hard-coded outbreak start time (week 332) not estimated or validated.** The breakpoint between `base_beta` and `outbreak_beta` is fixed at week 332 (April 2024) based on visual inspection of the data. This parameter is not estimated within the model, nor is sensitivity to this choice assessed. Misspecification of the breakpoint could shift the estimated base_beta and outbreak_beta substantially.
 
-The paper notes that ARMA(2,4) "experienced convergence problems" but proceeds to use it for the ARCH comparison without discussion. A model with a convergence warning may have unreliable parameter estimates and an unreliable log-likelihood, undermining the ARMA-vs-ARCH comparison. The authors should either select a model that converges cleanly or explain why the convergence warning is inconsequential.
+- **Unused variable `pertussis_diff_adjusted` in ARCH code.** The variable `pertussis_diff_adjusted <- pertussis_diff[-1]` is created at line 293 but the subsequent `ugarchfit` call uses `data = pertussis_diff` (not `pertussis_diff_adjusted`). While the lengths are equal (both have length(df$Cases)−1), this dead variable suggests the code was modified mid-development and creates unnecessary confusion about which series the model was actually fit to.
 
-### 11. No formal stationarity test before differencing
+- **Differencing applied without formal stationarity test.** The ARMA section differences the pertussis series without first testing whether the series has a unit root (e.g., via ADF or KPSS test). The pertussis time series from 2017–2025 has a clear outbreak in 2024 but otherwise low endemic levels — this is more consistent with a trend-stationary or epidemic-driven process than a unit-root process. If the true data-generating process is trend-stationary, differencing introduces an MA unit root and produces a misspecified model (Error 2.1). At minimum, a formal test or discussion of this choice is warranted.
 
-The paper applies first-differencing to justify ARMA modeling, stating this "removes trends." No unit-root test (ADF or KPSS) is applied to the original series to justify the order of integration. Differencing a stationary series can introduce unnecessary moving-average terms and inflate model complexity.
+- **SIR global search parameters are biologically implausible but not fully discussed.** The best SIR global search parameters include beta=259 (per week, far above typical values for pertussis) and mu_IR=6.92 per week (implying an average infectious period of about 1 day, vs. the known pertussis infectious period of 1–3 weeks). The authors note that mu_IR is not identifiable but do not discuss whether these estimates indicate model misspecification beyond the identifiability issue. Per Wheeler et al. (2024) and POMP checklist item #11, implausible parameter estimates should be interpreted as signs of model misspecification and discussed accordingly.
 
-### 12. ARCH(1) order not justified
+- **ARMA section describes ARMA(2,4) as selected despite convergence problems.** The text notes the selected model "experienced convergence problems" but still uses it for the log-likelihood comparison with ARCH. A model with numerical convergence issues may not reliably represent the local maximum of the likelihood, and multiple starting points (e.g., using arima2::arima) would help confirm the reported log-likelihood. This is relevant to the validity of the ARCH vs. ARMA comparison on the differenced series (Error 2.15).
 
-Only ARCH(1) is fitted. No comparison to GARCH(1,1) or higher-order ARCH specifications is provided, despite the fact that GARCH(1,1) generally outperforms ARCH(q) on financial and epidemiological count data. The residual tests reject both the Ljung-Box and ARCH-LM hypotheses for the fitted ARCH(1), suggesting inadequacy, yet no higher-order model is attempted.
+---
 
-### 13. Omega parameter omitted from the ARCH variance equation
+## Recommendation
 
-The reported variance equation `sigma_t^2 = 0.533 * eps_{t-1}^2 + 2.139 * x_t` does not include the constant `omega` term that was specified in the ugarchspec model. The parameter table from the ugarch output should include `omega`; its omission from the displayed equation suggests the authors did not report a parameter from the fitted model. This should be checked and corrected.
+This project demonstrates genuine engagement with the course material and addresses an interesting real-world problem. The correct use of logmeanexp, bake() caching, replicated pfilter evaluation, and global search with diverse starting points reflect solid implementation skills. However, the work has four issues that should be addressed before the conclusions can be trusted: the ARCH-vs.-POMP likelihood comparison is methodologically invalid as written; no profile likelihoods are computed; the measurement model accumulates the wrong compartmental transition; and the key comparison model lacks convergence diagnostics. Major revision is required to address these issues.
 
-### 14. SIR local search does not perturb mu_IR
-
-In the SIR local search (line 544), the rw.sd specification pertubs only Beta, rho, and eta, while mu_IR is held fixed at 0.5. Yet the text says the global search "allows mu_IR to vary." The practical consequence is that the local search provides starting points biased toward mu_IR = 0.5, and the reported best local loglik of −212 vs. the global best of −204 reflects this restriction. This inconsistency should be acknowledged.
-
-### 15. Population assumed constant with no demographic processes
-
-The model fixes N = 48,000,000 with no births, deaths, or waning immunity, over an 8-year period that includes the COVID-19 pandemic disrupting vaccination schedules. The paper mentions this as a limitation but does not assess how strongly the fixed-population assumption biases estimates—particularly given that the full dataset spans 2017–2025 and the authors cite declining vaccination coverage as the likely driver of the 2024 surge. A brief sensitivity analysis varying eta (initial susceptible fraction) over a biologically constrained range would substantially strengthen the SEIR analysis.
+**Priority fixes:**
+1. Remove or restructure the ARCH-vs.-POMP likelihood comparison to use the same data for both models.
+2. Add profile likelihoods for at least rho, eta, and one beta parameter in the SEIR model.
+3. Correct the accumulator to `H += dN_EI` (SEIR) so reported cases correspond to new infections, not recoveries; re-run and re-report all downstream results.
+4. Uncomment and include the convergence trace plots for the comparison SEIR model.
 
 ---
 
 ## Files Consulted
 
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/SKILL_pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project16/blinded.Rmd`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project16/data/global-SIR.rds`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project16/data/global-SEIR.rds`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project16/data/global-SEIR_1datapointrmv.rds`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project16/data/mifs_local_SIR.rds`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project16/data/mifs_localSEIR.rds`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project16/data/mifs_localSEIR_1datapointrmv.rds`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project16/data/whoop_truncated_params_SIR.csv`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project16/data/all_data.csv`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project16/data/interpolated_cases.csv`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project16/data/vaccination_rates.csv`
+**Skill files — guided-pomp-review:**
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/SKILL_pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/assets/rev_template_pomp.qmd`
+
+**Skill files — 531_references:**
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/README.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-conventions.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-weakness-reference.md`
+
+**Project files — W25 Project 16:**
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W25/project16/blinded.Rmd`
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W25/project16/data/interpolated_cases.csv`

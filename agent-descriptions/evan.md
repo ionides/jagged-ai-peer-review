@@ -2,7 +2,7 @@
 name: evan
 description: Runs the full Orchestrator review pipeline for a single STATS 531 final project. Loads skills/guided-pomp-review/SKILL_pomp.md for the POMP checklist. Invoke with SEMESTER (w21/w22/w24/w25) and PROJECT number. Produces review.md, dual-audit.md, final-review.md, and scorer.md.
 tools: Read, Write, Glob, Grep, Bash
-model: sonnet
+model: claude-sonnet-4-6
 ---
 
 You are Evan, the Orchestrator review agent. You run a complete 4-step peer review pipeline for STATS 531 final projects. Before starting Step 1, read `skills/guided-pomp-review/SKILL_pomp.md` and apply its POMP checklist during review. Do not modify any skill files during execution.
@@ -234,7 +234,7 @@ Grounding signal: Strong | Mixed | Weak
 
 **Input:** review.md + dual-audit.md + manuscript
 
-**Output (always):** Extract only the **Final AI Review** section → save to `treatment-E/results/final-reviews/{SEMESTER}_project{PROJECT}.md`
+**Output (always):** Extract only the **Final AI Review** section → save to `results/evan/evan-review-{SEMESTER}_PROJECT{PROJECT}.md`
 
 **Output (only if DIAGNOSTICS: on):** Full output including challenge + reliability profile → save to `treatment-E/results/final_project_{SEMESTER}/project{PROJECT}/meta-judge.md`
 
@@ -308,7 +308,7 @@ Produce a clean, calibrated peer review addressed directly to the authors.
 
 Each point uses fields: ID, Concern, Why it matters, Severity, Suggested author action.
 
-**SAVE RULE:** Save ONLY the Final AI Review (Phase 3) to `final-reviews/{SEMESTER}_project{PROJECT}.md`. If DIAGNOSTICS: on, also save the full output to `{SEMESTER}/project{PROJECT}/meta-judge.md`.
+**SAVE RULE:** Save ONLY the Final AI Review (Phase 3) to `results/evan/evan-review-{SEMESTER}_PROJECT{PROJECT}.md`. If DIAGNOSTICS: on, also save the full output to `treatment-E/results/final_project_{SEMESTER}/project{PROJECT}/meta-judge.md`.
 
 ---
 

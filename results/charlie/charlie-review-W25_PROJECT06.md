@@ -1,201 +1,219 @@
 # Peer Review: W25 Project 06
-## "Investigating Hungarian Chickenpox Infections"
+## Investigating Hungarian Chickenpox Infections (ARMA / SEIR-POMP / N-BEATS)
 
 ---
 
 ## Summary
 
-This project investigates weekly chickenpox case counts in Hungary (2005–2015) using three modeling frameworks: ARMA, a seasonally forced SEIRS-POMP model, and a deep-learning pipeline combining variational mode decomposition (VMD) with N-BEATS. The comparative scope is a genuine strength. However, the POMP component — the methodologically central contribution — contains several compounding implementation errors that invalidate its parameter estimates and the reported profile likelihood. Specifically, the local `mif2` call overrides the base `pomp` object's parameter transformations with an incomplete list, removing the logit constraint on the seasonal amplitude `amp` and the log constraint on the waning rate `omega`. This bug propagates into the global search (which inherits the broken `partrans` from the local result) and is confirmed by artifact inspection: all estimated `amp` values exceed 2.0, far outside the declared (0, 1) logit domain. Additionally, the profile likelihood for `rho` is a pseudo-profile — a filtered scatter of global-search results, not a dedicated profile IF2 search — making the reported confidence interval statistically invalid. The mathematical model specification in the text is inconsistent with the implemented Csnippet, and no quantitative benchmark comparison against the ARMA model is made on a common scale.
+This project analyzes weekly Hungarian chickenpox case counts (2005–2015, n = 522) using three modeling approaches: ARMA time-series, a seasonally forced stochastic SEIR model via the POMP framework, and a deep learning pipeline combining variational mode decomposition (VMD) with the N-BEATS architecture. The project's ambition—comparing mechanistic, statistical, and data-driven methods on a single dataset—is appropriate. However, the POMP analysis contains several serious methodological errors that invalidate the profile likelihood and the convergence claims, the mathematical model description contradicts the code, and the three-way model comparison is not conducted on a common footing. These issues undermine the project's central comparative goal.
 
-**Key strengths:** Combination of three modeling frameworks; use of negative binomial measurement model; some discussion of limitations; clear EDA.
+**Key strengths:** Inclusion of both local and global mif2 searches; correct use of `logmeanexp` for log-likelihood aggregation; negative binomial measurement model; parameter transformations applied consistently.
 
-**Key weaknesses:** `partrans` override bug invalidates all POMP parameter estimates; global search anchored to a corrupted local-search result; pseudo-profile CI; mathematical specification does not match code; no quantitative ARMA-vs-POMP comparison on a common observation model.
+**Key weaknesses:** POMP model is substantially worse than the ARMA benchmark but this gap is never acknowledged; profile likelihood is not a true profile and uses the wrong Wilks cutoff; `ivp()` is mis-applied to non-initial-value parameters; the mathematical model in the text omits features present in the equations (births, deaths, importation) but includes them in the equations yet the code implements none; and the three-model comparison uses incompatible metrics.
 
 ---
 
 ## Major Issues
 
-### 1. `partrans` override in local `mif2` removes constraints on `amp` and `omega`
+### 1. POMP model substantially underperforms the ARMA benchmark with no acknowledgment
 
-The base `pomp` object (chunk beginning at line 524) declares:
-```
-partrans = parameter_trans(
-  log   = c("Beta", "mu_EI", "mu_IR", "k", "omega"),
-  logit = c("eta", "rho", "amp")
-)
-```
-The local `mif2` call (chunk `seir_local`, line 587) re-specifies:
-```
-partrans = parameter_trans(
-  log   = c("Beta", "mu_EI", "mu_IR", "k"),
-  logit = c("eta", "rho")
-)
-```
-This new `partrans` argument **replaces** the base object's declaration entirely. `amp` loses its logit constraint and `omega` loses its log constraint. The IF2 optimizer is therefore free to drive `amp` beyond 1, which causes the seasonal forcing `Beta_t = Beta * (1 + amp * cos(...))` to become negative whenever `amp > 1` and the cosine reaches its minimum. The code guards against this with `if (Beta_t < 0) Beta_t = 0`, but the effective dynamics are biologically extreme: transmission is completely suppressed for part of the year.
+The ARMA(4,4) model achieves a log-likelihood of −3603.29 (reported in the text). The POMP global search finds a best log-likelihood of −3758.96 (confirmed from `results_1.rds`). The POMP model is therefore worse by approximately 156 log-likelihood units — a decisive margin.
 
-Inspection of `mifs_local_1.rds` confirms the bug: all 20 local-search chains have final `amp` values between 2.1 and 2.8, far outside the declared (0, 1) domain. The global search results in `results_1.rds` show `amp` ranging from 1.12 to 1.76, all outside the logit constraint. The best-fit global parameters (loglik = −3758.96) include `Beta = 100.4` and `amp = 1.27`.
+The course convention (531-conventions.md) is explicit: "If the mechanistic model fits disastrously compared to the benchmark, our model is probably missing something important," and the appropriate response is to revise model structure, not to increase computational effort. The paper never compares these numbers, never acknowledges the gap, and instead characterizes the POMP fit as "reasonable" based solely on visual simulation plots. This omission is the single largest substantive failure of the POMP analysis. Quantitative comparison of the POMP and ARMA log-likelihoods should be reported, and the 156-unit deficit should prompt a model-structure revision — not just a summary that "simulations reproduced timing, amplitude, and periodicity."
 
-**Fix:** Remove the `partrans` argument from the `mif2` call entirely; the base object's declaration is automatically inherited. If the local `mif2` call must override `partrans` for any reason, it must include every parameter from the base declaration.
-
-**Reference:** Wheeler et al. (2024), §Computational adequacy; `pomp-partrans-override-bug` skill.
+**Reference:** POMP checklist §2 (Benchmark comparison), §3 (Quantitative goodness-of-fit); Error 1.6 (CC-Yes).
 
 ---
 
-### 2. Global search initialized from a corrupted local `mif2` result
+### 2. Profile likelihood for ρ is not a true profile, and uses the wrong Wilks cutoff
 
-At line 678 in the global search chunk (`seir_global`):
+The "Profile Likelihood for Reporting Rate ρ" section does not compute a profile likelihood. A profile likelihood requires fixing ρ on a grid and optimizing all other parameters at each grid point. Instead, the authors filter the global search results by ρ and apply a log-likelihood cutoff — this is a marginal scatter plot, not a profile, and is correctly called a "Poor Man's Profile" in the text. The problem is that this approximation is then treated as if it produces a valid confidence interval.
+
+Compounding this, the Wilks threshold used is `maxloglik − 4`, whereas the correct 95% CI cutoff for a one-dimensional profile is `maxloglik − 0.5 × qchisq(0.95, 1) ≈ maxloglik − 1.921`. The inflated cutoff of −4 is not the standard criterion and is not justified in the text. Inspection of `results_1.rds` confirms that using the correct Wilks threshold of −1.921 yields only a single global-search point satisfying the criterion (CI degenerates to a point), meaning the global search grid is too sparse to support any CI estimate at all under the correct threshold. The threshold was likely inflated to avoid a degenerate result, but this produces a CI that is not interpretable as a 95% interval.
+
+To fix: either compute a true profile likelihood by re-running mif2 at each fixed ρ grid point with all nuisance parameters optimized, or explicitly state that no profile likelihood was computed and CI bounds are not reported.
+
+**Reference:** Error 1.2 (CC-Yes, Major); POMP checklist §5 (Parameter identifiability).
+
+---
+
+### 3. `ivp()` applied to all parameters in `rw.sd`, including non-initial-value parameters
+
+In both the local and global search, `rw.sd` is specified as:
+
 ```r
-mf1 <- mifs_local[[1]]
-...
-mf <- mf1 %>% mif2(params = c(unlist(guess), fixed_params), ...)
+rw.sd = rw_sd(
+  Beta = ivp(0.05), mu_EI = ivp(0.05), mu_IR = ivp(0.05),
+  eta = ivp(0.02), rho = ivp(0.02), amp = ivp(0.05),
+  phi = ivp(1), k = ivp(0.1)
+)
 ```
-The first argument to `mif2()` is `mf1`, a previous `mif2` result object. Two distinct errors compound here:
 
-(a) **Inherited broken `partrans`:** `mf1` carries the incomplete `partrans` from the local search (Issue 1), so the global search also runs without constraints on `amp` and `omega`.
+The `ivp()` modifier applies the random walk perturbation only at t = t₀ and sets it to zero at all subsequent time steps. This is the correct specification only for parameters that function as initial conditions (e.g., the initial fraction susceptible, which depends only on the state at t₀). For time-constant process parameters — Beta, mu_EI, mu_IR, rho, amp, phi, k — the perturbation should be a constant standard deviation (e.g., `Beta = 0.05`), applied at every step throughout the filtering to enable gradient-following by the mif2 algorithm.
 
-(b) **Anchored initialization:** Passing a previous `mif2` result as the first argument inherits the cooling schedule of that chain. With `cooling.fraction.50 = 0.5` in the global call but a fully decayed schedule inherited from the local run, the effective exploration from the random starting points is severely curtailed.
+Using `ivp()` for these parameters means mif2 can only inject diversity at the start of the time series. While different particles will carry different parameter values (from the single perturbation at t₀), no additional exploration occurs as the filter progresses. This substantially reduces the algorithm's ability to locate high-likelihood regions and may explain why the global search log-likelihoods remain far below the ARMA benchmark. The course notes (Ch 16 p31) illustrate constant perturbation for rate parameters explicitly.
 
-The correct pattern is `mif2(chickenSEIR, params = c(unlist(guess), fixed_params), ...)` where `chickenSEIR` is the base `pomp` object. All global-search results reported in this project are affected by this error.
+Note that `eta` (initial fraction recovered) is a genuine initial-value parameter and `ivp()` is appropriate there.
 
-**Reference:** Wheeler et al. (2024), §Computational adequacy; `pomp-global-search-init-audit` skill.
-
----
-
-### 3. Profile likelihood for `rho` is a pseudo-profile: CI is statistically invalid
-
-The section "Profile Likelihood for Reporting Rate rho" (lines 780–813) constructs the profile by filtering the global search object `global_loglik_result` by log-likelihood value and plotting the result as a profile. No dedicated profile IF2 search is run:
-
-- There is no `profile_design()` call.
-- There is no foreach loop that fixes `rho` at grid values and optimizes the remaining parameters.
-- There is no `rw.sd` construction that sets `rho = 0` to hold it fixed during optimization.
-
-The code applies a cutoff of `maxloglik - 4` (a relaxed threshold, explicitly noted as deviating from the standard `0.5 * qchisq(df=1, p=0.95) ≈ 1.92`) to the global-search scatter and reads off `min_rho` and `max_rho`. This is a global-search scatter plot, not a profile likelihood curve. The chi-squared CI theorem requires that the curve plotted is the true profile, i.e., that at each fixed `rho` value the remaining parameters are optimized. That constrained optimization was never performed.
-
-Additionally, the text (line 776) acknowledges "a clear peak in the likelihood surface near ρ ≈ 0.92," but inspection of `results_1.rds` shows that all 100 global-search results have `rho` values between 0.679 and 0.9997 — the scatter is sparse and the "profile" reflects sampling density from the global box, not a true profile.
-
-**Fix:** Run a dedicated profile search using `profile_design(rho, lower=0.5, upper=1.0, nprof=20)` as starting points, with `rw.sd` setting `rho = 0` in the mif2 call. Evaluate log-likelihood at each result and apply the chi-squared threshold.
-
-**Reference:** Wheeler et al. (2024), §Parameter identifiability; `pomp-pseudo-profile-audit` skill.
+**Reference:** POMP checklist §6 (Computational adequacy).
 
 ---
 
-### 4. Mathematical model in text does not match the implemented Csnippet
+### 4. Mathematical model description does not match the implemented code
 
-The differential equations written in the SEIR Model Definition section (lines 451–462) include:
+The text presents the following differential equations for the SEIR dynamics:
 
-- $dS = \mu N - \beta(t) \cdot SI/N - \mu S$ (birth/death flux with rate $\mu$)
-- $dI = \sigma E - \gamma I - \mu I + \lambda$ (importation term $\lambda$)
+- dS = μN − β(t)·SI/N − μS
+- dE = β(t)·SI/N − σE − μE
+- dI = σE − γI − μI + λ
+- dR = γI − μR
 
-The text defines $\mu$ as birth/death rate and $\lambda$ as importation rate. Neither appears anywhere in the `seir_step` Csnippet. The code implements waning immunity ($\omega$, R→S transition) with no demographic birth-death flux and no importation. The section header says "SEIR" but the model includes R→S waning (`dN_RS = rbinom(R, 1 - exp(-omega * dt))`), making it an SEIRS model. The text acknowledges "SEIRS-type structures" in one sentence (line 464) but the equations and section title say SEIR.
+These equations include (a) a birth inflow μN into S, (b) per-compartment death outflows μS, μE, μI, and (c) an importation term λ in I. None of these three features appear in `seir_step`. The code implements a closed population with no demographic turnover and no importation:
 
-This is a concrete reproducibility failure documented in Wheeler et al. (2024): when the mathematical description and code differ, readers cannot determine which represents the model that was actually fitted.
-
-**Fix:** Replace the differential equations with a correct discrete-time stochastic specification that matches the Csnippet exactly. Update the section heading to SEIRS and remove $\mu$ (birth/death) and $\lambda$ (importation) from the parameter list.
-
-**Reference:** Wheeler et al. (2024), §Reproducibility and extendability; code-supplement-checklist-pomp.md, Traceability section.
-
----
-
-### 5. Best-fit `Beta = 100.4` is biologically implausible; no corroboration with independent evidence
-
-The best global-search parameter estimate is `Beta = 100.4` per week. For a population of 2.267 million and an infectious period of about 2 weeks (`mu_IR ≈ 0.46`), this implies a basic reproduction number R₀ ≈ Beta/mu_IR ≈ 217. Published R₀ estimates for varicella are typically 3–10 in unvaccinated populations. The implausibly large `Beta` is a direct consequence of the `partrans` override bug (Issue 1): with `amp > 1`, the model periodically suppresses transmission to zero, and `Beta` inflates to compensate during the active season.
-
-The paper does not compare any estimated parameter values against independent biological literature, which is required practice (Wheeler et al. 2024, §Corroboration with scientific knowledge).
-
-**Fix:** Correct the `partrans` bug, rerun the optimization, and explicitly compare estimated `Beta`, `mu_EI`, `mu_IR`, and `rho` to published varicella natural history estimates.
-
----
-
-### 6. `emeas` inconsistency with `dmeas`/`rmeas`
-
-The `emeasure` Csnippet (line 521) computes expected observations as:
 ```c
-E_infection = rho * H;
+S += dN_RS - dN_SE;
+E += dN_SE - dN_EI;
+I += dN_EI - dN_IR;
+R += dN_IR - dN_RS;
 ```
-where `H` accumulates `dN_IR` (recoveries from I). But `dmeasure` and `rmeasure` both compute expected observations as `rho * NewEI`, where `NewEI = dN_EI` (E→I transitions). Furthermore, `H` is never declared in `accumvars`, so it accumulates all recoveries from t = 0 forward — it does not represent weekly counts. The `emeas` therefore computes a cumulative recovery count rather than a weekly new-infection count, which is the quantity used in `dmeas`/`rmeas`. This is an internal inconsistency: the expected value computed by `emeas` and the likelihood evaluated by `dmeas` are for different quantities.
 
-**Fix:** Either (a) declare `H` in `accumvars` and change `emeas` to `E_infection = rho * H`, or (b) set `emeas` to `E_infection = rho * NewEI` to match `dmeas`/`rmeas`.
+Total population N = S + E + I + R is therefore conserved exactly, which is inconsistent with the text's description of μN births and μS, μE, μI deaths. The parameter `mu` appears in `paramnames` but is not used in `seir_step`. The `lambda` importation term described in the text is also absent from the code.
 
----
+A reader cannot replicate the model described in the text using the provided code. This is a reproducibility failure of the type documented in Wheeler et al. (2024) — discrepancies between the written model specification and the code materially affect what analysis was actually conducted.
 
-### 7. No quantitative comparison between ARMA and POMP models on a common scale
-
-The paper proposes a "comparative analysis across traditional statistical time series models (ARMA), mechanistic epidemic modeling (POMP)" but the comparison is qualitative. The ARMA log-likelihood (−3603.29 under Gaussian) and POMP log-likelihood (best −3758.96 under negative binomial) are evaluated under different observation models on different response scales. Direct comparison of these numbers would be invalid (Wheeler et al. 2024, §Benchmark comparison), and the paper avoids doing so — but it also provides no valid quantitative comparison.
-
-A proper benchmark test would fit an ARMA-type model with a negative binomial observation distribution (e.g., an auto-regressive negative binomial) to the same data and compare log-likelihoods. Alternatively, both models can be compared on a common predictive scoring rule (e.g., CRPS). Without this, the paper cannot support any claim about whether the mechanistic model captures meaningful structure beyond a statistical baseline.
-
-**Reference:** Wheeler et al. (2024), §Benchmark comparison.
+**Reference:** POMP checklist §10 (Reproducibility), code-supplement checklist §Traceability; Wheeler et al. (2024) §Model diagnostics.
 
 ---
 
-### 8. `start_params` undefined in local search code
+### 5. Three-model comparison uses incompatible metrics and data
 
-The local `mif2` chunk (line 589) references `params = start_params`, but `start_params` is never defined in any visible code chunk in the document. The `chickenSEIR` object was initialized with default `params` at line 536, but `start_params` as a separate object is absent. This is a reproducibility failure: readers cannot determine the starting parameter values for the local search from the code as written.
+The overall conclusion compares ARMA (MAPE 36.82%, in-sample, on national aggregate), POMP (qualitative visual fit), and N-BEATS (MAPE 2.5–3%, out-of-sample validation set, on spatiotemporal county-level features). Three incompatibilities prevent this from being a valid comparison:
 
-**Fix:** Add `start_params <- coef(chickenSEIR)` (or an explicit definition) before the local search chunk.
+- **In-sample vs. out-of-sample:** The ARMA MAPE is computed on the training data; the N-BEATS MAPE is on a held-out validation set. Out-of-sample errors are naturally larger; reporting training-set error for one model and validation-set error for another systematically understates the ARMA error.
+- **Data scope:** N-BEATS is trained on 1,220 VMD features derived from 20-county data. The ARMA and POMP models use only the national aggregate. The N-BEATS model has access to substantially more information.
+- **Metric non-comparability:** The POMP model is never assigned a MAPE or an out-of-sample metric, making it impossible to place it in the same comparison table as ARMA and N-BEATS.
+
+A valid comparison would require: all three models trained on national aggregate data, evaluated on a held-out test period using the same metric, with POMP models assessed by log-likelihood or MAPE from the filtering distribution.
+
+---
+
+### 6. `emeas` is inconsistent with `dmeas` and `rmeas`
+
+The expected-measurement function is:
+```c
+emeas: E_infection = rho * H;
+```
+But the density and random-draw functions use a different state variable:
+```c
+dmeas: double mu = fmax(rho * NewEI, 1e-6); ...
+rmeas: double mu = fmax(rho * NewEI, 1e-6); ...
+```
+
+`H` is a cumulative counter of I→R transitions (recovered individuals), accumulating over the entire run. `NewEI` is the count of E→I transitions in the current time step. These represent different quantities: `H` is an ever-increasing counter while `NewEI` is a per-step flow. The appropriate observable in an SEIR model for reported weekly cases is new infections per step (NewEI), not cumulative recoveries (H). The emeas function should be `E_infection = rho * NewEI` for consistency.
+
+This discrepancy means that any functionality relying on `emeas` (e.g., trajectory matching or model-based forecasting using the expected measurement) will produce incorrect values.
+
+**Reference:** POMP checklist §12 (Measurement model specification); code-supplement checklist §Traceability.
+
+---
+
+### 7. No seasonal ARIMA (SARIMA) considered despite prominent 52-week seasonality
+
+The data shows strong annual (52-week) seasonal cycles, visible in both the raw time series plot and the moving-average plot. The ARMA section searches only over ARMA(p, q) with p, q ≤ 4 and no seasonal components. For weekly data with a 52-week period, a SARIMA(p, d, q)(P, D, Q)₅₂ model is more principled. The selected ARMA(4,4) may be capturing some seasonality via high-order AR and MA terms, but this is a less interpretable and potentially less efficient representation than explicit seasonal terms.
+
+The absence of any SARIMA model — or even a discussion of why pure ARMA was chosen over seasonal alternatives — is a methodological gap for a project whose data has textbook seasonal structure.
 
 ---
 
 ## Minor Issues
 
-### 9. All `rw.sd` entries use `ivp()` only; `omega` is not perturbed
+### 8. `omega` (immunity waning rate) is never perturbed during global search
 
-Both the local and global search use:
+The global search guesses include `omega` (drawn from [0.002, 0.01]), but `omega` is absent from `my_rw`. In mif2, parameters absent from `rw.sd` are held fixed at their initialized values. This means each global search run tests a fixed omega value (drawn once at initialization) but never optimizes over it. The paper describes the global search as exploring all key parameters, but omega is effectively a fixed input that varies across runs by sampling, not by gradient-following. This inconsistency is not acknowledged, and the resulting omega estimates are not optimization products.
+
+---
+
+### 9. Profile likelihood CI range is insensitive to the Wilks threshold actually used
+
+As computed from `results_1.rds`: with the correct Wilks cutoff (maxloglik − 1.921), only the single best-fit global search point passes, yielding a degenerate CI. The paper uses maxloglik − 4 to obtain the range [0.869, 0.987]. Neither threshold produces a scientifically valid CI: the correct threshold gives no interval, and the incorrect one gives an interval whose coverage probability is unknown. The paper reports a CI as if it were a valid 95% interval. This should be stated only as an approximation of the plausible range with an explicit caveat that the correct profile was not computed.
+
+---
+
+### 10. Local search: cooling fraction 0.3 departs from course standard without justification
+
+The local mif2 runs use `cooling.fraction.50 = 0.3`, meaning perturbations decay to 30% of their initial size after 50 iterations. The course standard is 0.5 (Ch 15 p31–32). Faster cooling reduces the algorithm's ability to escape local optima; slower cooling may not have converged sufficiently at 100 iterations. The departure is not discussed or motivated. Given that the log-likelihoods from the local search (best: −3870.76) are substantially below the global search best (−3758.96), a sensitivity analysis on cooling fraction would be informative.
+
+---
+
+### 11. Initial SEIR parameter values are biologically implausible for chickenpox
+
+The initial parameter vector sets `mu_EI = 0.08` per week, implying a mean incubation period of 1/0.08 = 12.5 weeks (≈ 87 days). The chickenpox incubation period is 10–21 days (≈ 1.4–3 weeks). Similarly, `mu_IR = 0.05` per week implies a mean infectious period of 20 weeks (≈ 140 days); the actual period is approximately 5–7 days. While these are starting values for optimization, initializing far from the biological plausible range can make convergence more difficult. The global search bounds reach up to mu_EI = 0.6/week (latency ≈ 12 days) and mu_IR = 0.6/week (infectious period ≈ 12 days), but the lower bounds of 0.01/week for both imply latency and infectious periods of 100 weeks, which are unrealistic. No discussion of parameter biological plausibility appears in the text.
+
+**Reference:** POMP checklist §11 (Corroboration with scientific knowledge).
+
+---
+
+### 12. Log-ARMA vs. linear-ARMA MAPE comparison is also not valid
+
+The text correctly notes that AIC values are not directly comparable across raw-scale and log-scale ARMA models. However, it then uses MAPE to compare them — MAPE on the log scale (4.69%) measures proportional error in log(infections + 1), while MAPE on the raw scale (36.82%) measures proportional error in infections. These quantities have no common interpretation. The statement "the log-ARMA model reduces relative error with a MAPE of only 4.69% versus 36.82%" is not a valid comparison and should be removed or reframed. Comparing models on different observation scales requires back-transforming predictions to a common scale.
+
+---
+
+### 13. `loglik.se < 10` filter is excessively permissive
+
+When combining global and local results, the code applies `filter(is.finite(loglik), loglik.se < 10)`. A standard error of 10 log-likelihood units is very large; this allows points with enormous Monte Carlo noise into the pair plots and profile calculation. With `Nreps_eval = 10` replicated pfilter calls, Monte Carlo SEs of the observed magnitude (most < 1) are reasonable, but the cutoff of 10 admits outliers that could distort the profile scatter. A threshold of 1 or 2 is more defensible.
+
+---
+
+### 14. `rw.sd` is redundantly re-specified inside `mif2` in the local search code
+
+The local search code (in the `seir_local` chunk, lines 587–588) passes `partrans` and `paramnames` directly to `mif2`:
 ```r
-rw.sd = rw_sd(Beta=ivp(0.05), mu_EI=ivp(0.05), mu_IR=ivp(0.05),
-              eta=ivp(0.02), rho=ivp(0.02), amp=ivp(0.05), phi=ivp(1), k=ivp(0.1))
+partrans=parameter_trans(log=c("Beta", "mu_EI", "mu_IR", "k"), logit=c("eta", "rho")),
+paramnames=c("N", "Beta", ...)
 ```
-The `omega` parameter (waning immunity rate) is entirely absent from `rw.sd` in both searches, meaning it is never perturbed by IF2 and remains at its starting value throughout optimization. The text in the Global Search section claims `omega` is among the parameters explored over the box bounds `[0.002, 0.01]`, but since `omega` receives no perturbation, the global search samples `omega` values only at initialization; they are not optimized. This is inconsistent with the claimed global exploration.
+These are already stored in the `chickenSEIR` pomp object (defined with `partrans` and `paramnames`), so re-specifying them inside `mif2` is redundant. More critically, the re-specification in the local search omits `omega` and `amp` from `partrans`, while the global pomp object includes `log = c("Beta", "mu_EI", "mu_IR", "k", "omega")` and `logit = c("eta", "rho", "amp")`. The inconsistency between the pomp-object transforms and the mif2-call transforms may silently apply incorrect transformations during the local search.
 
-### 10. Ljung-Box degrees of freedom not corrected for estimated ARMA parameters
+---
 
-The Ljung-Box test at lag 20 uses 20 degrees of freedom (line 261), but the ARMA(4,4) model has 8 estimated AR/MA parameters plus an intercept. The effective degrees of freedom should be reduced by the number of estimated parameters (Box and Pierce, 1970; Ljung and Box, 1978). Using the uncorrected degrees of freedom makes the test anti-conservative for the ARMA(4,4) residuals.
+### 15. Duplicate `library(pomp)` and auto-installing packages in setup
 
-### 11. Deep learning validation uses only 2-step ahead forecast accuracy
+The setup chunk calls `library(pomp)` twice (lines 20–21). More importantly, a later chunk (lines 404–410) includes `install.packages(to_install, ...)` without user consent, which violates the code-supplement standard (code should not auto-install packages). This is a minor code quality issue but does affect portability if run in a controlled environment.
 
-The N-BEATS model is evaluated on a 2-step (2-week) ahead forecast with MAPE of 2.5–3.0%. No out-of-sample test set split strategy is described: which weeks form the validation set? How many total observations are in validation vs. training? Without this, the 2.5% MAPE figure cannot be assessed for overfitting. Given 1220 input features and a relatively short training series (522 weeks), the risk of data leakage or overfitting is substantial.
+---
 
-### 12. AIC table comparison between linear and log-ARMA models is correctly noted as invalid but still computed
+## Summary of Issue Severity
 
-The paper correctly states that the AIC values 7226.58 (linear) and 507.41 (log-transformed) "are not directly comparable due to the change in data scale." However, the text still reports them side by side in a way that could mislead readers who do not notice the disclaimer. No Jacobian correction for the log transform is applied. The comparison should either be omitted or the log model should be evaluated by transforming predictions back to the original scale and computing a likelihood on the original counts.
-
-### 13. `library(pomp)` called twice in setup chunk
-
-Line 19-20 of the setup chunk calls `library(pomp)` twice consecutively. This is cosmetically redundant but does not affect results.
-
-### 14. Convergence trace plot uses `melt()` from reshape2 without explicit import
-
-The trace plot chunk (line 611) calls `melt()`, which requires the `reshape2` package (or `tidyr::pivot_longer`). The package is not loaded in the setup or POMP setup chunk. While the code loads `tidyverse` (which does not export `melt`), this may silently fail or produce unexpected behavior depending on which other packages are loaded. The supplement should explicitly load `reshape2` or replace `melt()` with `pivot_longer()`.
-
-### 15. No `sessionInfo()` or package version documentation
-
-The supplement does not record R version, `pomp` version, or any other package versions. The `pomp` API has changed substantially across versions. Results may not reproduce on current CRAN releases without version pinning via `renv` or similar. The Python requirements file (`requirements.txt`) lists packages without version pins as well.
-
-**Reference:** Code-supplement-checklist-pomp.md, Documentation section.
+| # | Issue | Severity |
+|---|-------|----------|
+| 1 | POMP underperforms ARMA by 156 log-lik units, gap unacknowledged | Major |
+| 2 | Profile likelihood is not a true profile; Wilks cutoff is wrong | Major |
+| 3 | `ivp()` mis-applied to non-IVP parameters in `rw.sd` | Major |
+| 4 | Text model (births, deaths, importation) contradicts code | Major |
+| 5 | Three-model comparison uses incompatible metrics and data | Major |
+| 6 | `emeas` uses H (cumulative) inconsistent with dmeas/rmeas using NewEI | Major |
+| 7 | No SARIMA considered despite 52-week seasonality | Major |
+| 8 | `omega` absent from `rw.sd` in global search | Minor |
+| 9 | Profile CI is degenerate under correct Wilks threshold | Minor |
+| 10 | Cooling fraction 0.3 not justified | Minor |
+| 11 | Initial parameter values biologically implausible | Minor |
+| 12 | Log-ARMA vs. linear-ARMA MAPE comparison invalid | Minor |
+| 13 | `loglik.se < 10` filter is too permissive | Minor |
+| 14 | Redundant/inconsistent `partrans` inside local search `mif2` | Minor |
+| 15 | Duplicate `library(pomp)`; auto-install without consent | Minor |
 
 ---
 
 ## Files Consulted
 
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/SKILL_pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-partrans-override-bug/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-global-search-init-audit/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-pseudo-profile-audit/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-rw-sd-magnitude-error/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-accumvar-double-reset/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-accumvar-semantic-audit/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-profile-rw-sd-drift-error/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-inference-misuse/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-static-population-audit/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-simulate-as-latent-state-inference/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-placeholder-result-audit/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/sarima-baseline-audit/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/stationarity-test-conclusion-audit/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-dmeas-rmeas-scale-inconsistency/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project06/blinded.Rmd`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project06/mifs_local_1.rds`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project06/local_loglikes_1.rds`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project06/results_1.rds`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project06/requirements.txt`
+**Skill files:**
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/SKILL_pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-conventions.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-weakness-reference.md`
+
+**Project files:**
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W25/project06/blinded.Rmd`
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W25/project06/results_1.rds`
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W25/project06/local_loglikes_1.rds`

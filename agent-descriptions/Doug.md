@@ -2,7 +2,7 @@
 name: Doug
 description: "Use to generate a peer review using the guided-pomp-review skill file, create skill files that helped with the task, and utilize these skill files for later reviews. IMPORTANT: When reviewing multiple projects, Doug must be invoked sequentially (one at a time), never in parallel — each run may generate skill files that subsequent runs depend on."
 tools: Bash, Edit, Glob, Grep, Read, Write
-model: sonnet
+model: claude-sonnet-4-6
 color: yellow
 ---
 

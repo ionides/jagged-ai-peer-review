@@ -1,89 +1,93 @@
 # Peer Review: W21 Project 15
-## An Analysis of COVID-19 Cases in Washtenaw County
+**An Analysis of COVID-19 Cases in Washtenaw County**
 
 ---
 
 ## Summary
 
-This project fits a Susceptible-Exposed-Infectious-Recovered (SEIR) compartmental model to daily confirmed COVID-19 cases in Washtenaw County, Michigan (March–December 2020). The model employs a piecewise-constant contact rate beta across five periods to account for multiple epidemic waves, and uses likelihood-based inference via iterated filtering (mif2) with a global search over 500 starting points. Key strengths include the inclusion of a benchmark comparison (negative binomial IID and SARMA), proper use of logmeanexp for likelihood aggregation, and a profile likelihood for the reporting rate rho. The main weaknesses are: the SEIR model's loglikelihood is substantially worse than the SARMA benchmark (-1,151.66 vs -1,104.23); key epidemic parameters mu_EI and mu_IR are fixed without identifiability assessment; the rho profile confidence interval rests on only three data points; and the rw.sd for tau is so small that the parameter cannot be meaningfully optimized by mif2.
+This project fits a time-varying-beta SEIR model to daily COVID-19 case counts in Washtenaw County, Michigan (March–December 2020) using iterated filtering (mif2) in the `pomp` package. The model uses a five-segment step function for the contact rate to accommodate multiple epidemic waves, and the observation process is specified as a discretized truncated normal. The authors perform a local and global parameter search, compute a profile likelihood for the reporting rate, and provide a benchmark comparison against a negative binomial IID model and a SARMA model. Genuine strengths include: the inclusion of a non-mechanistic benchmark comparison, use of replicated pfilter calls with logmeanexp for likelihood evaluation, and a multi-stage global search with diverse starting points. However, the analysis has several critical deficiencies: the measurement noise parameter tau is effectively not estimated due to an anomalously small perturbation size; the profile likelihood for the reporting rate is acknowledged to have only three points above the Wilks threshold; two key epidemiological parameters are fixed without any sensitivity or identifiability check; and the SEIR model is substantially outperformed by the SARMA benchmark (~47 log-likelihood units) without any model revision. Several analysis results are suppressed from the rendered HTML via `eval=FALSE`, compromising reproducibility.
 
 ---
 
 ## Major Issues
 
-### 1. SEIR model fails to beat the SARMA benchmark; no structural revision attempted
+### 1. Measurement noise parameter tau effectively not estimated
 
-The SARMA(3,3)x(1,1)_7 benchmark achieves a Jacobian-corrected log-likelihood of -1,104.23, which is 47.4 log-units above the SEIR MLE of -1,151.66. The authors acknowledge this gap and attribute it to the unmodeled weekly periodicity visible in the data and the periodogram. However, no structural revision to the SEIR model is attempted in response. Per Wheeler et al. (2024) and course instruction (MT2 Q4-02), when a mechanistic model fits substantially worse than a non-mechanistic benchmark, the correct response is to revise model structure — not simply accept the result. The identified 7-day seasonal cycle should have motivated at least a sensitivity analysis or model variant incorporating day-of-week effects. As the model currently stands, the conclusion that the SEIR model "can fit the data pretty well" (Conclusion section) is contradicted by the benchmark comparison.
+The perturbation size for tau is set to `rw.sd(..., tau = 0.0001, ...)`. Since tau is log-transformed (via `parameter_trans(log = c(..., "tau", ...))`), this specifies a perturbation of 0.0001 on the log scale per iteration. The course standard for log-transformed parameters is rw.sd = 0.02 — the chosen value is 200 times smaller. Over 700 total mif2 iterations in the global search, the maximum accumulated drift in log(tau) is approximately sqrt(700) × 0.0001 ≈ 0.003 log units, or a relative change of about 0.3% in tau. This means the iterated filtering algorithm cannot meaningfully optimize over tau.
 
-### 2. rho profile confidence interval based on only three points above the threshold
+The consequence is visible in the cached parameter file (`pomp_cache/writeup_params.csv`): the top-ranked MLE has tau = 0.1012, essentially at the upper boundary of the search box (`upper = c(..., tau = 0.1)`). The global search happened to sample starting points near the upper boundary of the tau box, and the tiny rw.sd prevented tau from moving, so the reported "MLE" for tau reflects the starting point distribution rather than genuine optimization. The true MLE for tau may lie above 0.1. This undermines all downstream inferences. The rw.sd for tau should be set to the standard 0.02 on the log scale, and the search box for tau should be expanded to confirm the optimum is interior.
 
-The authors state: "we would want to remain cautious about this result as only three points are above the threshold." A profile likelihood confidence interval requires sufficient coverage of rho values above the chi-squared cutoff to identify both the lower and upper CI bounds with confidence. With only three points above the threshold (Error 1.9, course-confirmed), the shape of the profile is ambiguous near the cutoff, and the reported CI of [40.97%, 48.01%] is not statistically reliable. The profile plotting code (`filter(rank(-loglik) < 3)`) further restricts the visible points to at most 2 per rho bin, compressing the evidence. The profile should be re-run with a denser grid covering the CI region, and the report should present a profile curve with clearly resolved upper and lower CI intersections.
+### 2. Profile likelihood for rho too sparse to support valid confidence intervals
 
-### 3. rw.sd for tau is negligibly small relative to the scale of optimization needed
+The 95% confidence interval for rho [40.97%, 48.01%] is read from a profile that has only three points above the Wilks threshold (chi-square cut-off for 95% CI). The authors themselves acknowledge: "we would want to remain cautious about this result as only three points are above the threshold." The course standard requires approximately 5 points at run_level=2 or 30 points at run_level=3 (531-conventions.md). A profile with three points above the threshold cannot reliably identify the profile maximum or the CI endpoints. This is Error 1.9 from the student weakness reference (course-confirmed, Major). The profile must be recomputed with a finer grid of rho values, or more starting points per rho slice, to produce a valid CI.
 
-The perturbation for tau in all mif2 calls is rw.sd = 0.0001 on the log scale (line 319). Since tau uses a log transformation (partrans = log), this corresponds to a multiplicative factor of exp(0.0001) - 1 ≈ 0.01% per IF2 step. The MLE tau is approximately 0.101, while the starting value is 0.001 — a ratio of ~100x, or 4.6 units on the log scale. No single mif2 chain with 100 iterations and rw.sd = 0.0001 can bridge this gap through the random walk perturbation alone. This means tau optimization depends entirely on the choice of starting value sampled by the global search, not on IF2 exploration. Consequently, the mif2 algorithm does not meaningfully optimize tau, making the MLE and all downstream uncertainty assessments for tau unreliable. The standard perturbation size for parameters on a transformed scale is rw.sd = 0.02 (course note Ch 15, p31). The tau perturbation should be revised to at least 0.02 on the log scale.
+### 3. Key epidemiological parameters mu_EI and mu_IR fixed without profiling or sensitivity analysis
 
-### 4. MLE for tau lies at the global search box boundary
+The incubation rate (mu_EI) and recovery rate (mu_IR) are fixed at 0.1 day^-1 based on a qualitative literature range and are excluded from all optimization stages ("we will set both mu_EI and mu_IR to 0.1 and fix them during the local and global search"). No profile likelihood or sensitivity analysis is reported for these parameters. Fixing parameters that are poorly determined by the data or that interact with other parameters (e.g., mu_EI and the contact rate b_j) can introduce substantial bias in the remaining estimates and obscure model misspecification. Wheeler et al. (2024) document that implausible fixed parameters can be interpreted as evidence of model misspecification rather than biological truths. At minimum, a sensitivity analysis or profile likelihood for mu_EI and mu_IR should be reported.
 
-The global search samples tau uniformly in [0, 0.1] (line 432), but the MLE tau reported in writeup_params.csv is approximately 0.101, which exceeds the box upper bound of 0.1. Since mif2 with rw.sd = 0.0001 cannot move tau far from its starting value (see Issue 3), the MLE is effectively constrained to the boundary of the search region rather than representing a free maximum. This indicates the global search has not explored the likelihood surface for tau adequately. A wider search box (e.g., tau in [0, 1]) and a larger rw.sd are needed to identify the true MLE (POMP checklist #6, computational adequacy; POMP checklist #5, parameter identifiability).
+### 4. SEIR model substantially outperformed by SARMA benchmark with no model revision
 
-### 5. mu_EI and mu_IR fixed without profile likelihood or identifiability assessment
+The SARMA(3,3)×(1,1)_7 benchmark achieves an adjusted log-likelihood of -1,104.23 on the original data scale, versus the SEIR MLE of -1,151.66 — a gap of approximately 47 log-likelihood units. This is a large gap by any standard. The 531-conventions.md course note states: "If the mechanistic model fits disastrously compared to the benchmark, our model is probably missing something important." The authors correctly identify the 7-day periodic component (driven by administrative reporting rhythms) as a likely explanation, but no model revision is attempted. The appropriate response is to investigate the model's structural failure — for example, by examining conditional log-likelihoods per time step — and attempt to address the source of misfit (e.g., by incorporating a weekly effect in the measurement model or contact rate). Reporting the loss without revision limits the scientific contribution of the analysis.
 
-Both mu_EI and mu_IR are fixed at 0.1 throughout all analyses, including local search, global search, and profile likelihood. While the authors justify the fixed values by citing external literature (incubation period 2-14 days, recovery period ~10 days), no profile likelihood or sensitivity analysis is performed to assess whether the data support these values, or whether fixing them constrains other parameter estimates. Per POMP checklist #5 (parameter identifiability), fixed parameters require explicit justification that they are not identifiable from the data, or a demonstration that results are insensitive to their values. The choice of mu_EI = mu_IR = 0.1 implies identical 10-day incubation and recovery periods, which is biologically arbitrary and not separately justified for Washtenaw County.
+### 5. Global search convergence diagnostics absent
 
-### 6. Profile CI construction conflates profile and global search results
+No trace plots are shown for the global search, which runs seven sequential mif2 stages per starting point. The only convergence evidence presented for the global search is a pairs plot of final parameter estimates. Without likelihood traces across mif2 iterations, there is no direct evidence that the 700-iteration global search has converged. The local search shows trace plots for 20 runs, but these cover only 50 mif2 iterations from a single starting point region and do not substitute for global search convergence diagnostics. This is Error 1.8 from the student weakness reference (course-confirmed, Major). Trace plots for the global search — showing loglik and parameters across the sequential mif2 stages for a representative sample of starting points — should be provided.
 
-The profile confidence interval for rho is computed from the entire writeup_params.csv file (`all = read.csv(PARAMS_FILE) %>% filter(is.finite(loglik))`), which includes local search (id=1), global search (id=2), and profile (id=3) results pooled together. The profile envelope is then constructed by taking the top-ranked loglik per rho bin across all runs. This is not a profile likelihood: the profile likelihood at a given rho value requires optimizing over all other parameters with rho fixed at that value. Using the global search results (where rho was free) as part of the profile curve contaminates the profile with unoptimized nuisance parameters and can produce an artificially high or low profile at certain rho values. The profile likelihood should be constructed only from the dedicated profile optimization runs (id=3), applying `group_by(round(rho, 2))` to those results only.
+### 6. No model diagnostics beyond unconditional forward simulation
+
+The diagnostic assessment consists entirely of visual comparison of forward simulations (conditioned on the estimated parameters but not on observed data) with the observed time series. No conditional log-likelihoods per time step are computed or plotted; no effective sample size (ESS) monitoring is reported; no filtering distribution plots are presented. Per Wheeler et al. (2024), conditional log-likelihood plots are essential for identifying where and why a model fails, and are the primary tool that motivated model improvements in their study. Given the large likelihood gap with the SARMA benchmark, such diagnostics are especially important here for diagnosing which time periods the model fails to explain.
+
+### 7. Profile likelihood computed only for rho; b1–b5 and eta not profiled
+
+Profile likelihoods are computed only for the reporting rate rho. The five time-varying contact rate parameters (b1–b5) and the initial susceptible fraction (eta) have no profile likelihood or confidence interval. With five beta parameters and the acknowledged difficulty of the likelihood surface (the local search shows some runs "stuck in local maxima"), identifiability of each contact rate segment is unclear. The pairs plots of the global search results suggest concentrated parameter regions, but these are insufficient substitutes for proper profiles. At a minimum, profile likelihoods for eta and the most important contact rate segments should be reported.
+
+### 8. ARMA model selection code not rendered; benchmark AIC unverifiable
+
+The code chunks that generate the AIC table justifying the choice of SARMA(3,3)×(1,1)_7 (four `eval=FALSE` chunks labeled `generate_aic_table` and the four calls) are not executed in the rendered HTML. The AIC of 231.698 appears in the text but the computation producing it is suppressed. Readers cannot verify which model was selected or whether the search over (P, Q, SP, SQ) was exhaustive. The AIC table code should be executed (or its results tabulated) in the rendered document.
 
 ---
 
 ## Minor Issues
 
-### 7. Local search results hidden from the report
+### 9. Local search results table and pairs plot not rendered
 
-The local search results table and pairs plots are set to `eval = FALSE` in the source code (lines 411-419), meaning they do not appear in the rendered report. The local search section describes the trace plots and notes that "some runs are stuck in local maxima," but the reader cannot verify the claims about likelihood progress or parameter trajectories. At minimum, the best few rows from the local search results should be presented to document the starting-point quality for the global search.
+The local search results table ("Local search results (in decreasing order of likelihood)") and the associated pairs plot are both in `eval=FALSE` chunks and do not appear in the rendered HTML. Readers can see the trace plots but not the numerical results or parameter scatter from the local search.
 
-### 8. No model diagnostics beyond forward simulation
+### 10. Initial compartment values E(0) and I(0) fixed without sensitivity
 
-The project presents no conditional log-likelihood plots, effective sample size (ESS) diagnostics from the particle filter, or filtering-distribution comparisons. Only forward simulations from the MLE are shown. Per POMP checklist #4 (model diagnostics), conditional log-likelihood plots by time point would reveal which periods the model fits poorly (e.g., the winter 2020 surge), and ESS monitoring during pfilter runs would reveal whether particle degeneracy is occurring. These diagnostics were available in the cached pfilter outputs and should have been presented.
+E(0) = 100 and I(0) = 200 are fixed based on a qualitative argument about travelers and are not estimated or profiled. No sensitivity analysis examines how the results change under different initial conditions. Given that initial conditions can substantially affect model fit (Wheeler et al. 2024 document an AIC impact of ~72 units for one model from initialization strategy), at least a brief sensitivity check is warranted.
 
-### 9. Time-varying beta break dates appear post-hoc rather than pre-specified
+### 11. Initial pfilter evaluation uses fewer particles than the rest of the analysis
 
-The five beta periods are defined by specific calendar dates (e.g., March 24, June 8, June 29, September 12), with break dates that appear to align visually with inflection points in the case time series. Only one break point (the initial period of external importation) has an independent citation. The remaining four are not linked to documented policy events (specific executive orders, school closures, or reopening stages) with citations. Given the documented political and public health timeline of COVID-19 in Michigan, these break dates should be tied to verifiable events, or the sensitivity of results to break point choice should be assessed.
+The initial log-likelihood evaluation for the starting parameter guess uses `Np=500` (line in the `writeup_lik_starting_values.rds` bake block), while the rest of the analysis uses `NP = 1000` (the run_level=2 value). The reported initial log-likelihood of -1,351.26 ± 25.50 is therefore based on a noisier particle filter estimate. The large SE of 25.50 further suggests 500 particles is inadequate even for this preliminary check.
 
-### 10. No model structure comparisons using likelihood
+### 12. Optimal tau at the boundary of the search domain
 
-Only one model structure — SEIR with five-period beta — is fitted. No simpler variants (fixed beta, two-period beta, three-period beta) are compared using likelihood ratio tests or AIC. Given that the model has five free beta parameters, a likelihood ratio test comparing five-period vs. four-period vs. three-period beta specifications would be informative about whether all five periods are statistically necessary (POMP checklist #8, model variations).
+The search box specifies `upper = c(..., tau = 0.1)`, yet the best parameter set in the cache has tau = 0.1012, essentially at the upper boundary. When an MLE lies on the boundary of the search space, the optimization may not have found the true maximum. The authors do not flag this or attempt an expanded search. This compounds the issue with the small rw.sd (Issue 1 above).
 
-### 11. Initial conditions include an unexplained 300-person discrepancy in population accounting
+### 13. R compartment not tracked; population conservation unverifiable
 
-The rinit code sets S = eta*N, E = 100, I = 200, H = 0. The initial population is S + E + I = eta*367601 + 300, with R = N - S - E - I = N*(1 - eta) - 300 implicitly recovered at time 0. This means the model assumes N*(1-eta) - 300 individuals have already recovered at the start — a large and biologically implausible number for a county with few recorded cases at the onset. For eta = 0.09768 (MLE), R(0) = 367601*(1-0.09768) - 300 ≈ 331,485. This implies ~90% of the county had already recovered before the epidemic was tracked, which contradicts the data narrative. The initial conditions should be explicitly specified and justified.
+The recovered compartment R is not included in `statenames`, so S + E + I + H does not equal N. While H is properly declared as an accumulation variable (reset each time step), there is no way to verify that the model conserves the population, since R = N - S - E - I is implicit but never checked. Tracking R explicitly would allow population conservation to be verified as a sanity check.
 
-### 12. SARMA AIC value inconsistent with reported log-likelihood
+### 14. 7-day weekly periodicity not incorporated into the SEIR model
 
-The text states the SARMA(3,3)x(1,1)_7 model has AIC of 231.698 on the log(cases+1) scale. The R output `arma33_s11$loglik - sum(log_cases)` gives the Jacobian-corrected loglik of -1,104.23, which would correspond to AIC = 2*(-(-1104.23)) + 2*14 = 2236.46, not 231.698. The AIC value of 231.698 is on the log(cases+1) scale, not the original scale. The comparison of log-likelihoods (-1,104.23 for SARMA vs -1,151.66 for SEIR) is correctly performed on the original scale, but the reported SARMA AIC of 231.698 is on a different scale and should not be cited alongside the other quantities without clarification.
+The periodogram identifies a dominant 7-day frequency (omega_2 = 0.14375 cycles/day, corresponding to a 7-day reporting cycle). This is the primary reason the SEIR model is outperformed by the SARMA model. The authors acknowledge this in the conclusion but make no attempt to address it — even a simple day-of-week effect in the measurement model's reporting rate could substantially reduce the benchmark gap. The limitation is real but should be accompanied by a brief attempt at correction.
 
-### 13. Measurement model undefined when H = 0
+### 15. Gaussian measurement model choice not discussed
 
-The dmeas Csnippet computes `mean = rho*H` and `sd = sqrt(pow(tau*H, 2) + rho*H)`. When H = 0, mean = 0 and sd = 0, making the normal distribution degenerate. The code handles Cases > 0 by computing `pnorm(Cases+0.5, 0, 0, 1, 0) - pnorm(Cases-0.5, 0, 0, 1, 0)`, which gives 0 in C for non-zero Cases. Only the tolerance (tol = 1e-25) prevents the log-likelihood from being -infinity. While H = 0 may be rare in practice during the epidemic, this edge case should be explicitly handled, for example by adding a small epsilon to the variance.
-
-### 14. Single-core execution reported for a 500-start global search
-
-The code sets NCORES = 1L (line 118), so the foreach %dopar% loops run serially. The 500-start global search with 7 mif2 passes each (700 total iterations per start, NP = 1000 particles, 20 pfilter evaluations) would require an extremely long wall-clock time on a single core. The total computation time is not reported, making it impossible to assess whether the cached results represent adequate computational effort or were terminated early. The report should document the total CPU time and confirm that all 500 starts were completed.
-
-### 15. No discussion of parameter uncertainty beyond rho
-
-The profile likelihood is computed only for rho. No uncertainty assessment is presented for the five beta parameters, eta, or tau, all of which are free parameters in the global search. Given that the model has 8 free parameters (b1-b5, rho, eta, tau), a complete uncertainty characterization requires profile likelihoods for at least the scientifically meaningful parameters. The contact rate parameters (b1-b5) are central to the epidemiological conclusions, yet no confidence intervals are reported for them (POMP checklist #5).
+The measurement model uses a discretized truncated normal with variance (tau*H)^2 + rho*H. The more standard choice for overdispersed count data in POMP COVID models is the negative binomial, which is directly parameterized for overdispersion and avoids the need for a tolerance constant `tol = 1e-25` to prevent log-likelihood collapse when H is small. No justification is provided for the Gaussian choice over the negative binomial. Given the measurement model can substantially affect inference (Wheeler et al. 2024), a brief justification or comparison would strengthen the analysis.
 
 ---
 
 ## Files Consulted
 
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/SKILL_pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/531_references/531-conventions.md`
-- `/Users/jin/Desktop/ai/week11/Skills/531_references/531-weakness-reference.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-profile-single-restart-audit/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-accumvar-double-reset/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W21/project15/blinded.Rmd`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W21/project15/pomp_cache/writeup_params.csv`
+**Skill files:**
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/SKILL_pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-conventions.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-weakness-reference.md`
+
+**Project files:**
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W21/project15/blinded.Rmd`
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W21/project15/pomp_cache/writeup_params.csv`

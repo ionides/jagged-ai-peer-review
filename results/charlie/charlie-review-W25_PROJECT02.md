@@ -3,106 +3,156 @@
 
 ---
 
+## Paper Metadata
+
+| Field | Details |
+|-------|---------|
+| **Inference method** | IF2 (mif2) with particle filter likelihood evaluation |
+| **R packages used** | pomp, tidyverse, ggplot2, foreach, doFuture |
+| **Code publicly available** | Partial — Full_Code.Rmd provided in submission folder |
+| **Data publicly available** | Yes — mlb-2024-asplayed.xlsx included |
+| **Benchmark comparison included** | No |
+
+---
+
+## POMP Checklist Scorecard
+
+| # | Practice | Status | Notes |
+|---|----------|--------|-------|
+| 1 | Likelihood-based inference | ~ | mif2 + replicated pfilter used correctly; but global search has only 5 starting points |
+| 2 | Benchmark comparison | ✗ | No ARIMA or IID comparison |
+| 3 | Quantitative goodness-of-fit reporting | ~ | Log-likelihood values reported; no AIC or SE context for model comparison |
+| 4 | Model diagnostics | ~ | ESS and trace plots shown; no conditional log-likelihood per game |
+| 5 | Parameter identifiability and uncertainty | ✗ | Profile likelihood computed but not shown in main report; no CIs stated in text |
+| 6 | Computational adequacy | ✗ | Full_Code.Rmd shows run_level="explore" (5 global starting points) |
+| 7 | Forecast methodology | N/A | No forecasts generated |
+| 8 | Model variations and nested comparisons | ~ | AR1 vs. static nested comparison is sound; Poisson vs. NegBin explored |
+| 9 | Stochasticity | ~ | Process noise present; Poisson observation model lacks overdispersion |
+| 10 | Reproducibility and extendability | ~ | Code present; no sessionInfo; parameter transformation inconsistency across files |
+| 11 | Corroboration with scientific knowledge | ~ | phi → -1 finding noted but not interpreted |
+| 12 | Measurement model specification | ~ | Poisson and NegBin compared; conditional distribution literature acknowledged as sparse |
+| 13 | Initial conditions | ~ | X_0=0 fixed without sensitivity analysis |
+
+---
+
 ## Summary
 
-This project applies a POMP framework to investigate whether "momentum" — modeled as a latent AR(1) process — contributes meaningfully to game-to-game variation in the 2024 Detroit Tigers' runs scored. The primary model uses a Poisson observation model with an opponent-strength covariate, and is compared against a static-latent-skill null model via a likelihood ratio test. The project also presents a negative binomial sensitivity analysis. While the paper demonstrates commendable use of IF2/particle filtering infrastructure and raises an interesting question, the main conclusion (that momentum is statistically significant) is fragile: it holds only under the Poisson model and collapses entirely under the negative binomial alternative. The paper acknowledges this fragility but does not address its root causes — most importantly, a model specification error in the transition density, insufficient computational effort, missing profile likelihoods for parameters other than phi, no comparison to a non-mechanistic statistical benchmark, and a likelihood ratio test applied under conditions where Wilks' theorem may not hold.
+The paper applies a POMP framework to model game-level batting performance for the 2024 Detroit Tigers, treating latent momentum as an AR(1) process that modulates a Poisson (or negative binomial) observation model for runs scored. The primary research question — whether momentum significantly contributes to offensive performance variation — is addressed through a likelihood ratio test comparing the AR1 model against a static (no-momentum) nested model.
+
+**Strengths:** The research question is well-motivated and baseball's structure (discrete games, 162-game season, separation of roles) is a sensible setting for a POMP analysis. The covariate for opponent pitching quality is thoughtfully constructed. The paper correctly uses replicated pfilter calls with logmeanexp for likelihood evaluation, and provides iterated filtering trace plots. The sensitivity analysis using a negative binomial measurement model is a meaningful contribution.
+
+**Weaknesses:** A mathematical error in the stated transition density equation (missing $x_n$ in the exponent) undermines confidence in the model presentation. The LRT on which the main conclusion rests is statistically invalid because the null hypothesis ($\sigma = 0$) lies on the boundary of the parameter space, violating the regularity conditions for Wilks' theorem. The conclusion that "momentum is a material factor" is asserted in the Discussion despite the negative binomial sensitivity analysis failing to reject the null — an internal contradiction that is not resolved. The global optimization code in Full_Code.Rmd uses only 5 starting points (explore mode), which is insufficient to identify the MLE on an acknowledged complex likelihood surface. The reported maximum log-likelihoods are also suspect due to a code bug that duplicates the global search results vector instead of combining local and global results.
 
 ---
 
 ## Major Issues
 
-### 1. Typographical error in transition density equation invalidates the written model
+### 1. Mathematical error in the transition density equation
 
-The AR(1) transition is stated as $X_n = \phi X_{n-1} + \varepsilon_n$, yet the transition density displayed in Equation (1) is written as:
+Equation (1) in the Model section states the conditional density as:
 
 $$f_{X_n \mid X_{n-1}}(x_n \mid x_{n-1}) = \frac{1}{\sqrt{2\pi\sigma^2}} \exp\!\left(-\frac{(\phi x_{n-1})^2}{2\sigma^2}\right)$$
 
-This density is not the correct Gaussian density for an AR(1) model; the numerator in the exponent should be $(x_n - \phi x_{n-1})^2$, not $(\phi x_{n-1})^2$. The Csnippet implementation in the code (`X = phi*X + d_X` with `d_X = rnorm(0, sigma)`) is in fact correct, so this is a typographical error in the manuscript rather than a code bug. Nevertheless, the mathematical expression as written is incorrect and describes a degenerate distribution with no dependence on $x_n$. The authors must correct the equation before publication to avoid misleading readers.
+This is incorrect. For the AR(1) model $X_n = \phi X_{n-1} + \varepsilon_n$ with $\varepsilon_n \sim N(0, \sigma^2)$, the correct density is:
 
-### 2. Missing non-mechanistic benchmark comparison
+$$f(x_n \mid x_{n-1}) = \frac{1}{\sqrt{2\pi\sigma^2}} \exp\!\left(-\frac{(x_n - \phi x_{n-1})^2}{2\sigma^2}\right)$$
 
-The POMP model is compared only against another POMP model (the static-skill variant), not against any non-mechanistic statistical baseline. A natural comparison would be an AR(1) or ARMA model directly on runs scored, or an auto-regressive negative binomial model. Without such a comparison, it is impossible to determine whether the mechanistic AR(1) latent-skill model captures structure that a simple time-series model cannot, or whether the apparent significance of momentum merely reflects that an AR(1) model fits any weakly autocorrelated count series better than a white-noise count model. Wheeler et al. (2024) note that none of the 32 papers they reviewed in the Haiti cholera literature performed such a benchmark comparison, and that the absence of a benchmark made it impossible to assess whether models captured meaningful structure. The same gap is present here. The authors should fit at least one non-mechanistic alternative (e.g., SARIMA, auto-regressive negative binomial) and report the comparison quantitatively.
+The term $x_n$ is entirely absent from the exponent in the written equation. The exponent as written does not depend on $x_n$ at all, making the expression a constant with respect to $x_n$ (not a valid density). The Csnippet implementation is correct (`X = phi*X + rnorm(0, sigma)`), so this is a presentation error, but one that calls into question the care taken in presenting mathematical content. **Fix:** Correct Equation (1) to include $(x_n - \phi x_{n-1})^2$ in the numerator of the exponent.
 
-### 3. Insufficient computational effort for global search
+### 2. LRT boundary violation — chi-squared approximation is not valid
 
-The global search uses only `nseq = 500` starting points (in `run_level = "final"`) with `Nmif = 100` re-optimization steps per guess. For a four-parameter model (gamma, phi, sigma, mu), 500 guesses is borderline; however, the log-likelihood spread of over 40 units reported in the paper indicates that the optimization has not converged reliably to the same maximum from different starting values. The mif2 calls in the global search also use only `Nmif = 100` iterations, which is less than the 150 used in the local search. A 40-unit spread in the global search results is a serious warning sign. The authors should increase the number of global restarts and/or IF2 iterations until the spread is reduced to a few log-likelihood units, and they should show replicated global searches reaching essentially the same maximum likelihood. As Wheeler et al. (2024) discuss, large improvements from increasing computational effort are common, and reported likelihoods from an under-converged search may substantially understate the true MLE, undermining the likelihood ratio test.
+The likelihood ratio test constrains $\sigma = 0$ under the null hypothesis. The parameter $\sigma$ is defined to be non-negative ($\sigma \geq 0$ via log-transform), so the null value $\sigma = 0$ lies on the boundary of the parameter space. Wilks' theorem requires the null value to lie in the interior of the parameter space; this condition is violated. The correct asymptotic null distribution in this case is a mixture of chi-squared distributions (specifically, a 50-50 mixture of $\chi^2_1$ and $\chi^2_2$ for the one-sided $\sigma$ constraint), not $\chi^2_2$. Using $\chi^2_2$ makes the test anti-conservative — it will reject the null too often — and the reported p-value of $< 0.001$ cannot be taken at face value. **Fix:** Acknowledge the boundary issue, use a simulation-based null distribution, or at minimum note this as a limitation and report the p-value under the appropriate mixture distribution.
 
-### 4. Likelihood ratio test conclusion is not robust and Wilks' conditions are not verified
+### 3. Duplicate vector in maximum log-likelihood computation
 
-The paper's primary conclusion — that momentum is statistically significant — rests on a likelihood ratio test (LRT) comparing the AR(1) Poisson model to the static Poisson model, yielding p < 0.001. However: (a) the LRT result reverses completely under the negative binomial measurement model, where the AR(1) and static models achieve essentially identical log-likelihoods (~-396.46 each); (b) the null hypothesis constrains phi = 0 and sigma = 0 simultaneously, placing the null on the boundary of the parameter space (sigma >= 0 is enforced via log-transformation). Wilks' theorem requires the null to be in the interior of the parameter space; when nuisance parameters are on the boundary, the chi-squared approximation is invalid and the true null distribution of the LRT statistic is typically a mixture of chi-squared distributions. The authors apply Wilks' approximation uncritically and do not acknowledge the boundary issue. The fragility of the conclusion across measurement models is acknowledged in the paper but not resolved; the boundary issue is not discussed at all.
-
-### 5. Profile likelihoods computed only for phi; identifiability unresolved for other parameters
-
-The paper presents a profile likelihood only for phi and concludes that the data are not very informative about phi given the flat likelihood surface. No profile likelihoods are computed for gamma, sigma, or mu. The global search scatter plots show substantial spread in all parameters, with a 40-unit log-likelihood range, which is consistent with poor identifiability. Without profile likelihoods for all key parameters, it is impossible to know whether gamma (the opponent-strength coefficient) or mu (baseline skill) are identified. Confidence intervals are not reported for any parameter. Wheeler et al. (2024) recommend computing profile likelihoods for all key parameters and using MCAP to obtain confidence intervals; the authors should do so, or at minimum report which parameters are and are not identifiable.
-
-### 6. Inconsistency in parameter transformations between blinded.Rmd and Full_Code.Rmd
-
-In the main report (blinded.Rmd), the parameter transformation is defined as:
+In the Conclusion section, the maximum log-likelihoods used for the LRT are computed as:
 
 ```r
-partrans <- parameter_trans(log = c("sigma", "mu"))
+MLL$pois$AR1 <- max(c(Output_AR1_pois[["results_glob"]]$loglik,
+                      Output_AR1_pois[["results_glob"]]$loglik))
 ```
 
-In Full_Code.Rmd, the same transformation for the AR1_pois model is defined differently in two places: the `rw_trans_models` function specifies `parameter_trans(log = c("sigma", "mu"))`, but the outer `partrans` object defined near the top of the code (used during global search) specifies only `parameter_trans(log = "sigma")` (line 182-184 of Full_Code.Rmd), omitting mu. This inconsistency means that the mu parameter is not constrained to be positive (i.e., is not log-transformed) in all parts of the optimization, which could lead to negative values of mu being explored and inconsistent optimization behavior. The authors should ensure that the parameter transformation is applied consistently throughout all optimization stages.
+The same `results_glob` vector is concatenated with itself. This is a no-op — `max(c(x, x)) = max(x)` — and the local search results (`results_loc`) are never included. The local search uses 150 mif2 iterations from the hand-selected starting point, while the global search uses only 100 iterations from random starts. If the local search found a higher log-likelihood (a plausible outcome given the narrow, well-initialized starting point), the LRT statistic and p-value could both be incorrect. The same pattern appears for all four models. **Fix:** Replace the duplicated `results_glob` with `c(results_loc$loglik, results_glob$loglik)` to ensure the global maximum is correctly identified.
 
-### 7. Data leakage in opponent-strength covariate construction
+### 4. Conclusion contradicts the sensitivity analysis
 
-The covariate $Z_n$ is constructed using season-long statistics from the 2024 season, which means that $Z_n$ for Game 1 is computed using data from Games 2 through 162. The paper acknowledges this issue briefly in the Discussion/Limitations section but treats it as a minor concern. In a model whose primary purpose is causal inference about momentum, this data leakage is non-trivial: the covariate for any given game is informed by future information, which could induce spurious correlations or distort the estimated role of the latent state. This is particularly problematic if the goal were forecasting, but even for explanatory purposes it introduces a confound. The authors should either construct $Z_n$ using only information available before Game $n$ (e.g., rolling averages), or provide a more thorough argument for why the full-season average is a legitimate approximation.
+The Discussion section opens with: "The analysis of our primary model led us to conclude that momentum is a material factor in explaining team-level offensive performance fluctuation in Major League Baseball." However, the paper's own sensitivity analysis (Section: Alternate Models) shows that under the negative binomial observation model, the AR1 and static models achieve "nearly identical maximum log-likelihoods of $\approx -396.46$," and the null hypothesis is not rejected. The paper presents two models that yield opposite conclusions (reject vs. fail to reject) and then asserts the affirmative conclusion without reconciling this contradiction. The evidence is model-dependent and the paper's primary claim is not supported by the body of its own results. **Fix:** Revise the Discussion to accurately reflect that the evidence for momentum is sensitive to the choice of measurement model, and present a more tentative conclusion.
+
+### 5. Insufficient global search computational effort
+
+`Full_Code.Rmd` sets `run_level <- "explore"`, which yields `nseq = 5` global starting points. The paper itself reports "a range of over 40 log-likelihood units" in the global search results and describes "a complicated likelihood surface" with identifiability issues. On a complex 4-parameter surface, 5 random starting points is not sufficient to characterize the global maximum. The acknowledged log-likelihood spread of 40 units suggests some starts are far from the true optimum, meaning the best-found likelihood across 5 starts is not reliable as an MLE estimate. This is course-confirmed (CC-Yes) Error 1.8 (missing convergence evidence via multiple searches reaching consistent likelihoods). **Fix:** Increase the number of global starting points substantially (course standard: nseq=100 at run_level=3), confirm that multiple runs converge to the same terminal log-likelihood, and re-run the LRT with the correctly identified MLE.
+
+### 6. Look-ahead bias in the covariate $Z_n$
+
+The opponent strength covariate $Z_n$ is constructed as the average number of runs allowed by the opposing starting pitcher across all their non-Tigers games in the 2024 season. This includes games played after game $n$. The Discussion section acknowledges this limitation but frames it as unlikely to matter because "it is unlikely that the Tigers' Game $n$ performance meaningfully influences their opponent's future games." However, the issue is not causal influence from the Tigers but the use of future information when constructing a predictor for game $n$. Using full-season statistics as a time-$n$ covariate violates temporal causality, can introduce systematic bias in parameter estimation (the opponent's season-end ERA is a better predictor than their current ERA), and means the model cannot be deployed in real time. **Fix:** Restrict $Z_n$ to statistics from games played strictly before game $n$ (using a running mean), or at minimum quantify the magnitude of the look-ahead bias by comparing parameter estimates under the current and causal covariate definitions.
+
+---
+
+## Computational and Diagnostic Assessment
+
+**Convergence:** Iterated filtering trace plots are shown for the local search (20 runs, 150 mif2 iterations) and the log-likelihood panel shows rapid initial increase followed by stabilization — a favorable convergence pattern. However, the global search is conducted with only 5 random starting points (explore mode), providing insufficient evidence of global convergence. The 40-unit log-likelihood range reported in the global results is inconsistent with convergence to a well-defined MLE.
+
+**Particle filter:** ESS is monitored and reported. The minimum ESS in the initial particle filter run is presented and described as "relatively high," which is appropriate commentary. Np=5000 is used for pfilter likelihood evaluation, and 10 replicates are aggregated via logmeanexp — this is correct procedure per course conventions.
+
+**Conditional log-likelihoods:** Per-game conditional log-likelihoods are not plotted. Such a plot would identify specific games where the model fails (e.g., the 15-run outlier game, shutout games), potentially informing model revision.
+
+**Profile likelihoods:** A formal profile likelihood for $\phi$ is computed in `Full_Code.Rmd` (with CI cutoff at the Wilks 95% threshold), but this is not shown in the main report. The report shows only a "poor man's profile" filtered to $\log L > \max - 10$, without reporting the confidence interval for $\phi$. Given that $\phi$ is the key parameter for the research question, the CI should be stated explicitly.
+
+**Computational scale:** Total CPU time is not reported. Run settings suggest moderate computational effort (Np=5000, 20 local runs × 150 iterations, 5 global starts × 100 iterations), but the explore-mode global search is inadequate.
+
+---
+
+## Reproducibility Assessment
+
+**Code availability:** `Full_Code.Rmd` is provided along with precomputed RDS output files. The analysis can largely be reproduced from the provided materials.
+
+**Final parameters:** MLE parameter vectors are archived in the RDS files, allowing the likelihood to be re-evaluated without re-running optimization.
+
+**Model-code consistency:** The Csnippet implementations match the stated model equations (subject to the notation issue in Equation (1) noted above). The measurement model in code is consistent between dmeasure and rmeasure.
+
+**Package versions:** No `sessionInfo()` output or `renv` lockfile is provided. The `pomp` package has undergone API changes across versions; without version documentation, exact reproduction is not guaranteed. The `pomp` and `ggplot2` versions should be documented.
+
+**Parameter transformation inconsistency:** `blinded.Rmd` uses `partrans = parameter_trans(log = c("sigma", "mu"))` (constraining both $\sigma > 0$ and $\mu > 0$), while `Full_Code.Rmd`'s main pomp object definition uses only `parameter_trans(log = "sigma")`. The mif2 optimization in `Full_Code.Rmd` applies `parameter_trans(log = c("sigma", "mu"))` via `rw_trans_models()`, so the actual optimization is consistent with the report's description, but the pomp object itself is created with a different transformation. These inconsistencies should be resolved.
 
 ---
 
 ## Minor Issues
 
-### 8. Scatterplot in Model Fitting section uses global search results mislabeled as local
+- **Profile likelihood omitted from main report:** The formal profile likelihood for $\phi$ (with the Wilks 95% CI cutoff shown as a horizontal reference line) is computed in `Full_Code.Rmd` but appears only in the full code, not in the main report. The key parameter's confidence interval should appear in the main analysis, not only in a supplement.
 
-In blinded.Rmd, the scatterplot plotted in the chunk `scattplot_loc` (labeled under "Local Search") actually plots `Output[["results_glob"]]` — the global search results — not the local search results. The code reads:
+- **No confidence intervals stated in the text:** The Discussion and Conclusion sections report only point estimates (MLL $\approx -397.81$ vs. $-437.50$) without confidence intervals for any parameter. The identifiability concerns flagged by the authors themselves make CIs especially important.
 
-```r
-results <- Output[["results_glob"]]
-```
+- **No non-mechanistic benchmark:** The nested comparison (AR1 vs. static POMP) establishes that the AR1 extension adds explanatory power within the POMP framework. It does not establish whether the POMP framework itself captures meaningful structure — a comparison against an ARIMA or IID negative binomial baseline would provide this context. Per course conventions, this is not required, but its absence limits the interpretability of the absolute likelihood values.
 
-This appears before the global search section header, so the figure is placed in the narrative as if it follows the local search. The caption should clearly label this as global search output, or the code should be corrected to use local search results for the local search section.
+- **$\phi \to -1$ finding not investigated:** The local search converges to $\phi \approx -1$, implying that good offensive performance in one game predicts poor performance in the next. The paper notes this but provides no sports-domain interpretation and does not investigate whether the result is stable across the global search or specific to the initial starting point.
 
-### 9. Bug in opponent-strength fallback condition
+- **Single initial condition $X_0 = 0$ not evaluated for sensitivity:** The momentum at the start of the season is fixed at zero without assessing sensitivity. For a 162-game series, early-game fit can affect parameter estimates.
 
-In both blinded.Rmd and Full_Code.Rmd, the fallback logic for computing opponent strength has a parenthesis error:
+- **Pairwise scatterplot in the "Local Search" section uses global results:** The code block labeled as showing parameter correlations for the local search (`results <- Output[["results_glob"]]`) actually references `results_glob`, the global search results. The figure is placed and described in the Local Search context but displays global search output. This mislabeling is confusing.
 
-```r
-if (nrow(opp_pitch_games>0)) {
-```
+- **`nrow(opp_pitch_games > 0)` is non-idiomatic:** In the data processing loop (blinded.Rmd line 88 and Full_Code.Rmd line 52), the condition `if (nrow(opp_pitch_games > 0))` applies `> 0` to the entire data frame before calling `nrow()`. While this happens to produce the correct behavior in R (because `nrow()` on the resulting logical object returns the original row count), it triggers implicit warnings on non-numeric columns and is not idiomatic. The intent is clearly `if (nrow(opp_pitch_games) > 0)`.
 
-The `> 0` comparison is inside `nrow()`, which means it always evaluates to `nrow(TRUE)` = 1, which is always truthy. The intended logic is `nrow(opp_pitch_games) > 0`. As a result, the fallback branch (using all opponent games rather than pitcher-specific games) is never executed, and for starting pitchers with no non-Tigers games in the dataset, `mean()` would be called on an empty data frame, potentially producing `NaN`. The authors should verify that no `NaN` values appear in `det_games$opp_strength` and correct the condition.
+- **Comment error in blinded.Rmd:** The comment on the `partrans` block reads "log(mu) represents expected runs with no momentum against league-average pitching." This is imprecise: $\mu$ is already the log-expected runs (it appears inside `exp()` in the measurement model), so the comment should say "$\mu$ represents the log-expected runs."
 
-### 10. Model equation presentation uses a non-standard density form
+---
 
-Equation (2) presents the Poisson probability mass function as a density $f_{R_n | X_n, Z_n}(\cdot)$, written using the notation $\Prb{R_n = r_n \mid \ldots}$. More substantively, the model parameters are presented without a discussion of their prior ranges or biological/domain plausibility. For instance, no argument is made for why $\phi$ should be constrained to the explored range of $[-0.25, 1.5]$ in the global search, or why sigma values above 0.6 are excluded. Expanding the search bounds slightly and verifying robustness to those bounds would strengthen the analysis.
+## Recommendation
 
-### 11. Initialization is fixed at $X_0 = 0$ with no sensitivity analysis
-
-The latent state is initialized at $X_0 = 0$ ("neutral momentum") without any justification that this is appropriate for the start of the baseball season, or analysis of sensitivity to this choice. While the AR(1) process will converge toward its stationary distribution over time, the first several games' likelihoods will be affected by this initialization. The authors should either estimate the initial condition or demonstrate that the likelihood and parameter estimates are insensitive to reasonable alternative values of $X_0$.
-
-### 12. "Poor man's profile likelihood" is presented without explanation of its limitations
-
-The poor man's profile for phi (plotting loglik vs. phi from the global search without re-maximizing over nuisance parameters for each phi value) is presented in the main text. The authors correctly call it a "poor man's profile" but do not explain to the reader why it differs from a proper profile likelihood. Given that the paper later presents a proper profile likelihood (in Full_Code.Rmd), the poor man's version in the main text is superfluous and potentially misleading — it can show a flat surface even when a proper profile would reveal a peak — and should be removed or supplemented by the proper profile in the narrative.
-
-### 13. No RNG seed reported for global search initial conditions in blinded.Rmd
-
-The main report does not display the set.seed calls used before the global search. While the code in Full_Code.Rmd does set seeds, readers of blinded.Rmd cannot verify reproducibility. The seeds used in the computation should be reported, along with the number of particles and iterations, so that another researcher could attempt to reproduce the key log-likelihood values.
-
-### 14. Wilks' theorem applied without checking whether the chi-squared approximation is reasonable
-
-Beyond the boundary issue (Major Issue 4), the LRT with df = 2 may have poor finite-sample calibration on a time series of length 162. No parametric bootstrap or simulation-based calibration of the null distribution is performed. Given that the conclusion of the paper rests entirely on the LRT p-value, the authors should at minimum acknowledge the small-sample concern and consider a simulation-based assessment of the null distribution of the test statistic.
-
-### 15. Missing sessionInfo() and package versions
-
-The supplement does not include `sessionInfo()` output or a pinned package environment. The `pomp` package API has changed across versions and results may not be reproducible on current CRAN releases without version pinning. The authors should include `sessionInfo()` at the end of Full_Code.Rmd, or use `renv` to lock package versions, consistent with best practices for POMP code supplements (see code-supplement-checklist-pomp.md).
+**Major Revision.** The paper addresses an interesting question with a well-suited modeling framework, and the writing is generally clear. However, several methodological issues must be addressed before the analysis can support its conclusions: the LRT boundary violation undermines the statistical test on which the main conclusion rests; the duplicated-vector bug in the MLL computation means the reported MLE and LRT statistic may be incorrect; and the conclusion stated in the Discussion is at odds with the sensitivity analysis. The global optimization effort should be increased and the formal profile likelihood for $\phi$ should appear in the main report. Addressing these issues may well change the paper's primary finding, but would place it on a sound methodological footing.
 
 ---
 
 ## Files Consulted
 
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/SKILL_pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project02/blinded.Rmd`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project02/Full_Code.Rmd`
+**Skill files:**
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/SKILL_pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/assets/rev_template_pomp.qmd`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-conventions.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-weakness-reference.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/README.md`
+
+**Project files:**
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W25/project02/blinded.Rmd`
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W25/project02/Full_Code.Rmd`

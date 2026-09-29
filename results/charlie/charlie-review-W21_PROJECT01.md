@@ -1,86 +1,194 @@
 # Peer Review: W21 Project 01
+
 **Title:** Investigating the effects of vaccinations and government policy on the spread of COVID-19 in the State of Pennsylvania
+
+---
+
+## Paper Metadata
+
+| Field | Details |
+|-------|---------|
+| **Inference method** | IF2 (mif2), particle filter (pfilter) |
+| **R packages used** | pomp, foreach, doParallel, doRNG, tidyverse |
+| **Code publicly available** | Partial — inline Rmd; stew-cached RDA files referenced but not archived |
+| **Data publicly available** | Yes — loaded from live URLs (covidtracking.com, github.com/owid) |
+| **Benchmark comparison included** | No — ARMA fitted but not quantitatively compared to SEIR |
+
+---
+
+## POMP Checklist Scorecard
+
+*✓ = satisfies practice, ~ = partially satisfies, ✗ = does not satisfy, N/A = not applicable*
+
+| # | Practice | Status | Notes |
+|---|----------|--------|-------|
+| 1 | Likelihood-based inference | ~ | mif2 + logmeanexp used correctly; convergence entirely absent |
+| 2 | Benchmark comparison | ✗ | ARMA fitted but log-likelihood never compared to SEIR |
+| 3 | Quantitative goodness-of-fit reporting | ✗ | No absolute log-likelihood value ever stated |
+| 4 | Model diagnostics | ✗ | No trace plots, no ESS, no conditional log-likelihoods |
+| 5 | Parameter identifiability and uncertainty | ✗ | No profile likelihoods, no CIs |
+| 6 | Computational adequacy | ~ | Np=5000, Nmif=500 run on HPC; convergence not demonstrated |
+| 7 | Forecast methodology | ✗ | Promised in introduction; never delivered |
+| 8 | Model variations and nested comparisons | ~ | Three models explored; no quantitative model comparison |
+| 9 | Stochasticity | ~ | Binomial transitions present; no overdispersion in measurement model |
+| 10 | Reproducibility and extendability | ~ | Inline code present; live URLs and no archived parameters |
+| 11 | Corroboration with scientific knowledge | ~ | Brief parameter discussion; implausible initial rho |
+| 12 | Measurement model specification | ✗ | H = I (stock) used to model positiveIncrease (flow) |
+| 13 | Initial conditions | ~ | Estimated from data averages; sensitivity not assessed |
+
+*Checklist based on Wheeler et al. (2024), PLOS Computational Biology 20(4): e1012032.*
 
 ---
 
 ## Summary
 
-This project fits a SEIR compartmental model with covariates (government policy multipliers and vaccination counts) to daily positive COVID-19 case data from Pennsylvania (June 2020 – March 2021) using the `pomp` package and iterated filtering (IF2). The authors progressively build up a model from a simple SEIR to one that incorporates time-varying transmission rates and vaccine-induced immunity. While the project addresses a relevant and timely question and shows familiarity with the `pomp` workflow, the analysis suffers from several serious methodological and reporting deficiencies: the accumulator variable `H` is misspecified (it is set equal to the current stock of infected individuals rather than the cumulative flow), the covariate multipliers for transmission are hard-coded with no statistical justification, convergence of the global search is never demonstrated, profile likelihoods are entirely absent, and no quantitative goodness-of-fit statistics are reported or used to evaluate whether the mechanistic model outperforms the ARIMA baseline cited in the paper. The conclusions are therefore not adequately supported by the presented evidence.
+The project fits a SEIR compartment model to daily new COVID-19 cases in Pennsylvania (June 2020 – March 2021) using iterated filtering via the pomp package. The model is extended progressively to incorporate government-policy covariates (step-changes in Beta) and vaccination (a flow from S directly to R). While the project engages with POMP methodology at appropriate computational scale (Np=5000, Nmif=500, HPC cluster) and asks a scientifically interesting question, the analysis is severely undercut by the absence of any convergence diagnostics, the failure to report a single absolute log-likelihood value, a fundamental mismatch between the measurement model and the data type, and an internal contradiction in the second iterated filtering exercise.
+
+**Strengths:**
+- Scientifically motivated model extensions (policy and vaccination covariates) with reasonable biological justification
+- Substantial computational effort (8 hours on a 36-core cluster)
+- Correct use of logmeanexp for pfilter aggregation
+
+**Weaknesses:**
+- No iterated filtering trace plots; convergence is undemonstrated
+- Measurement model (H = I, stock) incompatible with data (positiveIncrease, flow)
+- Log-likelihood filter of ±50,000 units reveals catastrophic optimization failure
+- No absolute goodness-of-fit value reported anywhere
+- No profile likelihood; no confidence intervals
+- Second iterated filtering contradicts its stated purpose
 
 ---
 
 ## Major Issues
 
-### 1. Critical misspecification of the accumulator variable H
+### 1. Missing convergence diagnostics for iterated filtering (CC-Yes, Error 1.8)
 
-The process model sets `H = I` at every time step (lines 190, 270, 375 of blinded.Rmd), meaning H tracks the instantaneous stock of currently infected individuals rather than the cumulative flow of new infections over a time step. The measurement model then draws `reports = rbinom(H, rho)`, equating daily reported cases to a binomial sample from the total current infected count. This is biologically incorrect: daily reported cases represent new detections, not random samples from all currently-infected individuals simultaneously. The correct formulation should set H to zero at the start of each time step (using `accumvars` to handle the reset) and accumulate only the flow `dN_EI` during the step, so that H counts new transitions into the I compartment per time step. The current implementation fundamentally misaligns the observation model with epidemiological reality and makes all downstream parameter estimates uninterpretable. Specifically, because H conflates stock and flow, the estimated reporting rate `rho` and the transmission rate `Beta` will absorb the stock-vs-flow discrepancy in ways that are impossible to disentangle.
+The project runs mif2 with Np=5000 and Nmif=500 for 500 replicates but presents zero trace plots. There is no evidence — not a single panel — showing the log-likelihood rising across IF2 iterations, nor any parameter convergence traces. The pairs plots in the global search output are post-hoc summaries of terminal values, not convergence diagnostics. Without trace plots showing the log-likelihood panel converging upward across replicate runs from diverse starting values, there is no basis for claiming the optimizer found anything near the global maximum. This error was explicitly tested in W25 Q10-01 and Q10-03.
 
-### 2. No benchmark comparison for the mechanistic model
+**Fix:** Add trace plots for both the log-likelihood and all free parameters across mif2 iterations, using `plot(m2)` or equivalent. The log-likelihood panel must show consistently upward trajectories across runs.
 
-The paper fits an ARIMA model as a "baseline" but explicitly states "We observe no significant evidence that the ARIMA model performs better than white noise. Thus we will use white noise as a benchmark." No log-likelihood or AIC values are ever computed for the ARIMA model, white noise model, or SEIR model under a common metric. Without a quantitative comparison, it is impossible to assess whether the SEIR model captures meaningful dynamical structure beyond a simple statistical model. Wheeler et al. (2024) identify this as the single most diagnostic check for mechanistic model validity; none of the 32 papers they reviewed performed such a comparison. The paper must report the log-likelihood of the SEIR model alongside a non-mechanistic benchmark (e.g., auto-regressive negative binomial) evaluated on the same data under the same observation model.
+---
 
-### 3. Convergence not demonstrated for the global search
+### 2. Measurement model mismatch: H = I (stock) applied to flow data
 
-The global search results are presented only as a pairs plot of parameter values colored by log-likelihood, and the authors themselves note "the log-likelihood has large variations even for the same value of the parameters." No IF2 convergence traces (log-likelihood vs. iteration number) are provided for any of the mif2 runs. Without these, it is impossible to determine whether the reported likelihoods are near the MLE or whether optimization terminated prematurely. Wheeler et al. (2024) emphasize that a large improvement in log-likelihood was "primarily attributed to increasing computational effort." The text mentions 500 replicates with Np=5000 and Nmif=500, but no evidence is provided that 500 iterations are sufficient, that the likelihood surface has been adequately explored, or that multiple restarts agree on a common maximum. This makes all conclusions about model fit unreliable.
+The accumulator H is defined as `H = I` in the Csnippet, and the paper explicitly states "we introduce an accumulator variable H in our model, which is equal to the current number of infected people. This is in contrast to the number of new infected people." The measurement model then draws `reports ~ Binomial(H, rho)`.
 
-### 4. No profile likelihoods or confidence intervals
+However, the observed data is `positiveIncrease`, which counts **new** daily positive tests. Under the model, `reports` is a sample from the current infected pool I — meaning the same infected individual contributes to the count on every day they remain infected. This is not how reported case counts work: a single person who is infected for 7 days appears once in positiveIncrease, but contributes to H for all 7 days. The model therefore generates counts proportional to disease prevalence rather than incidence, producing a systematic mismatch with incidence data.
 
-Profile likelihoods are never computed for any parameter. The pairs plots suggest substantial non-identifiability (the authors themselves note "the simulations do not help us in predicting the values of eta or mu_EI"), yet no formal identifiability assessment is performed. Without profile likelihoods, it is impossible to know which parameters are identifiable from the data, whether the reported MLEs are biologically plausible, and whether any scientific conclusions can be drawn from the parameter estimates. Wheeler et al. (2024) document cases where MLE estimates of zero for key parameters were evidence of model misspecification rather than biological truth — precisely this kind of diagnostic is needed here.
+The standard formulation for daily new infections is `H += dN_EI` inside the Csnippet, with `accumvars="H"` resetting H to zero each day. The authors' use of `accumvars="H"` combined with `H = I` does not accumulate transitions; it simply makes H a one-step copy of I.
 
-### 5. Hard-coded covariate multipliers with no statistical justification
+**Fix:** Replace `H = I` with `H += dN_EI` so that H accumulates new E→I transitions during each daily interval, matching the incidence interpretation of positiveIncrease.
 
-The transmission rate multipliers (1.38 from September 13, 1.0 before, and 0.89 from December 1) are set by hand with reference only to narratives about policy changes. These values are not estimated from data. The text states they were chosen "to reflect the shape of the data," which is curve-fitting by eyeball rather than statistical inference. This means the model has additional free parameters (the multiplier values and their change-points) that are informally calibrated rather than estimated via likelihood maximization, making formal model comparison and uncertainty quantification impossible. Wheeler et al. (2024) characterize ad hoc calibration as a major methodological concern. At minimum, the multiplier values should be treated as unknown parameters and jointly estimated with the remaining model parameters, or a sensitivity analysis should demonstrate robustness to the chosen values.
+---
 
-### 6. No quantitative goodness-of-fit statistics reported
+### 3. Log-likelihood filter range of 50,000 units indicates optimization failure
 
-Neither a log-likelihood value nor an AIC is reported for any model variant. Model comparison between the simple SEIR, the policy-covariate SEIR, and the vaccination SEIR is performed entirely by visual inspection of simulated trajectories against observed data. Wheeler et al. (2024) state that "visual comparisons alone are only a weak and informal measure of goodness-of-fit." The reported pairs plots display logLik values but no best logLik value is extracted and stated in the text. The reader cannot assess whether the model achieves a plausible fit to the data.
+After the global search, results are filtered with `filter(logLik > max(logLik) - 5e4)`. The threshold 5e4 = 50,000 log-likelihood units. For reference, the Wilks 95% confidence threshold for 5 parameters is approximately 5.5 units, and any reasonable global search would retain results within 10–20 units of the maximum to focus on near-optimal estimates. A threshold of 50,000 units is so permissive that it retains essentially all results regardless of quality.
 
-### 7. Measurement model is not overdispersed
+This filter, along with the authors' own observation that "the log-likelihood has large variations even for the same value of the parameters," is strong evidence that the optimizer completely failed to converge. The second analysis uses an equally permissive threshold of 1e4 = 10,000 units. The wide spread in the pairs plots corroborates this interpretation.
 
-The measurement model uses a binomial distribution: `lik = dbinom(reports, H, rho, give_log)`. Count data for infectious disease case reports is virtually always overdispersed relative to binomial (or Poisson) assumptions, especially for daily new case counts during a pandemic. A negative binomial measurement model is strongly recommended in the literature (Wheeler et al. 2024; see §Stochasticity). The binomial measurement model will likely produce over-confident parameter estimates and underestimate uncertainty. The authors do not justify this choice or test it against an overdispersed alternative.
+**Fix:** Diagnose why optimization failed (trace plots will help) before presenting results. If the model is fundamentally misspecified, revise model structure rather than widening the filter.
 
-### 8. Second global search uses the wrong POMP object
+---
 
-The "Iterative filtering on a smaller dataset" section states it performs global search for a "simple SEIR model without any covariates and without vaccination." However, the code still passes the object `datSEIR`, which at that point in the script has been updated to include the vaccination covariate (`covar50_IM`) and uses `seir_step_mod_ver2`. The code does not subset the data to September–December 2020 or remove the covariates. The narrative description is therefore inconsistent with the code that was actually executed. Results from this section cannot be interpreted as described in the text.
+### 4. No absolute log-likelihood value reported
+
+The project never states the best achieved log-likelihood from either global search. Only relative differences within the pairs plots are shown — and those are filtered through a 50,000-unit window. Without knowing the absolute log-likelihood, it is impossible to assess model adequacy, compare the SEIR model to the ARMA baseline, or determine whether the computational effort was sufficient to approach the MLE.
+
+**Fix:** Report the best log-likelihood value (and its Monte Carlo standard error) from each global search. This single number is the primary output of likelihood-based inference.
+
+---
+
+### 5. No profile likelihood for any parameter
+
+No profile likelihoods are computed. As a result, parameter identifiability is unassessed and no confidence intervals are reported for any estimated parameter. The authors acknowledge that "the simulations do not help us in predicting the values of η or mu_EI," which is precisely the kind of non-identifiability that profile likelihood would characterize. The pairs plots suggest a ridge between Beta and mu_IR, but this is not quantified with a profile.
+
+**Fix:** Compute profile likelihoods for at least Beta and rho, the two scientifically most important parameters. Report MCAP confidence intervals.
+
+---
+
+### 6. Second iterated filtering exercise contradicts its stated purpose
+
+The text states: "we perform a global search for a simple SEIR model without any covariates and without vaccination." However, the code on the next line calls `mif2(datSEIR, ...)` where `datSEIR` is the vaccination-covariate model (`seir_step_mod_ver2`) defined earlier in the Rmd. The object `datSEIR` was last modified to include both the C50 policy covariate and the IM vaccination covariate. The code does not redefine datSEIR to a simpler model before the second search. This means the second analysis does not in fact use a covariate-free SEIR; its results are not interpretable as claimed.
+
+**Fix:** Construct a separate pomp object with only the basic `seir_step` snippet and no covariate table, then perform the second global search on that object.
+
+---
+
+### 7. Underdispersed binomial measurement model for COVID-19 data
+
+The measurement model is `reports ~ Binomial(H, rho)`. The binomial distribution is at most as dispersed as H. COVID-19 daily case counts are highly overdispersed relative to the binomial, due to reporting delays, day-of-week effects, super-spreading events, and surveillance heterogeneity. A negative binomial measurement model with an overdispersion parameter would be substantially more appropriate. The use of a binomial model almost certainly causes the optimizer to find likelihoods that are artificially penalized for natural data variability, contributing to the poor optimization behavior observed.
+
+**Fix:** Replace the binomial measurement model with a negative binomial: `reports ~ NegBin(mu = H * rho, size = psi)` where psi is an estimated overdispersion parameter.
+
+---
+
+## Computational and Diagnostic Assessment
+
+**Convergence:** No convergence evidence is provided. The two global searches each run 500 mif2 replicates from diverse starting values (guesses, not shown in code but referenced), but no trace plots are presented. The extremely wide log-likelihood filter thresholds (50,000 and 10,000 units) are strong indirect evidence of convergence failure.
+
+**Particle filter:** Np=5000 is used in mif2 and Np=20,000 is used for final likelihood re-evaluation with 200 replicates per chain. These are reasonable particle counts. However, ESS is never monitored during filtering. The Monte Carlo SE of the likelihood estimates is computed (`se=TRUE` in logmeanexp) but never reported or discussed.
+
+**Conditional log-likelihoods:** Not computed. Plotting per-time-step log-likelihoods would identify which periods of the epidemic are poorly fit by the model — a standard diagnostic that is especially valuable here given the model's acknowledged misspecification.
+
+**Profile likelihoods:** Not computed for any parameter. No confidence intervals are reported.
+
+**Computational scale:** The full-data global search ran 8+ hours on a 36-core Linux cluster. This is a genuine computational investment, but without convergence diagnostics the effort cannot be evaluated.
+
+---
+
+## Reproducibility Assessment
+
+**Code availability:** Code is embedded in the Rmd file and is substantially complete. However, the actual stew-cached `.rda` files (box_eval_covar.rda, box_eval_simple.rda) are not in the project folder, so the expensive computation cannot be re-evaluated or verified without re-running it.
+
+**Final parameters:** No final MLE parameter vector is archived or reported in a table. Readers cannot evaluate the fitted model without re-running the 8-hour optimization.
+
+**Model-code consistency:** The text states the second analysis uses a "simple SEIR model without any covariates and without vaccination," but the code uses the vaccination-covariate datSEIR object. This is a direct inconsistency between text and code.
+
+**Package versions:** No sessionInfo() or renv lockfile is provided. The pomp API has changed across versions; results may not reproduce on current CRAN releases.
+
+**Auxiliary data:** All data is loaded from live URLs at runtime. The covidtracking.com API has since been discontinued, meaning the code cannot be re-run as written. The vaccination data URL may also be unstable.
+
+**HPC reproducibility:** The global search is described as running on a cluster but no job submission scripts or environment specifications are included.
 
 ---
 
 ## Minor Issues
 
-### 9. Accumulator variable declared but also serving as a state variable
+- **Forecast not delivered:** The introduction states "we will make a prediction on the future positive cases Increase considering the same lock-down control and vaccination increase." No forecast is produced in the paper.
 
-The `pomp` call declares `accumvars = "H"`, which instructs `pomp` to reset H to zero after each observation. However, the rprocess sets `H = I` (a stock) at the end of each step. The combined effect is that H will be zero at each observation time (because `accumvars` resets it after the measurement is taken) and will equal I only transiently during a step. This interacts with the measurement model in a non-obvious way. The authors should clarify what value of H is actually passed to the measurement model and verify it aligns with their biological intention.
+- **Covariate multipliers not estimated:** The C50 values 1.38 and 0.89 are manually chosen by reasoning ("~1.4 times the actual rate") rather than estimated statistically. No sensitivity analysis is performed for these values. They function as hidden fixed parameters that directly affect the likelihood surface.
 
-### 10. ARMA benchmark analysis is incomplete
+- **No safeguard against negative compartments:** In `seir_step_mod_ver2`, the update `S -= dN_SE + IM` can produce negative S if IM (daily new vaccinations) exceeds the remaining S population, particularly late in the vaccination campaign. No nearbyint clipping or bounds-checking is present for S.
 
-The paper states an AIC table is computed but only reports that "we observe no significant evidence that the ARIMA model performs better than white noise." The AIC table is produced but no model is fit and its log-likelihood extracted. A proper benchmark comparison would fit an ARMA(p,q) or seasonal ARIMA model and compare its log-likelihood (on an appropriate scale) to the SEIR model's log-likelihood. Stating that white noise is the benchmark because ARIMA offers no improvement is a misuse of baseline comparisons — it means the data may have been over-differenced or log-transformed in a way that removes the signal.
+- **Initial reporting rate rho = 0.9 is biologically implausible:** The initial guess rho = 0.9 implies 90% of infections are detected. Epidemiological consensus during the study period estimated true detection at 5–20% of infections. The pairs plot post-optimization shows rho ~ 0.2, consistent with the literature. While the initial guess does not affect the MLE in principle, it may affect convergence speed.
 
-### 11. Initial condition formulation is internally inconsistent
+- **No quantitative comparison between ARMA and SEIR:** The ARMA section concludes "we observe no significant evidence that the ARIMA model performs better than white noise" and nominates white noise as a benchmark, but the SEIR log-likelihood is never compared to either. Cross-model log-likelihood comparison is valid (MT2 Q4-01) and is expected in a complete analysis.
 
-The `rinit` function computes `S = nearbyint(eta*N) - ini_recovered` and `R = nearbyint((1-eta)*(N-ini_recovered) + ini_recovered)`. These formulas are not clearly derived from epidemiological principles and the relationship between `eta` (intended as the susceptible fraction) and the initial recovered population is not transparent. In the params vector, `eta=0.9` and `rho=0.9` are both set to 0.9 but serve completely different roles (susceptible fraction and reporting rate, respectively). The coincidence of these values and the unclear rinit formula raise the possibility of a parameter confusion error.
+- **guesses object not shown:** The code references `iter(guesses, "row")` in both global searches but the construction of `guesses` and `fixed_params` is not shown in the Rmd. Readers cannot determine how starting values were distributed.
 
-### 12. Data availability: external URLs may break
+- **No table of fitted parameter estimates:** No summary table presents the final parameter values. The pairs plots are the only output, but with a 50,000-unit filter these are uninterpretable as parameter estimates.
 
-All data are loaded from live URLs (`covidtracking.com` and `github.com/owid`). The Covid Tracking Project stopped updating in March 2021, and URL structures may have changed. No local data files are included. This prevents independent reproduction and makes the analysis fragile over time. The code-supplement checklist requires that all data needed to reproduce results be included alongside the code.
+- **Live URL dependency breaks reproducibility:** All data is fetched from remote URLs. The covidtracking.com API was retired in March 2021, meaning the code cannot run on new machines. Local data files should be included.
 
-### 13. Random seeds not properly managed for the global search
+---
 
-The script sets `registerDoRNG(4082879)` early in the document but the `stew()` calls do not explicitly record per-job seeds. The stochastic results of the parallel IF2 runs may not be exactly reproducible across different cluster configurations, R versions, or `doRNG` versions. The particle count and IF2 iteration counts are reported, but per-job seeds for the particle filter evaluations are not documented.
+## Recommendation
 
-### 14. No sensitivity analysis for key fixed parameters
-
-The parameters `mu_EI = 0.125` (incubation rate) and the initial conditions are fixed based on literature values or heuristic estimates, and no sensitivity analysis is performed to assess how estimates of `Beta`, `rho`, and `eta` depend on these fixed values. For a model with known identifiability challenges (acknowledged by the authors), this is a significant omission.
-
-### 15. No forecasting or out-of-sample evaluation
-
-The paper states in the introduction that it will "make a prediction on the future positive cases increase," but no forecast is produced. The conclusions section does not address forecasting at all. If forecasting was a stated goal, the paper should include either: (a) a held-out evaluation of forecasts against subsequent data, or (b) forward simulations from the filtering distribution with propagated parameter uncertainty, as described in Wheeler et al. (2024).
+**Major Revision.** The project engages with a scientifically important question and deploys substantial computational resources, but three intersecting problems make the current results uninterpretable: (1) no trace plots, so convergence is undemonstrated; (2) a fundamental mismatch between H (stock) and the incidence data; and (3) no absolute log-likelihood reported. Additionally, the second analysis is internally inconsistent (uses wrong model object). These issues must be resolved before the results have statistical validity. The authors should also add a negative binomial measurement model and profile likelihoods for at least the two key parameters.
 
 ---
 
 ## Files Consulted
 
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/SKILL_pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_w21/project01/blinded.Rmd`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_w21/project01/Makefile`
+**Skill files:**
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/SKILL_pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/assets/rev_template_pomp.qmd`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-conventions.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-weakness-reference.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/README.md`
+
+**Project files:**
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W21/project01/blinded.Rmd`

@@ -1,96 +1,255 @@
-# Peer Review: Stats531 Final Project W24 — Project 16
-## Modelling of the Influenza cases and spread in the Netherlands using ARIMA and POMP(SEIR) models
+# Peer Review: W24 Project 16
+## *Modelling of the Influenza cases and spread in the Netherlands using ARIMA and POMP(SEIR) models*
+
+---
+
+## Paper Metadata
+
+| Field | Details |
+|-------|---------|
+| **Inference method** | IF2 (mif2) + replicated pfilter for likelihood evaluation |
+| **R packages used** | pomp, forecast, doFuture, doParallel, doRNG |
+| **Code publicly available** | GitHub repository linked in data code; run.r and Blinded.Rmd present |
+| **Data publicly available** | WHO FluNet data, loaded via GitHub raw URL |
+| **Benchmark comparison included** | No (ARIMA section present but no quantitative cross-model comparison) |
+
+---
+
+## POMP Checklist Scorecard
+
+| # | Practice | Status | Notes |
+|---|----------|--------|-------|
+| 1 | Likelihood-based inference | ~ | IF2 + pfilter used; logmeanexp misapplied across parameter runs |
+| 2 | Benchmark comparison | ~ | ARIMA section present but no loglik comparison to POMP |
+| 3 | Quantitative goodness-of-fit reporting | ~ | Best loglik reported but from a misapplied logmeanexp call |
+| 4 | Model diagnostics | ✗ | No simulations from best-fit parameters; no ESS reporting |
+| 5 | Parameter identifiability and uncertainty | ✗ | Profile plots from global search envelope, not true profiles; implausible estimates unreflected on |
+| 6 | Computational adequacy | ~ | Global search with 400 starts and Np=10000 is reasonable; trace plots show a different local search |
+| 7 | Forecast methodology | N/A | No forecasting performed |
+| 8 | Model variations and nested comparisons | ✗ | No alternative model structures compared |
+| 9 | Stochasticity | ✓ | Binomial transitions with exponential probabilities; NegBin measurement model |
+| 10 | Reproducibility and extendability | ✗ | Hard-coded paths; no archived MLE parameters; code/text inconsistency |
+| 11 | Corroboration with scientific knowledge | ✗ | Implausible parameter estimates interpreted as biological findings |
+| 12 | Measurement model specification | ✗ | H accumulates recoveries, not incidence; rho ~ 0.003 not discussed |
+| 13 | Initial conditions | ~ | Initial conditions parameterized via eta; text/code mismatch in S_u |
+
+*Checklist based on Wheeler et al. (2024), PLOS Computational Biology 20(4): e1012032.*
 
 ---
 
 ## Summary
 
-This project fits a dual-branch SEIR POMP model to Netherlands influenza sentinel data from the 2022–2023 season, with the goal of quantifying vaccine effectiveness by estimating separate transmission parameters for vaccinated and unvaccinated subpopulations. The project has genuine scientific ambition — the vaccination stratification idea is mechanistically interesting and directly motivated by public health questions. However, the analysis suffers from several critical methodological failures: the force-of-infection formulation creates two fully isolated epidemic chains with no cross-subpopulation mixing, the MLE parameter estimates are biologically absurd (the vaccinated recovery rate implies a 12-year infectious period), the pseudo-profile likelihood plots are mislabeled and methodologically non-standard without acknowledgment, there is no non-mechanistic benchmark comparison, and the ARIMA section is used rhetorically rather than as a genuine quantitative comparator. These issues undermine the central conclusions about vaccine effectiveness.
+This project fits a dual-branch SEIR POMP model to Netherlands influenza sentinel surveillance data from the 2022-2023 season, with the aim of comparing transmission and recovery dynamics between vaccinated and unvaccinated individuals. The paper introduces an interesting scientific question and uses a global random search on a computing cluster to explore the parameter space. However, the model contains a fundamental structural error (decoupled transmission between the two subpopulations), the accumulator variable H tracks recoveries rather than incidence, and several critical statistical procedures are misapplied or absent. The interpretation of implausible parameter estimates as biological findings rather than evidence of model misspecification is a notable concern.
+
+**Strengths:** Clear scientific motivation; use of cluster computing for global search; correct use of logmeanexp for replicated pfilter calls; includes both vaccinated and unvaccinated compartments; good reporting of computational effort.
+
+**Weaknesses:** Decoupled transmission between subpopulations is a structural model flaw; H accumulates recoveries not incidence; logmeanexp misapplied to summarize the global search; implausible MLE estimates not diagnosed as misspecification; no simulation from best-fit parameters; text/code inconsistency in initialization.
 
 ---
 
 ## Major Issues
 
-### 1. Force-of-infection model treats vaccinated and unvaccinated populations as fully isolated — no cross-transmission
+### 1. Decoupled subpopulation transmission — a fundamental structural flaw
 
-The step function uses `Beta_v * I_v / N` for the vaccinated force of infection and `Beta_u * I_u / N` for the unvaccinated force of infection. This means vaccinated individuals can only be infected by other vaccinated infectious individuals, and unvaccinated individuals can only be infected by other unvaccinated infectious individuals. There is no cross-subpopulation transmission term. In reality, vaccinated and unvaccinated people are part of the same mixing pool: a vaccinated person can be infected by an unvaccinated infectious contact and vice versa. Without cross-terms (e.g., a shared force of infection `(I_v + I_u)/N` or separate but coupled terms), the two SEIR branches are independent epidemic chains that just happen to sum their `H` accumulators. This is not a model of vaccine effectiveness in a shared population — it is two separate epidemics. The main scientific conclusion that `Beta_v < Beta_u` proves vaccination "slows transmission" is not supported by this model structure, because the fitted Beta parameters absorb all the modeling constraints of fully segregated chains.
+The force of infection in the step function uses `Beta_v * I_v / N` for the vaccinated subpopulation and `Beta_u * I_u / N` for the unvaccinated subpopulation. This means vaccinated susceptibles can only be infected by vaccinated infectious individuals, and unvaccinated susceptibles can only be infected by unvaccinated infectious individuals. Cross-group transmission — an unvaccinated infectious person infecting a vaccinated susceptible, or vice versa — is entirely absent from the model.
 
-### 2. MLE vaccinated recovery rate is biologically absurd — a sign of model misspecification
+In any realistic mixed population, disease spreads across vaccination status. The absence of cross-group transmission means the two branches evolve as completely independent epidemics sharing only population size N. Any conclusions about relative transmission rates between vaccinated and unvaccinated groups are drawn from a model where those groups do not interact, which is a scientifically untenable assumption. A corrected force of infection for vaccinated susceptibles would be proportional to (I_v + I_u) or a weighted mixture, and similarly for unvaccinated susceptibles.
 
-The archived global search results (global_search.rds) show that the maximum log-likelihood is achieved at `mu_IR_v = 0.00151` per week. Since time is in weeks, the implied mean infectious period for vaccinated individuals is approximately 1/0.00151 = 661 weeks, or roughly 12 years. The top 10 results all show `mu_IR_v` well below 0.01 (ranging from 0.00015 to 0.67), while `mu_IR_u` is in a plausible range around 0.66 (infectious period ~1.5 weeks). Influenza infectious periods are typically 3–7 days regardless of vaccination status (CDC guidance). Rather than flagging this implausible estimate as potential model misspecification (as Wheeler et al. 2024 recommend), the paper interprets it as evidence that "vaccinated people that do get sick take longer to recover" — a conclusion entirely unsupported by epidemiological literature and almost certainly an artifact of the non-mixing model structure. The authors should treat this as a red flag for misspecification, not a biological finding.
+This flaw undermines all quantitative conclusions drawn from the model, including the core finding that β_v < β_u.
 
-### 3. No non-mechanistic benchmark comparison
+---
 
-The mechanistic SEIR model is never compared quantitatively against a non-mechanistic baseline. The ARIMA section is used only to argue that ARIMA is inadequate, justifying the pivot to SEIR; the ARIMA log-likelihood is never placed on a comparable scale to the SEIR log-likelihood for a formal model comparison. Wheeler et al. (2024, §Benchmark comparison) identify this as one of the most important checks: "None of the 32 papers in their Haiti cholera literature review performed such a comparison." Without comparing SEIR and ARIMA log-likelihoods on the same data, it is impossible to assess whether the mechanistic model captures meaningful structure beyond simple autocorrelation. The ARIMA(0,1,4) model has an AIC that can be directly compared (after accounting for the different likelihood scale), or an auto-regressive negative binomial benchmark could be constructed. This comparison should be performed.
+### 2. Accumulator H tracks recoveries (IR transitions), not incidence (EI or SE transitions)
 
-### 4. Pseudo-profile plots are methodologically non-standard and mislabeled
+In `seir_step`, the accumulator H is incremented by `dN_IR_v + dN_IR_u`, which counts individuals transitioning from infectious (I) to recovered (R) in each time step. The measurement model then assumes:
 
-The plots labeled "profile likelihood" for `Beta_v`, `Beta_u`, `mu_IR_v`, `mu_IR_u`, and the ratio parameters are not true profile likelihoods. A true profile likelihood for parameter `theta` fixes `theta` at a grid of values and maximizes the likelihood over all other parameters at each grid point. Instead, the code filters `profile_results` (the global search output) by `loglik > max(loglik) - 15` or `- 10`, groups by rounded parameter value, and takes the top-2 log-likelihoods per group. This is a pseudo-profile or scatter-filter approach, not profile likelihood maximization. As a result: (a) the confidence intervals implied by the chi-square cutoff line are not statistically valid, (b) the displayed parameter ranges may miss the true profile shape, and (c) the approach is not described in the text at all — readers are shown confidence-interval cutoff lines without any explanation that a non-standard method was used. Additionally, the "profile" for `ratio_beta` and `ratio_mu` (computed as post-hoc ratios of estimated parameters) is not a formal profile likelihood for those derived quantities.
+```
+INF_ALL ~ NegBin(k, rho * H)
+```
 
-### 5. Global search starting values in run.r conflict with bounds used in Rmd; mu_IR_v MLE is outside the initial search box
+Netherlands sentinel surveillance counts new flu diagnoses (cases entering the healthcare system, approximately at the EI or SE transition), not recoveries. Using IR transitions as the driver of observed incidence introduces a systematic phase lag equal to the infectious period. For vaccinated individuals with estimated mu_IR_v ~ 0.001 (implying infectious periods of hundreds to thousands of days), this lag is enormous. The standard SEIR POMP implementation tracks EI transitions (or SE transitions) in H to represent incidence. This should be corrected to `H += dN_EI_v + dN_EI_u` (or `dN_SE_v + dN_SE_u`).
 
-In the Rmd, the global search specifies `lower=c(mu_IR_v=0.1, ...)` and `upper=c(mu_IR_v=0.3, ...)`. Yet the MLE from the archived results shows `mu_IR_v = 0.00151`, which is two orders of magnitude below the stated lower bound. This means mif2 optimization drove the parameter far outside the initial search box. Because `mu_IR_v` uses a log transformation (`partrans=parameter_trans(log=c(...,"mu_IR_v",...))`) there is no hard boundary during optimization, but the starting values strongly suggest the authors did not anticipate this region of parameter space. This undiscovered region of the likelihood surface raises the possibility that the global search did not adequately explore the full parameter space, and that better optima might exist. The discrepancy between the search box and the MLE is never acknowledged. Wheeler et al. (2024, §Computational adequacy) stress the importance of diagnosing whether the optimization has genuinely converged.
+---
 
-### 6. No quantitative goodness-of-fit or model diagnostics reported
+### 3. Logmeanexp misapplied across multiple optimization runs
 
-The paper never presents a model simulation overlaid on the data to demonstrate visual fit. There are no forward simulations from the MLE parameters compared to observed influenza counts. No effective sample size (ESS) traces from the particle filter are shown, which would indicate whether the particle filter is degenerating. No conditional log-likelihood plot is presented. The only "result" output is a scalar maximum log-likelihood (`logmeanexp(profile_results$loglik, se=TRUE)`) quoted as "-189.93" without context — no comparison baseline, no interpretation of what this value implies about fit quality. Wheeler et al. (2024, §Quantitative goodness-of-fit) note that "visual comparisons alone are only a weak and informal measure of goodness-of-fit," but here there is not even a visual comparison from the MLE fit.
+Section "Result" contains:
 
-### 7. Initialization formula error: text and code give different S_u formula
+```r
+logmeanexp(profile_results$loglik, se=TRUE)
+```
 
-The text (Section "POMP Model") states the unvaccinated susceptible initial condition as:
+described as "The negative log likelihood in these runs reach a maximum (likelihood minimum) at:" followed by the output. The `logmeanexp` function computes `log(mean(exp(x)))`, which is the correct aggregation for replicate particle filter runs at a single fixed parameter vector — it converts multiple unbiased estimates on the natural likelihood scale back to the log scale (Error 1.1 in the course weakness reference). It is not appropriate for summarizing log-likelihood values from 349 optimization runs at different parameter vectors. Applied this way, it produces a quantity without a clear statistical interpretation and conflates the best-fit log-likelihood with a weighted average across the parameter space. The correct reporting is simply `max(profile_results$loglik)` = -189.93 (loglik.se = 0.021).
 
-$$S_u = \text{vaccinationRate} \times \eta_u \times N$$
+Additionally, the description refers to the "negative log likelihood reaches a maximum (likelihood minimum)" — the maximum of the log-likelihood corresponds to the best fit, not the minimum.
 
-However, the code initializes it as `S_u = nearbyint((1-vac_rate) * eta_u * N)`. The text formula is incorrect — it would initialize the unvaccinated group using the vaccination rate rather than its complement `(1 - vaccinationRate)`. Only the code is correct. This is a mathematical description error that undermines confidence in the model specification, as it suggests the written mathematics was not carefully checked against the implementation.
+---
 
-### 8. Incorrect and misleading mif2 local-search parameters in Rmd versus run.r
+### 4. Implausible parameter estimates not diagnosed as model misspecification
 
-The Rmd runs local mif2 with `Np=2000, Nmif=300, cooling.fraction.50=0.2` and large random walk standard deviations (`rw.sd` up to 0.15 for Beta). However, the cluster run.r script uses `Np=1000, Nmif=50, cooling.fraction.50=0.6` with much smaller `rw.sd=0.02`. The two scripts implement materially different optimization settings with no explanation of why the Rmd uses different settings than the cluster version that actually generated the archived results. The local search traces shown in the Rmd (Fig. traces) are therefore from a different optimization procedure than the global search, and the relationship between local and global search results is never clarified. The `mf1 <- mifs_local[[1]]` used to seed the global search in the Rmd code is thus from a potentially inconsistent local search.
+The top five global search results (available in global_search.rds) show mu_IR_v values of approximately 0.0015, 0.00017, 0.00018, 0.00030, and 0.667. The first four imply infectious-to-recovery transition rates for vaccinated individuals with mean infectious periods of 667, 5900, 5600, and 3300 days, respectively. These are biologically impossible for influenza.
+
+The paper attributes this to "vaccinated people that actually get sick take longer to recover" and speculates about preexisting conditions. This is a misinterpretation. Per course instruction (Error 1.5 in the weakness reference), when mif2 drives a parameter to a biologically implausible extreme, the correct diagnosis is model misspecification, not a new biological discovery. The near-zero mu_IR_v is consistent with the model compensating for structural issues (the decoupled transmission and the IR-tracking accumulator identified in Issues 1 and 2). The profile plots for mu_IR_v are consistent with an unidentified parameter.
+
+---
+
+### 5. Profile plots constructed from global search envelope are not true profile likelihoods
+
+The "profile" plots for Beta_v, Beta_u, mu_IR_v, mu_IR_u, and the ratios are constructed by:
+
+```r
+profile_results %>%
+  filter(loglik > max(loglik) - 15) %>%
+  group_by(round(Beta_v, 2.0)) %>%
+  filter(rank(-loglik) < 3) %>%
+  ungroup() %>%
+  ggplot(aes(x=Beta_v, y=loglik)) + ...
+```
+
+This takes the upper envelope of global search results binned by rounded parameter values. A true profile likelihood requires fixing the target parameter at each grid point and maximizing over all nuisance parameters via a dedicated optimization run at each point (Error 1.2 in the weakness reference). The global search may not have representative coverage at each parameter value, so the upper envelope can underestimate the true profile (CIs will be too wide) or produce a misleading shape. The 95% CI threshold `max(loglik) - 0.5 * qchisq(df=1, p=0.95)` = -191.85 is shown but confidence intervals are not reported numerically. For the ratio β_v/β_u, the profile shape is also unusual — it appears to be relatively flat — suggesting the ratio may not be well-identified.
+
+---
+
+### 6. No simulation from best-fit parameters — key diagnostic absent
+
+The paper does not include a single simulation from the fitted model overlaid on the observed data. This is the primary visual diagnostic for POMP models (Wheeler et al. 2024, §Model diagnostics): after optimization, forward simulations from the MLE parameters should be compared to the observed time series to assess whether the model captures the main features (outbreak timing, peak height, and decline). Without this plot, it is impossible to judge whether the model provides a scientifically plausible description of the data.
+
+---
+
+### 7. Convergence diagnostics shown are from a different local search than used for global optimization
+
+The Rmd displays mif2 trace plots from a local search using Np=2000, Nmif=300, cooling.fraction.50=0.2, and large perturbations (rw.sd=0.15 for Beta parameters). However, the cluster script run.r, which produces the global_search.rds results, uses a separate local search with Np=1000, Nmif=50, cooling.fraction.50=0.6, and rw.sd=0.02 for all parameters. The trace plots in the Rmd are not derived from the initialization used for the global search, so they do not demonstrate convergence of the procedure that generates the main results.
+
+---
+
+### 8. Initialization formula mismatch between text and code
+
+The paper specifies:
+
+$$S_u = (\text{vaccinationRate} \times \eta_u \times N)$$
+
+but the code correctly implements:
+
+```c
+S_u = nearbyint((1-vac_rate) * eta_u * N);
+```
+
+The code is correct (unvaccinated susceptibles should be a proportion of the unvaccinated population `(1 - vac_rate) * N`), but the mathematical specification in the text incorrectly uses `vaccinationRate` for both. Per the code supplement checklist (Wheeler et al. 2024), discrepancies between mathematical description and code implementation are a reproducibility failure. Readers relying on the text cannot correctly reconstruct the model.
 
 ---
 
 ## Minor Issues
 
-### 9. Inconsistency between stated goal and model output
+### 9. No quantitative benchmark comparison between POMP and ARIMA
 
-The introduction states the goal is to study "the impact of vaccination on the transmission and progression of influenza, focusing on the differing rates of change and associated risks between vaccinated and unvaccinated populations." However, the model directly parameterizes transmission rates (Beta_v, Beta_u) and recovery rates (mu_IR_v, mu_IR_u) per subgroup without a mechanistic representation of vaccine-induced immunity reduction. The vaccine effectiveness is inferred indirectly from Beta_v/Beta_u ratio post-hoc. A clearer formulation would relate Beta_v to Beta_u via an explicit vaccine efficacy parameter (e.g., `Beta_v = (1 - VE) * Beta_u`), which is both more interpretable and more identifiable.
+The paper discusses ARIMA models at length and selects ARIMA(0,1,4) as the best ARIMA specification. The POMP model achieves a best loglik of -189.93 (8 free parameters, AIC ≈ 395.9). The ARIMA AIC values are reported in tables but the ARIMA log-likelihood is not compared numerically to the POMP log-likelihood. A single sentence noting the log-likelihood gap would contextualize the POMP model's performance. Per 531-conventions.md, likelihoods from ARIMA and POMP models are directly comparable when fit to the same data. (Per 531-conventions.md, absence of a benchmark is not automatically a flaw, but the machinery for the comparison is already in place.)
 
-### 10. The "profile" plots use inconsistent loglik cutoff thresholds (10 vs. 15) without justification
+---
 
-Some plots filter at `loglik > max(loglik) - 15`, others at `- 10`. The statistical meaning of these cutoffs is never explained. The chi-square cutoff line corresponds to the 95% confidence interval threshold for a single parameter (0.5 * qchisq(0.95, df=1) ≈ 1.92 log-likelihood units), but the pre-filtering at 10 or 15 units introduces an asymmetry in display that may artificially truncate the profile tails. No justification for these filtering thresholds is provided.
+### 10. Overdispersion parameter k=10 fixed without justification
 
-### 11. The ARIMA section concludes incorrectly that SARIMA is inappropriate based on limited evidence
+The NegBin dispersion parameter k is fixed at 10 throughout. No rationale is provided for this value, and it is not estimated as part of the optimization. The value of k materially affects the width of the measurement distribution and hence the likelihood surface. Sensitivity of conclusions to k should at minimum be noted.
 
-The text claims "the analysis revealed that the data did not exhibit a consistent seasonal structure when using auto ARIMA with seasonality" and therefore proceeds without SARIMA. However, with only one flu season of data (35 weeks), the absence of detected seasonality is expected and trivial — you cannot detect a seasonal pattern from a single season. The appropriate conclusion is simply that seasonality cannot be estimated from this dataset, not that the data lacks seasonal structure. The discussion of SARIMA failure is misleading.
+---
 
-### 12. Hard-coded absolute path in run.r breaks reproducibility
+### 11. Aggressive cooling (cooling.fraction.50=0.2) in local mif2
 
-The file run.r contains `flu <- read.csv("/home/falarcon/stats531/final/Flu.csv", sep=";")` — an absolute path to the author's cluster home directory. This means run.r cannot be executed by any other user without manual path edits. The Rmd uses a GitHub raw URL instead, which is a better practice, but the two scripts read the data differently (semicolon vs. comma delimited in the source), suggesting they may not be equivalent. The code supplement checklist (Wheeler et al. 2024, §Reproducibility) explicitly flags hard-coded absolute paths as a red flag.
+The local mif2 in the Rmd uses `cooling.fraction.50=0.2`, which cools perturbations to 20% of their initial value after 50 iterations. The course standard (Ch 15) is 0.5. With Nmif=300, the perturbations drop to 0.2^6 ≈ 0.00006 of their initial value by iteration 300, effectively stopping exploration very early. This may prevent the local optimizer from finding the best nearby optimum and could explain the wide spread seen in parameter trace plots.
 
-### 13. The k (overdispersion) parameter is fixed without justification
+---
 
-The paper fixes `k=10` in all runs. The parameter `k` controls overdispersion in the negative binomial measurement model — fixing it rather than estimating it forces a specific degree of variability. No sensitivity analysis, prior justification, or citation for k=10 is provided. The profile plots do not include k. Given the high variability in influenza case counts, the choice of k can significantly affect both the fit and the model comparison.
+### 12. Best-fit rho ≈ 0.003 not discussed relative to known surveillance coverage
 
-### 14. No seed is set before the parallel doParallel local search in the Rmd
+The best-fit reporting rate rho ≈ 0.003 (0.3%) is not discussed. For Netherlands sentinel surveillance, which covers a subset of general practitioners, a low reporting fraction is expected — but 0.3% would mean only 1 in 300 actual cases appears in the data. This should at minimum be noted as a point of corroboration or implausibility. No comparison to external estimates of Netherlands sentinel surveillance coverage is made (Wheeler et al. 2024, §Corroboration with scientific knowledge).
 
-The code sets `set.seed(2488820)` early in the document, but then uses `%dopar%` for the local mif2 runs without `registerDoRNG()`. The commented-out line `# registerDoRNG(542451)` in the setup chunk was not activated. Without a registered RNG for parallel execution, the local search results are not reproducible across runs, violating the POMP code supplement checklist requirement for seeded parallel operations.
+---
 
-### 15. Typos and minor presentation issues
+### 13. Hard-coded absolute file paths in run.r
 
-- Section heading "Forcast" (line 157 in Rmd) should be "Forecast"; repeated at line 223 ("Forcase").
-- The text says "immunocompromized" (line 266); should be "immunocompromised".
-- The text says "slighlty" (line 612) rather than "slightly" and "inmuen systems" rather than "immune systems".
-- The pairs plot axes include `eta_v` and `eta_u` but these are not discussed in the text analysis, leaving readers without interpretation.
-- References list "STATS 531 slides, homeworks, and lectures" without a proper citation format; course notes should at minimum include the instructor, year, and URL.
+The cluster script run.r contains:
+
+```r
+flu <- read.csv("/home/falarcon/stats531/final/Flu.csv", sep=";")
+```
+
+and later:
+
+```r
+f_results <- read_rds("/Users/falarcon/Desktop/all/global_search_2.rds")
+```
+
+These paths are specific to the author's machines and break reproducibility for any other reader.
+
+---
+
+### 14. AIC tables not checked for optimization consistency
+
+The AIC table for d=1 models includes entries across p=0..4, q=0..4. Several entries in the AIC table likely show irregular patterns (e.g., AIC increasing by more than 2 units when adding one parameter to a nested model). Per Error 2.13 in the course weakness reference, an AIC increase exceeding 2 units when adding one parameter to a nested model indicates numerical optimization failure and should be flagged. The paper does not comment on the internal consistency of the AIC table.
+
+---
+
+### 15. Parallel local mif2 in Rmd not seeded with doRNG
+
+The local mif2 parallel loop in the Rmd:
+
+```r
+foreach(i=1:4, .combine=c, .packages=c("pomp")) %dopar% {
+  fluSEIR |> mif2(...)
+}
+```
+
+does not include a preceding `registerDoRNG()` call, making the results not exactly reproducible. In contrast, the global search code block correctly uses `registerDoRNG(12345)`. The Rmd also sets `set.seed(2488820)` at the top, but this does not propagate into parallel workers without `doRNG`.
+
+---
+
+## Computational and Diagnostic Assessment
+
+**Convergence:** Trace plots from 4 local mif2 runs (Np=2000, Nmif=300) are shown. The loglik panel should be checked for consistent upward convergence. However, as noted in Issue 7, these trace plots come from a separate local search that was not used to initialize the global search on the cluster.
+
+**Particle filter:** Np=10,000 used for likelihood re-evaluation in the global search; replicated 10 times with logmeanexp for each run. Particle count and replicate count are appropriate. ESS is not monitored or reported.
+
+**Conditional log-likelihoods:** Not computed or discussed. Per-time-step log-likelihoods would be informative for identifying time periods of poor fit.
+
+**Profile likelihoods:** See Issue 5. The plots labeled as profiles are upper envelopes of the global search, not dedicated profile computations. No numerical CI bounds are reported.
+
+**Computational scale:** 400 global search starts, each with Np=1,000 local mif2 seed followed by Nmif=1,000 continuation, and 10 replicated pfilter(Np=10,000) evaluations. This is a reasonable effort. Total CPU-hours not reported.
+
+---
+
+## Reproducibility Assessment
+
+**Code availability:** Rmd and run.r are present. The global_search.rds is archived in the repository.
+
+**Final parameters:** The best-fit parameter vector is not archived as a standalone file; it can be recovered from global_search.rds but this requires loading the full 400-row result table.
+
+**Model-code consistency:** Text/code inconsistency in S_u initialization (Issue 8). The accumulator H definition (Issue 2) is consistent between code and run.r but inconsistent with the paper's scientific claim.
+
+**Package versions:** No `sessionInfo()` output or renv lockfile provided. The pomp API version is not pinned.
+
+**Auxiliary data:** Data loaded from a GitHub raw URL; if that URL changes or becomes unavailable, the analysis breaks. No local copy archived.
+
+**HPC reproducibility:** run.r is provided and uses `bake()` for caching, but hard-coded paths (Issue 13) prevent out-of-box reproduction on another system.
+
+---
+
+## Recommendation
+
+**Major Revision.** The paper addresses an interesting scientific question and demonstrates appropriate use of cluster computing and IF2 optimization. However, it contains a structural model flaw (decoupled subpopulation transmission, Issue 1) and an accumulator specification error (H tracks recoveries rather than incidence, Issue 2) that together undermine the core scientific conclusions. The misuse of logmeanexp (Issue 3) and interpretation of implausible estimates as biological findings without considering misspecification (Issue 4) are also major concerns directly covered by course material. Before the conclusions about vaccine effectiveness can be taken seriously, the model structure must be corrected and the analysis re-run.
 
 ---
 
 ## Files Consulted
 
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/SKILL_pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W24/project16/Blinded.Rmd`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W24/project16/run.r`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W24/project16/global_search.rds`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W24/project16/Makefile`
+**Skill files:**
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/SKILL_pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/assets/rev_template_pomp.qmd`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-conventions.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-weakness-reference.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/README.md`
+
+**Project files:**
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W24/project16/Blinded.Rmd`
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W24/project16/run.r`
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W24/project16/global_search.rds`

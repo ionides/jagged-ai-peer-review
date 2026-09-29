@@ -3,12 +3,12 @@ import glob
 from collections import defaultdict
 from pathlib import Path
 
-DATA_DIR = Path(__file__).parent.parent / "results" / "ned-clean"
+DATA_DIR = Path(__file__).parent.parent / "results" / "comparator"
 
 def get_semester(fname):
     fname = fname.lower()
     for sem in ['w21', 'w22', 'w24', 'w25']:
-        if f'ned-clean-{sem}_' in fname:
+        if f'comparator-{sem}_' in fname:
             return sem.upper()
     return None
 
@@ -25,7 +25,6 @@ def parse_findings(path):
             continue
         findings = []
         for line in lines:
-            # Match lines with classification A or C
             m = re.search(r':\s*([AC])\s*[—–-]+\s*(.+)', line)
             if m:
                 code = m.group(1)
@@ -34,10 +33,10 @@ def parse_findings(path):
         results[reviewer] = findings
     return results
 
-# Collect all A and C findings
-all_findings = defaultdict(list)  # reviewer -> list of (code, text)
 
-files = sorted(glob.glob(str(DATA_DIR / "ned-clean-*.md")))
+all_findings = defaultdict(list)  
+
+files = sorted(glob.glob(str(DATA_DIR / "comparator-*.md")))
 for fpath in files:
     sem = get_semester(fpath)
     if not sem:
@@ -46,15 +45,15 @@ for fpath in files:
     for reviewer, findings in data.items():
         all_findings[reviewer].extend(findings)
 
-# Print counts
-reviewer_map = {'Alex': 'Baseline', 'Charlie': '531_Ref', 'Doug': 'Meta-Skill', 'Evan': 'Orchestrator'}
+
+reviewer_map = {'Alex': 'Baseline', 'Charlie': 'CourseGuided', 'Doug': 'MetaSkill', 'Evan': 'Orchestrator'}
 for rev in ['Alex', 'Charlie', 'Doug', 'Evan']:
     findings = all_findings[rev]
     a_count = sum(1 for c, _ in findings if c == 'A')
     c_count = sum(1 for c, _ in findings if c == 'C')
     print(f"{reviewer_map[rev]}: A={a_count}, C={c_count}, total={a_count+c_count}")
 
-# Write all findings to file for review
+
 out_path = Path(__file__).parent / "ac_findings.txt"
 with open(out_path, 'w') as f:
     for rev in ['Alex', 'Charlie', 'Doug', 'Evan']:

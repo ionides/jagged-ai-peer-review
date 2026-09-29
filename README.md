@@ -110,16 +110,19 @@ The `.claude/settings.json` file documents the permissions granted to the agents
 
 ### 4. Comparison
 
-After all AI reviews were complete, the Comparator agent compared each AI review against the human review for the same project. It uses a two-agent system:
+After all AI reviews were complete, the Comparator agent compared each AI review against the human review for the same project. It uses a three-agent system in addition to a python script that assembles the sub reports at the end:
 
-- `Comparator.md`: orchestrator that extracts the human issues list and calls the ComparatorReviewer agent once per reviewer (tools: Read, Write, Glob, Grep, Bash, Agent)
-- `ComparatorReviewer.md`: agent that classifies each finding into categories A–F for a single reviewer (tools: Read, Grep)
+- `Comparator.md`: orchestrator (tools: Agent, Bash). Holds no file-reading tool itself; it calls `HumanExtractor` once, then calls `ComparatorReviewer` once per reviewer, then runs the assembly script.
+- `HumanExtractor.md`: sub-agent that reads the human peer review file, extracts and standardizes the issues list, and writes it to disk (tools: Read, Write, Grep).
+- `ComparatorReviewer.md`: sub-agent that classifies one reviewer's findings into categories A–F against the extracted human issues list, and writes its own sub-report to disk (tools: Read, Write, Grep).
+- `analysis/assemble_comparator.py`: deterministic script, run by the orchestrator as the final step. It copies the human issues list and each sub-report verbatim, then computes the Combined Summary Table, per-reviewer metrics, consensus misses, and unique finds from the counts and coverage records those files already contain.
 
-The two-agent design was introduced to fix a hallucination problem when only one agent was used for the purposes of reviewing: when all four reviewers were analyzed in a single context window, the model would contaminate findings across reviewers (e.g., attributing a finding from one reviewer to another). Calling `ComparatorReviewer` as a separate agent for each reviewer ensures each comparison happens in a fresh, isolated context with no memory of the other reviewers.
 
-Comparator was invoked once per semester from the `submission/` directory (all file paths in the agent definition are relative to this directory), and looped through all projects in that semester sequentially. The only input required is the semester, for example:
+Calling `ComparatorReviewer` as a separate agent instance for each reviewer, in a fresh context with no memory of the other reviewers, was done to prevent any cross reviewer contamination or hallucination issues that could arise. Extraction of the human issue list is likewise handled by its own sub-agent (`HumanExtractor`), reading only the human review and no AI review, so the reference list every agent is scored against cannot be influenced by AI phrasing.
 
-> "Comparator, compare all reviews for W21."
+Comparator is invoked once per project (semester + project number), from the `submission/` directory. For example:
+
+> "Comparator, W21 PROJECT01."
 
 Comparison outputs are in `results/comparator/`.
 
@@ -130,15 +133,20 @@ Comparison outputs are in `results/comparator/`.
 | C | AI minor finding — human did not raise |
 | D | AI minor finding — human also raised |
 | E | Human raised — AI did not address |
-| F | Direct contradiction — excluded from Human Recall denominator |
+| F | Direct contradiction — excluded from Human Overlap denominator |
 
-**Human Overlap** = (B + D) / (B + D + E)
+The two headline metrics, chosen to treat AI-unique and human-unique findings symmetrically (an issue is either raised or not raised in peer review), are:
+
+**Human Overlap** = 1 − E / (total human issues), computed per project from each sub-report's Coverage record. 
+**AI-Unique Rate** = A + C / (total AI findings) = A + C / (A + B + C + D), computed per project from each sub-report's Findings classification.
+
+The two labels A and E used for computing the two measures given above are explored further in @fig-themes (Figure 3) and @fig-matrix (Figure 4) in the paper.
 
 #### Classification Rules
 
 Each `ComparatorReviewer` invocation receives (1) the AI reviewer's file and (2) the numbered human issues list extracted by the orchestrator. The agent reads the AI review and assigns every finding to a category using the following rules:
 
-**Matching (B/D vs. A/C/E):** Two issues are treated as matching when they refer to substantially the same underlying concern, even if phrased differently or pointing to a different specific manifestation of the same error. The deciding question is whether both identify the same logical or methodological error. Superficial topic overlap is not sufficient; issues on the same general theme that make different specific claims are not matched.
+**Matching (B/D vs. A/C/E):** Two issues are treated as matching when they refer to substantially the same underlying concern, even if phrased differently or pointing to a different specific manifestation of the same error. The deciding question is whether both identify the same logical or methodological error. Superficial topic overlap is not sufficient and issues on the same general theme that make different specific claims are not matched.
 
 Examples from the agent definition:
 - MATCH: "likelihood profiles are not shown" ↔ "no profile likelihoods are computed"
@@ -148,34 +156,7 @@ Examples from the agent definition:
 
 **Major/Minor (A vs. C, B vs. D):** Determined solely by the AI reviewer's own label. If the AI reviewer called a finding Major, it maps to A or B; if Minor, to C or D. The human review does not use Major/Minor labels, so severity is never inferred from the human side.
 
-**Counting constraints:** Each human issue is counted exactly once, even if multiple AI findings could match it. The match is assigned to the most directly relevant AI finding; remaining AI findings on the same topic are classified as A or C. The agent verifies that B + D + E + F equals the total number of human issues before finalizing counts.
+**Counting rule:** If several AI findings each match the same human issue, every one of them is labeled B or D and each names the human issue it matches. A or C is used only for a finding that matches no human issue at all. Note that there are cases where a single AI point matches two or more human issues at once and there are cases where multiple AI points match to a single human issue. Because of this, the number of B/D labeled findings need not equal the number of covered human issues.  
 
-### 5. Results Aggregation
 
-The A–F counts from the Comparator output files were aggregated into `analysis/comparator_results.csv` using `analysis/parse_comparator.py`, which parses the count tables directly from the markdown files. This script can be rerun to verify the CSV:
-
-```bash
-python analysis/parse_comparator.py
-```
-
-### 6. Theme Classification
-
-E-category findings (human raised, all agents missed) were classified into broad themes by having Claude read through all findings and assign each to a general category. The resulting counts are stored in `analysis/theme_counts.csv`. The classification and counts were manually verified for W21 by reviewing the individual assignments (If needed, we can do this for all the projects).
-
-### 7. Analysis and Figures
-
-Python scripts in `analysis/` generate all figures used in the paper. To regenerate:
-
-```bash
-cd analysis
-python coverage_trends.py
-python per_project_coverage.py
-python theme_piechart.py
-python matrix_comparison.py
-```
-
-- `coverage_trends.py`: plots Human Recall and AI Unique Rate by semester and reviewer, producing the main trend figure
-- `per_project_coverage.py`: plots the distribution of Human Recall across individual projects, faceted by reviewer
-- `theme_piechart.py`: plots the breakdown of human-only findings (E category) by theme as a pie chart
-- `matrix_comparison.py`: produces the finding-type matrix showing which reviewers flagged which categories of issues
 

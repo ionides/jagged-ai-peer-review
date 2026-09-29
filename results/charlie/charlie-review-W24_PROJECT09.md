@@ -1,112 +1,161 @@
-# Peer Review: W24 Project 09
-## Volatility Analysis of NASDAQ 100
+---
+title: "Review: W24 Project 09"
+subtitle: "*Volatility analysis of NASDAQ 100*"
+format: pdf
+---
+
+## Paper Metadata
+
+| Field | Details |
+|-------|---------|
+| **Inference method** | IF2 (mif2) + particle filter (pfilter) via pomp; ARIMA via arima(); GARCH via tseries and fGarch |
+| **R packages used** | pomp, tseries, fGarch, forecast, doParallel, doRNG, doFuture, tidyverse |
+| **Code publicly available** | Partial — Rmd and data file submitted; cached .rda stew files not included |
+| **Data publicly available** | Yes — NASDAQ IXIC daily closing prices, sourced via Python yfinance |
+| **Benchmark comparison included** | Yes — GARCH(1,1) (via both fGarch and tseries) used as benchmark against the POMP stochastic volatility model |
+
+---
+
+## POMP Checklist Scorecard
+
+*checkmark = satisfies practice, ~ = partially satisfies, x = does not satisfy, N/A = not applicable*
+
+| # | Practice | Status | Notes |
+|---|----------|--------|-------|
+| 1 | Likelihood-based inference | ~ | IF2 + replicated pfilter used correctly; logmeanexp applied |
+| 2 | Benchmark comparison | checkmark | GARCH(1,1) benchmark included and compared by logLik |
+| 3 | Quantitative goodness-of-fit reporting | ~ | LogLik reported for all models but text misquotes its own output |
+| 4 | Model diagnostics | ~ | Trace plots shown; no simulation-based or conditional logLik diagnostics |
+| 5 | Parameter identifiability and uncertainty | x | Profile likelihood code is buggy; CI invalid |
+| 6 | Computational adequacy | ~ | Run_level=3 for main model but run_level=2 for comparison model; no timing reported |
+| 7 | Forecast methodology | N/A | No forecasting performed |
+| 8 | Model variations and nested comparisons | ~ | Leverage vs. no-leverage compared, but at incomparable computational levels |
+| 9 | Stochasticity | checkmark | Stochastic volatility process and normal measurement model used |
+| 10 | Reproducibility and extendability | ~ | Rmd submitted; stew .rda files missing; no package version pinning |
+| 11 | Corroboration with scientific knowledge | ~ | sigma_nu near zero interpreted as weak leverage; plausibility discussed informally |
+| 12 | Measurement model specification | checkmark | Normal measurement model y ~ N(0, exp(H/2)) clearly specified in code and text |
+| 13 | Initial conditions | ~ | H_0 and G_0 estimated as parameters; sensitivity not assessed |
+
+*Checklist based on Wheeler et al. (2024), PLOS Computational Biology 20(4): e1012032.*
 
 ---
 
 ## Summary
 
-This project applies three time-series modeling frameworks — ARIMA, GARCH, and a POMP-based stochastic volatility model (Breto's leverage model) — to the full historical NASDAQ Composite (IXIC) daily return series from 1971 to approximately 2024. The authors conclude that neither ARIMA nor GARCH fully captures the heteroscedastic residual structure, and that the POMP model achieves a higher log-likelihood than the GARCH benchmarks. A secondary analysis removes the leverage term to test whether it is necessary, finding that the full model outperforms the simplified one.
+The paper applies ARIMA, GARCH, and a POMP-based stochastic volatility model (Breto's model with leverage effect) to demeaned log-returns of the NASDAQ 100 index spanning 1971 to 2024 (~13,400 daily observations). The authors report that POMP outperforms both ARIMA and GARCH by log-likelihood, and then test whether the leverage component is necessary by building a simplified no-leverage model. The main scientific claim is that the leverage effect is required even though its fitted magnitude is small.
 
-The project has genuine strengths: it engages seriously with model comparison via likelihood, uses the iterated filtering (IF2) machinery correctly in general, attempts a profile likelihood analysis, and provides a scientifically interesting nested model comparison. However, several critical flaws undermine the main conclusions. A bug in the profile likelihood evaluation code means the profile curve is computed from the wrong parameter vectors, invalidating the confidence interval claim entirely. The global search for the full Breto model uses far too few particles and replicates to be trusted on a dataset of 13,000+ observations. Likelihood comparisons between GARCH and POMP are made on non-equivalent bases. Model diagnostics beyond trace plots are absent, and reproducibility is limited by lack of archived parameter files and missing `sessionInfo()`.
+**Strengths:** The paper demonstrates a clean pipeline from data collection through ARIMA, GARCH, and POMP fitting. The use of GARCH as a quantitative benchmark is good practice. The authors apply logmeanexp correctly for aggregating replicated particle filter log-likelihoods, and they use run_level switching to manage computational scale. The scientific question — whether a leverage effect is needed in the volatility dynamics — is well-motivated and clearly posed.
+
+**Weaknesses:** A critical code error in the profile likelihood section causes the profile to evaluate parameters from the wrong optimization (the global search results, not the profile optimization results), completely invalidating the reported confidence interval for sigma_eta. The comparison between the leverage and no-leverage models is unfair because the two models are fitted at incomparable run levels (run_level=3 vs. run_level=2). A declining log-likelihood trajectory in the local search is misdiagnosed as overfitting rather than model misspecification. The text misreports the maximum log-likelihood from the global search as 3483 when the actual output shows 43483, reversing the claimed direction of the comparison with GARCH at that point in the narrative.
 
 ---
 
 ## Major Issues
 
-### 1. Profile Likelihood Code Bug Renders the Confidence Interval Invalid
+### 1. Profile likelihood code evaluates global search parameters instead of profile parameters
 
-In the profile likelihood evaluation loop (lines 501-504), the likelihood of each profile-optimized parameter vector is evaluated using `coef(if.box[[i]])` rather than `coef(if.prof[[i]])`. The variable `if.box` refers to the global search objects from the preceding section, not the profile objects `if.prof` that were just computed. As a result, `r.prof` contains log-likelihoods associated with global-search parameters, not profile-constrained ones. The profile curve and the stated confidence interval (`sigma_eta` between 0.54 and 1) are therefore based on incorrect parameter evaluations and cannot be trusted.
+The profile likelihood computation (Rmd lines 501–505) contains a critical indexing error. After running 100 profile optimization chains stored in `if.prof`, the log-likelihood evaluation loop reads:
 
-To fix this, line 503 must be changed to use `coef(if.prof[[i]])`.
+```r
+L.prof <- foreach(i=1:100, .packages='pomp', .combine=rbind) %dopar% {
+  logmeanexp(replicate(ndx_Nreps_eval, logLik(
+    pfilter(ndx.filt, params=coef(if.box[[i]]), Np=2000))), se=TRUE)
+}
+```
 
-This is the most serious error in the paper because the profile likelihood is presented as a key validation of the parameter estimates and the claim about the leverage effect.
+The argument `params=coef(if.box[[i]])` draws parameters from `if.box`, which are the 100 global search results (fitted without fixing sigma_eta), not from `if.prof` (the 100 profile optimization results with sigma_eta constrained). The resulting `r.prof` data frame pairs sigma_eta values from the profile optimizer (`t(sapply(if.prof, coef))`) with log-likelihood values from a separate set of global search evaluations (`L.prof`). The i-th sigma_eta and i-th log-likelihood come from different optimization runs with different sigma_eta values, so the pairing is meaningless.
 
-### 2. GARCH and POMP Likelihoods Are Not Comparable
+The consequence is that the profile likelihood plot does not show how the likelihood varies as sigma_eta is held fixed and other parameters are optimized. The plot instead shows a scatter of log-likelihoods from re-evaluated global search parameters plotted against unrelated sigma_eta values. The Wilks-based confidence interval [0.54, 1] for sigma_eta is therefore invalid. The fix is to replace `coef(if.box[[i]])` with `coef(if.prof[[i]])` in the evaluation loop.
 
-The paper's central comparative claim — that "POMP outperformed the previous two methods in terms of likelihood estimates" — rests on comparing log-likelihoods across GARCH (from `tseries::garch` and `fGarch::garchFit`) and the POMP model. These quantities are not comparable without adjustment because:
+### 2. Leverage and no-leverage models compared at incomparable computational levels
 
-(a) The GARCH models are fit to ARMA residuals or to the demeaned series under a Gaussian conditional distribution, while the POMP model is a full-data likelihood evaluated on the demeaned series with a different parameterization.
+The Breto leverage model (Section "Set up different level of modeling") uses run_level=3, giving Np=2000, Nmif=500, Nreps_eval=20, Nreps_local=20, Nreps_global=100. The no-leverage simplified model (Section "Volatility model without leverage") silently resets run_level=2, giving Np=100, Nmif=50, Nreps_eval=10, Nreps_local=20, Nreps_global=20.
 
-(b) The `tseries::garch` log-likelihood (labeled `L.garch`) is computed on a filtered subset of observations due to initialisation, and the `fGarch` likelihood includes the mean equation, making the observation counts differ.
+The no-leverage model's local search uses 20x fewer particles and 10x fewer IF2 iterations. The global search uses 5x fewer replicates. The conclusion "the 4-parameter model still reported less likelihood values with global search than the original model. This means the model with leverage performed better" is not supported: the no-leverage model may simply be under-optimized. The difference in maximized log-likelihoods between the two models could shrink substantially under matched computational effort. For a meaningful nested comparison, both models must be fitted with the same Np, Nmif, and number of replicate searches.
 
-(c) The POMP likelihood is evaluated at `run_level=3` with only `Np=2000` particles on 13,416 observations, producing a log-likelihood with a standard error described as "quite high" — the authors themselves note this.
+### 3. Declining log-likelihood during local search misdiagnosed as overfitting (CC-Yes, Error 1.5)
 
-Without demonstrating that all models are evaluated on exactly the same observations with the same observation model, the comparison is informal at best and misleading at worst. The authors should either align the observation models explicitly, or limit claims to directional comparisons while acknowledging the caveat.
+The local search trace is described as showing "a quick increase followed by a gradual decrease," and the paper concludes "This implies that the model might be overfitted and stuck in a local maxima." This misattributes the symptom. The course explicitly taught (Q10-01) that declining likelihood after an initial rise in iterative filtering signals model misspecification — the unperturbed model cannot fit the data — and that the correct response is structural model revision, not simply proceeding to global search with more random starting values. Overfitting and local-maxima entrapment are distinct phenomena from a declining optimization trajectory. The paper does not investigate which structural feature of the model causes the decline.
 
-### 3. Insufficient Computational Effort for the Full POMP Model on a 13,000-Observation Dataset
+### 4. Profile design evaluated on only 100 of 600 designed starting points
 
-The full Breto model is fit to 13,416 daily observations. At `run_level=3`, the authors use `Np=2000` particles, `Nmif=500` IF2 iterations, `ndx_Nreps_local=20` local search replicates, and `ndx_Nreps_global=100` global search replicates. For a dataset of this size, 2,000 particles is likely insufficient to produce stable likelihood estimates; the particle filter degenerates rapidly on long series. The authors themselves report "the standard error is quite high" for the best log-likelihood value from the global search. No sensitivity analysis varying `Np` is presented, and no effective sample size (ESS) diagnostics are shown to verify that the particle filter is functioning adequately. Conclusions about parameter estimates and model comparison drawn from a potentially degenerate particle filter are unreliable (Wheeler et al. 2024, Computational adequacy, §6).
+The `profile_design` call (Rmd lines 476–481) generates a 600-row grid: 40 sigma_eta values (in [0.5, 0.95]) times 15 random starting points per value. However, the subsequent optimization loop runs only `foreach(i=1:100, ...)`. Only i=1 through 100 of the 600 designed starting points are used, leaving 500 starting configurations unevaluated. On average, only the first 2–3 sigma_eta values out of 40 are covered by the profile. Even if the logLik evaluation bug (Issue 1) were corrected, the profile would still be incomplete. The paper acknowledges "the samples we got were pretty few" but attributes this to computation time rather than to the loop bound. The loop bound must be corrected to match nrow(guesses) for a complete profile.
 
-### 4. Profile Likelihood Uses `if1[[1]]` as Starting Point and Incorrect Run-Level Settings
+### 5. Profile CI upper bound lies at the boundary of the search range
 
-Independent of the indexing bug described in Issue 1, the profile optimization loop (`if.prof`) initializes all 100 profile replicates from `if1[[1]]` — the first replicate of the local search — rather than from `guesses[i,]`. The `params` argument is `c(unlist(guesses[i,]), params_test)`, but this is then overridden by `mif2`'s internal initialization from the object passed as its first argument (`if1[[1]]`). The profile design's starting-value diversity is thus not utilized.
+The reported profile CI for sigma_eta is described as "[0.54, 1]." The profile_design searches sigma_eta only in [0.5, 0.95] (Rmd line 477). An upper CI bound of 1 lies outside the searched range, indicating that the likelihood does not drop below the Wilks threshold within the feasible search region. This means sigma_eta is not identified from above: the data and model are consistent with sigma_eta values well above 0.95. The upper confidence bound is therefore an artifact of the search range, not a genuine statistical limit. The paper presents this as an identified interval without acknowledging the open-ended upper bound.
 
-Additionally, the profile section hardcodes `Np=2000` and `Nmif=200`, but `ndx_Nreps_eval` is still read from `run_level=3` (set globally earlier), which gives `ndx_Nreps_eval=20`. While the particle count is appropriate here, the replication strategy and starting point issue still undermine the profile.
+---
 
-### 5. No Benchmark Comparison Against a Standard GARCH Baseline on Equivalent Grounds
+## Computational and Diagnostic Assessment
 
-Wheeler et al. (2024, §Benchmark comparison) emphasize that mechanistic models should be compared against non-mechanistic statistical benchmarks using a quantitative, directly comparable measure. The GARCH model here could serve as such a benchmark, but as noted in Issue 2, the likelihoods are not aligned. More importantly, the paper does not establish whether the GARCH model's Gaussian innovations assumption is the relevant baseline or whether a GARCH model with t-distributed innovations (a standard extension that often fits financial returns much better) was considered. Without a rigorous baseline, the claimed superiority of POMP is not established.
+**Convergence:** Trace plots are shown for both the local and global search. The local search trace shows a declining log-likelihood trajectory (acknowledged but misdiagnosed; see Major Issue 3). The global search trace is described as showing "better convergence in G_0" but persistent spread in sigma_nu, mu_h, phi, and sigma_eta. The paper does not report how many global search runs reached likelihoods within a few units of the maximum, which is the standard evidence for convergence.
 
-### 6. Simplified Model Comparison Is Methodologically Flawed
+**Particle filter:** Replicated pfilter with logmeanexp is used correctly throughout. The number of particles (Np=2000 at run_level=3) is reported. ESS is not monitored at any point. For a dataset of 13,400 time steps, persistent ESS collapse would indicate model-data mismatch; its absence from the diagnostics is a gap.
 
-The paper constructs a simplified stochastic volatility model without the leverage term and runs it at `run_level=2` with `Np=100` particles and `Nmif=50` iterations, then compares its log-likelihood to the full model run at `run_level=3` with `Np=2000` and `Nmif=500`. This comparison confounds model structure with computational effort. A lower log-likelihood for the simplified model at lower computational intensity could reflect inadequate optimization rather than a genuine likelihood difference. The conclusion that "the model with leverage performed better" is therefore not supported. Both models should be optimized at the same computational settings before comparing log-likelihoods.
+**Conditional log-likelihoods:** Per-observation conditional log-likelihoods are not plotted. These would identify specific time periods (e.g., the 2000 dot-com crash, the 2008 financial crisis, 2020 pandemic) where the stochastic volatility model fits poorly and might motivate structural extensions.
 
-### 7. No Model Diagnostics Beyond Trace Plots and Pair Plots
+**Profile likelihoods:** The profile computation is invalidated by the code bug described in Major Issue 1. No profiles are computed for phi, mu_h, or sigma_nu, leaving identifiability of the other key parameters unassessed. The paper notes phi converges well in traces but does not verify this formally.
 
-The paper presents IF2 convergence traces and pair plots, but provides no further diagnostics. Missing are:
+**Computational scale:** The global search at run_level=3 is described as having been run on GreatLakes HPC ("more than 5 hours"). Total CPU-hours are not reported. The stew .rda cache files are not included in the submission, so the computation cannot be verified or reproduced without re-running the full HPC job.
 
-- Effective sample size (ESS) plots during particle filtering, which would indicate whether the filter is degenerating
-- Conditional log-likelihood plots per time step, which would identify specific periods of poor fit
-- Simulation-based model checks: forward simulations from the fitted model are not compared systematically to observed data in the full model analysis (only a brief simulation from initial test parameters is shown for the simplified model)
-- Filtering-distribution diagnostics
+---
 
-These diagnostics are recommended by Wheeler et al. (2024, §Model diagnostics, §4) and their absence means it is impossible to assess where the POMP model succeeds or fails on the data.
+## Reproducibility Assessment
+
+**Code availability:** The Rmd and data file (^IXIC_quote.csv) are submitted. The stew .rda cache files (pf1_3.rda, mif1_3.rda, box_eval_3.rda, profile_sigma_eta_3.rda, etc.) are not included. Without these caches, the analysis requires re-running multi-hour HPC computations that are not feasible from the submitted files alone.
+
+**Final parameters:** No standalone CSV or RDS file of the MLE parameter vector is archived. Readers cannot evaluate the fitted model without re-running the full optimization.
+
+**Model-code consistency:** The measurement model in code (`lik=dnorm(y,0,exp(H/2),give_log)`) matches the mathematical specification (`Y_n = exp(H_n/2) * epsilon_n`) for the normal measurement model.
+
+**Package versions:** No sessionInfo() output or renv lockfile is provided. The pomp API has changed across versions; results may not reproduce on current CRAN releases.
+
+**Auxiliary data:** The primary dataset file is included. No additional auxiliary inputs are required for this univariate model.
+
+**HPC reproducibility:** The paper mentions HPC (GreatLakes, SLURM) but no job submission scripts (.sbat or .slurm files) are included. Cluster environment specifications (node count, memory, walltime) are not documented.
 
 ---
 
 ## Minor Issues
 
-### 8. Initial Conditions Are Fixed and Not Estimated
+- **Text misquotes its own numerical output:** Section "Global search" states "The maximum of the value reached 3483 which is already better than GARCH and ARIMA," but the `summary()` output printed immediately below shows Min=43471, Max=43483. The maximum is 43483, not 3483. The text has dropped the leading "4". At the misprinted value of 3483, the claim would be false (3483 < 43265, the tseries GARCH logLik). The actual maximum (43483 > 43361.47) does support the claim.
 
-The initial conditions `G_0` and `H_0` are included in the parameter search but initialized identically across all global search replicates (drawn from a fixed box). The sensitivity of final results to the choice of initial condition box (`G_0 in [-2,2]`, `H_0 in [-1,1]`) is not assessed. For time series with 13,416 observations, the effect of initialization may be negligible, but this should be stated explicitly rather than assumed.
+- **tseries::garch log-likelihood normalization not verified (CC-Yes, Error 2.9):** The paper explicitly cites a Stack Exchange post about the normalization difference between tseries::garch and fGarch, and notes the tseries values are worse. It then proceeds to compare the POMP logLik (43483) to the fGarch ARMA(4,4)+GARCH(1,1) logLik (43361.47) without verifying that fGarch and POMP use the same likelihood normalization. The tseries two-step approach (GARCH fitted to ARIMA residuals) yields a joint-model approximation, not the full-data likelihood. The paper should verify the normalization conventions or flag the comparison as approximate.
 
-### 9. Inconsistent run_level for the Simplified Model
+- **No formal AIC comparison for nested leverage/no-leverage models:** The paper compares raw log-likelihoods between the 6-parameter leverage model and the 4-parameter no-leverage model. A likelihood ratio test statistic of 2 * (logLik_full - logLik_reduced) under chi-squared with 2 degrees of freedom would provide a formal test of whether the additional leverage parameters are statistically warranted, which is the scientifically relevant question.
 
-The simplified (no-leverage) model analysis silently resets `run_level <- 2` inside a code chunk (line 648), overriding the global `run_level=3` set earlier. This is not explained in the text and creates confusion about which computational settings apply where. It also means that the local search uses `Nmif=50` and `Np=100` for the simplified model — far less than the full model — as noted in Issue 6.
+- **No simulation-based goodness-of-fit from the fitted model:** The paper shows a simulation from initial parameter guesses (pre-fitting) as a sanity check, but never shows forward simulations from the MLE or global-best parameter estimates overlaid on observed returns. Such plots, which are the standard POMP model validation tool, would show whether the fitted stochastic volatility model reproduces the observed volatility clustering, heavy tails, and crisis episodes in the returns.
 
-### 10. Log-Likelihood Threshold in Profile Filter Is Hardcoded
+- **Initial pfilter applied to simulated data, not real data:** The initial likelihood test (Rmd lines 336–342) applies pfilter to `sim1.filt`, which contains simulated returns as data, not ndx$demeaned. The output log-likelihood (~-17965) reflects how well the initial parameters describe the simulated data. Comparing this to the S&P 500 initial estimate from the lecture slides is not meaningful, since those values were computed on real S&P 500 data.
 
-The code at line 534 filters the profile results with `r.prof$logLik > 43483` rather than using a relative threshold (e.g., `max(r.prof$logLik) - 10`). This hardcoded value may not correspond to the actual maximum found when code is re-run, producing an empty or arbitrary subset. The standard cutoff of `maxloglik - 0.5*qchisq(df=1,p=0.95)` is already computed correctly as `ci.cutoff` a few lines earlier (line 520) and should be used consistently.
+- **Spectral analysis applied to returns rather than squared returns:** The periodogram analysis (Rmd lines 86–97) is applied to demeaned returns directly. For volatility analysis, the periodogram of squared returns or absolute returns is more informative, as it reveals heteroskedastic cycles and clustering. The periodogram of returns tests for autocorrelation in the conditional mean, which is expected to be absent in efficient markets and contributes little to the volatility analysis.
 
-### 11. ARIMA Analysis Selects ARMA(5,5) Incorrectly
+- **No profiles for phi, mu_h, or sigma_nu:** Only sigma_eta is profiled. The trace plots show phi converging to ~0.96 and mu_h converging to ~-8.9, but no confidence intervals are reported for these parameters. Profile likelihoods for phi (the key persistence parameter) would be particularly informative for financial interpretation.
 
-The AIC table scan selects ARMA(5,5) as the best model, but the authors then note that AR(4) and MA(4) coefficients were the only significant ones in the GARCH context. The paper switches to ARMA(4,4) without providing a proper model selection rationale — for instance, comparing ARMA(5,5) and ARMA(4,4) on AIC, or using a likelihood ratio test. The selection process is ad hoc.
+- **Model selection criteria switch between ARIMA and GARCH sections:** ARMA(5,5) is selected by AIC (Section "Fitting ARIMA models"). When the ARMA+GARCH model is re-fitted, the order is reduced from (5,5) to (4,4) based on coefficient significance, not AIC. Mixing selection criteria (AIC for ARIMA, significance for GARCH) is not methodologically consistent; AIC or likelihood comparison should be used throughout.
 
-### 12. Missing sessionInfo() and Package Version Information
+- **Stew cache files absent from repository:** The code uses `stew()` to cache six expensive computation results in .rda files. None of these are submitted. Without them, the code will re-run all HPC computations, which the paper states takes more than 5 hours. The repository is not self-contained for reproduction.
 
-The Rmd file loads numerous packages (`pomp`, `fGarch`, `tseries`, `doFuture`, `doRNG`, `plotly`, etc.) but no `sessionInfo()` output is provided in the supplement. Given that `pomp`'s API has changed substantially across versions, the analysis may not reproduce on current CRAN releases (code-supplement checklist, POMP-specific item). The `pomp` version and R version should be pinned, ideally via `renv`.
+---
 
-### 13. Archived `.rda` Files Are Not Provided
+## Recommendation
 
-The analysis uses `stew()` to cache results in `.rda` files (`pf1_3.rda`, `mif1_3.rda`, `box_eval_3.rda`, `profile_sigma_eta_3.rda`, etc.). These intermediate results are not included in the project folder alongside the Rmd, meaning a reader cannot evaluate the results without re-running the full optimization. Wheeler et al. (2024) recommend archiving final MLE parameter vectors separately so readers can verify results without re-running expensive computations. The project folder contains only the `.csv` and `.Rmd` source file.
-
-### 14. Stochastic Volatility Model Not Described with Adequate Mathematical Precision
-
-The model section states that $\sigma_{w,n}^2 = \sigma_\eta^2(1-\phi^2)(1-\tanh^2(G))$, but the text simply writes "$\omega_n$ is an iid $N(0, \sigma^2_{w,n})$" without spelling out the full heteroscedastic variance formula. A reader unfamiliar with Breto (2014) cannot derive the variance expression from the equations given. The expression for $\beta_n$ is given only in text but the equation for $H_n$ in the code uses `sigma_eta * sqrt(1-phi*phi) * sqrt(1-tanh(G)*tanh(G))`, making it important that the mathematical description match the code exactly.
-
-### 15. Minor Writing and Notation Issues
-
-- The abstract/introduction claims the POMP model "outperformed" ARIMA and GARCH without qualifications, but this claim requires the caveats identified in Issues 2 and 6.
-- "Althoguh" (line 99), "samplwas" (line 407), "recoganized" (line 138), "converge well" vs "converged well" are typographic errors.
-- The phrase "the profile likelihood validated that the parameters found in the global search" in the conclusion is logically circular given the indexing bug (Issue 1) and does not constitute a valid validation.
-- The reference to Strogatz (1994) in the conclusion as a conceptual analogy for economic regime changes is tangential and adds no scientific content.
-- Citation [8] (Lecture slides Chapter 14) and citation [9] (Strogatz) are both numbered [8] in the reference list.
+Major Revision. The paper addresses a well-defined question and applies the appropriate POMP framework. However, two structural problems prevent the current conclusions from being trusted. First, the profile likelihood code bug (Major Issue 1) means the only formal uncertainty quantification in the POMP analysis — the CI for sigma_eta — is invalid and must be recomputed with the corrected indexing. Second, the comparison between the leverage and no-leverage models (the paper's primary scientific conclusion) is confounded by a factor-of-20 difference in computational effort (Major Issue 2); this comparison must be rerun at matched run levels before any inference about leverage necessity can be made. The misdiagnosis of declining log-likelihood (Major Issue 3) should be corrected and followed up with structural diagnostics. Once these three issues are addressed, the paper would provide a credible analysis of NASDAQ volatility using a well-established stochastic volatility framework.
 
 ---
 
 ## Files Consulted
 
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/SKILL_pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W24/project09/blinded.Rmd`
+**Skill files:**
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/SKILL_pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/assets/rev_template_pomp.qmd`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/README.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-conventions.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-weakness-reference.md`
+
+**Project files:**
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W24/project09/blinded.Rmd`
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W24/project09/blinded.md`

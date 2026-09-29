@@ -259,7 +259,7 @@ When time is limited, focus on:
 
 ## Specialized Checklists
 
-For papers with simulation studies, apply: `references/simulation-study-checklist.md`
+For papers with simulation studies, apply: `references/simulation-study-checklist-pomp.md`
 
 **For papers with simulation studies**: Also invoke the `setup-benchmark` skill (via the Skill tool) to gain access to deep domain knowledge on Monte Carlo experiment design. This enables you to evaluate:
 - Whether DGPs include both well-specified and deliberately misspecified settings (not just "home-court" scenarios)
@@ -270,7 +270,7 @@ For papers with simulation studies, apply: `references/simulation-study-checklis
 - Whether practical significance thresholds are pre-specified
 - Red flags from the study-design literature (Niessl et al. 2022, Morris et al. 2019)
 
-For papers with code/data supplements, apply: `references/code-supplement-checklist.md`
+For papers with code/data supplements, apply: `references/code-supplement-checklist-pomp.md`
 
 ---
 

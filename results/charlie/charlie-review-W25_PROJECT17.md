@@ -1,97 +1,153 @@
 # Peer Review: W25 Project 17
-**Title:** Time Series Analysis of New York Harbor Conventional Gasoline Regular Spot Price  
-**Reviewer:** Charlie  
-**Date:** 2026-04-09
+## Time Series Analysis of New York Harbor Conventional Gasoline Regular Spot Price
 
 ---
 
 ## Summary
 
-This project analyzes monthly spot prices for New York Harbor conventional regular gasoline (June 1986 – March 2025) using three competing volatility models: a direct implementation of Breto's (2014) stochastic volatility model with leverage, a modified version augmenting both models with heavy-tailed (Student-t) errors and hard-coded regime-shift shocks, and a t-GARCH benchmark. Likelihood maximization is performed via IF2 within the `pomp` framework, and models are compared by AIC. The paper's stated hypothesis — that leverage effects are attenuated in regulated gasoline prices — is interesting. However, critical methodological flaws in the global search initialization, the hard-coded structural breaks, absent profile likelihoods, an incompatible GARCH benchmark comparison, and a missing data file collectively undermine the reliability of the reported results. The authors themselves acknowledge the hardcoded-break design as a "serious mistake" in the Discussion, yet this flawed model remains the vehicle for the main conclusion.
+This project applies Breto (2014) stochastic volatility (SV) models within the POMP framework to monthly New York Harbor conventional gasoline spot price data (June 1986 – March 2025, approximately 460 monthly observations). The central hypothesis is that the leverage effect — the negative correlation between returns and subsequent volatility — is more limited in regulated commodity markets than in freely traded financial assets. Three models are estimated: the original Breto SV model with leverage (normal errors), a modified version adding heavy-tailed Student-t errors and hard-coded regime-shift parameters for 2008 and 2020 market disruptions (with leverage), and a matching no-leverage variant. A T-GARCH model serves as an external benchmark.
+
+Genuine strengths include well-structured POMP code following course conventions (run_level framework, replicated pfilter for log-likelihood evaluation using logmeanexp, appropriate cooling schedules), clear documentation of local and global search procedures, and commendable self-criticism in Section 4. The authors correctly identify their most serious flaw.
+
+The primary weaknesses are: (1) the hard-coded regime shift specification constitutes data snooping that invalidates the AIC comparison, (2) no profile likelihoods or confidence intervals are computed for any parameter, (3) the GARCH benchmark comparison uses an inconsistently specified model, (4) a required data file for Figure 2 is absent from the submission, and (5) the Monte Carlo variability in log-likelihood estimates is not accounted for in the borderline AIC comparison.
 
 ---
 
 ## Major Issues
 
-### 1. Global search anti-pattern: all three models initialize from a previous IF2 result
+### 1. Hard-coded regime shift parameters constitute data snooping (acknowledged by authors)
 
-In every global search block, `mif2()` is called with a previous IF2 chain as its first argument rather than the base `pomp` object:
+The authors themselves state in Section 4: "We made a serious mistake in specifying μ_h the way we did in (2.3.1)." The modified SV models include a time-varying mean log-volatility with hard-coded windows t ∈ [262, 275] (2008 recession) and t ∈ [400, 410] (2020 pandemic), identified by visually inspecting the data. This is a textbook case of data snooping: the time windows were selected after observing the data and are not estimated parameters counted in the AIC formula.
 
-- Breto leverage model (line 404): `mif2(if1[[1]], params=apply(N_breto_box,1,function(x)runif(1,x)))`
-- Modified SV leverage model (line 694): `mif2(if1[[1]], params=mapply(...))`
-- Modified basic SV (line 932): `mif2(if1[[1]], params=mapply(...))`
+The consequence is that the `amplitude` parameter has an implicit additional degree of freedom — the choice of the two intervals — that is not penalized in AIC. The AIC comparison between the modified leverage and no-leverage models (ΔAIC ≈ 1.4) is therefore unreliable. More fundamentally, the improvement in log-likelihood over the base Breto model (from ~429.8 to ~437.1) is at least partly attributable to this post-hoc tuning. The Discussion correctly diagnoses the problem and proposes a probabilistic alternative (Weibull-based inter-event time), but the erroneous results are left in the main analysis rather than being clearly marked as illustrative only.
 
-Passing `if1[[1]]` (a completed IF2 chain) instead of the base `pomp` object means the global search inherits the internal cooling schedule from the local search, which has already decayed to near-zero perturbations after `Nmif=200` iterations. New random starting parameters are applied to `params=`, but the IF2 optimizer can perform essentially no meaningful exploration from those new starts before the random walk shrinks to zero. The resulting "global maximum" is therefore indistinguishable from the local-search result, and the claim of global coverage is unsubstantiated. The fix is to replace `mif2(if1[[1]], ...)` with `mif2(base_pomp_object, ...)` in all three global search loops. (See POMP checklist item #6: Computational Adequacy; Wheeler et al. 2024.)
+**Fix:** Either remove the hard-coded windows and replace them with a properly parameterized jump or regime-switching component, or explicitly state that the modified SV results are not suitable for formal model comparison and restrict the AIC table to comparing the base Breto SV models.
 
-### 2. Hard-coded structural breaks constitute look-ahead bias and are acknowledged as a "serious mistake"
+---
 
-The central novelty of the "modified" models is the addition of a state-dependent amplitude shift in $\mu_h(t)$ that activates at hard-coded time indices [262, 275] and [400, 410], corresponding to the 2008 recession and 2020 pandemic. The multipliers 0.8 and 1.2 are chosen based on visual inspection of the observed data. This design introduces look-ahead bias: the model encodes exact knowledge of when the structural breaks occurred and their relative magnitudes, which are directly observable in the training data. The authors explicitly label this "a serious mistake" in Section 4 (Discussion), yet this model is the one used for the main AIC comparison (Section 2.5) and the final conclusion about leverage effects. Conclusions drawn from a model the authors themselves have disavowed cannot be considered reliable. The regime-shift mechanism must be reformulated (e.g., as a hidden Markov state or through a principled Weibull inter-event model as suggested) and the entire analysis rerun before conclusions can be drawn.
+### 2. No profile likelihoods or confidence intervals for any parameter
 
-### 3. No profile likelihoods or confidence intervals for any parameter
+Neither the base Breto SV model nor either modified model includes profile likelihood computations. No confidence intervals are reported for any parameter. POMP checklist item #5 (Wheeler et al. 2024) requires profile likelihoods to assess whether parameters are identifiable from the data. The pair plots from the global searches suggest potential identifiability concerns — most notably, higher log-likelihoods correlate with smaller log(σ_ν) in the leverage model (Figure 11), suggesting σ_ν may be approaching zero and thus weakly identified. Without a profile likelihood for σ_ν (and similarly for φ, which shows wide spread in Figure 6), it is impossible to determine whether the leverage parameter σ_ν is identifiable, and the conclusion that "leverage effects are limited" cannot be quantified with any stated confidence.
 
-Neither the leverage model nor the no-leverage model presents profile likelihood curves for any of the estimated parameters. Without profile likelihoods, it is impossible to assess whether parameters such as `tau` (degrees of freedom), `amplitude`, `phi`, or `sigma_eta` are identifiable from the data, and no confidence intervals are reported. The main substantive claim — that the leverage parameter $\sigma_\nu$ is effectively zero — is supported only by visual inspection of a pair plot showing that higher log-likelihoods correspond to smaller $\log(\sigma_\nu)$. This is not a formal test of the hypothesis; a profile likelihood for $\sigma_\nu$ is required to determine whether the data provide statistically significant evidence against non-zero leverage. (Wheeler et al. 2024, §Parameter identifiability and uncertainty.)
+This is a course-confirmed error (Error 1.9 in the weakness reference): "Profile likelihood too sparse to identify the maximum" — here the profile is absent entirely. The course standard for run_level=3 is 30 profile points, which is computationally feasible for a 460-observation dataset.
 
-### 4. `tau` rw.sd = 1 is grossly misscaled
+**Fix:** Compute profile likelihoods for at least σ_ν, φ, and τ in each model, and report MCAP or Wilks-based confidence intervals. The profile for σ_ν in the leverage model is particularly critical for the paper's central conclusion.
 
-In both modified models, the `rw_sd()` specification sets `tau = 1` (lines 621 and 861). The initial value of `tau` is 5, and the global search box for `tau` spans [5, 30] (model 2) and [5, 60] (model 3). A perturbation SD of 1 on the raw (untransformed) scale of `tau` represents 20% of the lower bound and is far too large for stable convergence — the IF2 chain will diffuse across the entire prior support of `tau` in early iterations. Moreover, `tau` has no entry in `partrans`, so it is optimized on its raw scale where values must remain positive; a random-walk perturbation of SD=1 can easily push `tau` below 1, triggering the clamping logic `(nearbyint(tau) < 1) ? 1 : ...`. The correct approach is to apply a log transformation to `tau` in `partrans` and use a small rw.sd (e.g., 0.1–0.2 on the log scale). (See POMP rw.sd magnitude error pattern; Wheeler et al. 2024, §6.)
+---
 
-### 5. `tau` and `amplitude` lack parameter transformations
+### 3. Inconsistent GARCH specification between AIC table and reported log-likelihood
 
-The `partrans` specifications for both modified models include log transforms for scale parameters and a logit transform for `phi`, but neither `tau` nor `amplitude` is included (lines 527–529 for T_breto and 792–794 for T_basicSV). The `tau` parameter must be positive and is constrained to [1, 60] via hard-coded clamping in the C snippets — but since IF2 operates on the raw scale, proposals can go negative or to zero, where clamping to 1 creates an artificial boundary that distorts the optimization. Similarly, `amplitude` should be non-negative (a negative amplitude would reverse the intended effect of the regime-shift), yet nothing prevents IF2 from proposing negative values. Both parameters should be included in `partrans` with appropriate transformations (log for `tau`, log for `amplitude`).
+The AIC table (Section 2.6) is computed with `include.mean=F` (no intercept), but the best model GARCH(3,1) is then re-fitted with `include.mean=T` to obtain the log-likelihood (435.509) used in the comparison to the SV model. The code makes this explicit:
 
-### 6. AIC comparison between SV and GARCH models is not valid on a common scale
+```r
+# AIC table computation
+fit.garch <- garchFit(form, data=demeaned_data, include.delta=F,
+                    cond.dist=c("std"), include.mean=F, ...)
 
-Section 2.6 directly compares the log-likelihood of the modified SV model (434.8, evaluated via particle filter under the t-distributed observation model) with the T-GARCH(3,1) log-likelihood (435.509, evaluated via QMLE/MLE under the `fGarch` framework). These likelihoods are not comparable: the SV particle-filter likelihood is a Monte Carlo estimate with non-negligible variance (Nreps_eval=20 replicates with Np=2000 particles), while the GARCH likelihood is evaluated analytically under a different statistical framework. The conclusion "the T-GARCH(3,1) model achieved a higher log-likelihood (435.509) than our SV model (434.8)" is drawn from a margin of 0.709 log-likelihood units, which is well within the Monte Carlo error of the SV estimate. No Monte Carlo standard errors are reported for the global-search maximum log-likelihood, so the claimed comparison is statistically meaningless. (Wheeler et al. 2024, §3: Quantitative goodness-of-fit reporting.)
+# Final fit for comparison
+fit.garch <- garchFit(form, data=demeaned_data, include.delta=F,
+                    cond.dist=c("std"), include.mean=T, ...)
+```
 
-### 7. GARCH grid search uses `include.mean=F` but the final model uses `include.mean=T`
+Adding a mean parameter changes the model and inflates the log-likelihood relative to the model selected by AIC. The reported GARCH(3,1) log-likelihood of 435.509 is therefore from a different (larger) model than the one AIC selected. This is a concrete specification inconsistency that affects the reported comparison between GARCH and SV.
 
-The AIC grid search over all 36 GARCH(p,q) combinations (lines 1026–1033) fits each model with `include.mean=F`, but the final model re-fitted for reporting (lines 1047–1050) uses `include.mean=T`. The optimal order (p=3, q=1) was selected from the `include.mean=F` grid; re-fitting the selected model with `include.mean=T` changes the parameter count and the likelihood surface, invalidating the AIC-based model selection. The same `include.mean` specification must be used throughout.
+**Fix:** Either compute the AIC table with `include.mean=T` throughout, or use the model without a mean for the final comparison. The comparison must use a single consistent model specification.
 
-### 8. Filtered log-likelihoods are reported for simulated data, not for the observed data
+---
 
-Sections 2.2.2, 2.3.2, and 2.4.2 each report an "initial filtered log-likelihood" (410.657, 457.797, and 472.035 respectively), but examination of the code reveals these are computed on simulated trajectories (`N_breto_sim1.filt`, `T_breto_sim1.filt`), not on the actual observed gasoline returns. For example, in Section 2.2.2 the pfilter block (lines 311–320, `eval=FALSE`) applies `pfilter(N_breto_sim1.filt, ...)` — where `N_breto_sim1.filt` is built from the simulated data. Reporting the log-likelihood of a simulated trajectory as an "initial filtered log-likelihood" conflates model simulation with data-based evaluation, and these numbers cannot be interpreted as measures of fit to the observed data.
+### 4. Daily data file missing from submission (Figure 2 not reproducible)
 
-### 9. Missing data file prevents full reproducibility
+The code in Section 2.1 reads `Daily_New_York_Harbor_Conventional_Gasoline_Regular_Spot_Price_FOB.csv` to produce Figure 2 (daily vs. monthly demeaned log returns). This file is absent from the submitted project directory, which contains only `New_York_Harbor_Conventional_Gasoline_Regular_Spot_Price_FOB.csv` (monthly data). Figure 2 cannot be reproduced from the submitted materials.
 
-The code at line 129 reads `Daily_New_York_Harbor_Conventional_Gasoline_Regular_Spot_Price_FOB.csv`, which is not present in the project folder. Only the monthly CSV is available. Although Figure 2 (the daily returns plot) is produced from this file, the chunk has `eval=TRUE`, so the code will fail to reproduce. The daily data file must be included in the supplement.
+Per the code-supplement checklist, a reproducibility failure occurs when required data files are missing. The daily returns plot is mentioned in the text as evidence for why monthly data is used for the main analysis, making it a substantive (not decorative) figure.
+
+**Fix:** Include the daily data file in the submission, or remove the daily data dependency from the report.
+
+---
+
+### 5. Monte Carlo variability in log-likelihoods not propagated into the AIC comparison
+
+The key AIC comparison (Section 2.5) reports log-likelihoods of 437.1 (modified SV with leverage) and 434.8 (modified SV without leverage), giving ΔAIC ≈ 1.4 — a difference of only 2.3 log-likelihood units before the parameter penalty. Both estimates are stochastic outputs from the particle filter. The reported Monte Carlo standard error for the modified SV with leverage simulation was 3.38e-6, but this figure was for the simulated data rather than for the fitted model; the actual SEs from replicated pfilter calls on real data (visible in the L.box computation) are not quoted in the text.
+
+When log-likelihood estimates have non-negligible Monte Carlo noise and the difference between models is ~2.3 units, the comparison result may be dominated by simulation variance rather than true likelihood differences. The course standard requires SE reporting alongside log-likelihood estimates (via `logmeanexp(se=TRUE)`). The AIC table in Section 2.5 cites single point estimates with no reference to uncertainty, and the conclusion that the no-leverage model is "statistically favored" overstates what a 1.4 AIC-unit difference with unquantified Monte Carlo error can support.
+
+**Fix:** Report the mean and SE from replicated pfilter calls for each model's final parameter estimate, and note that the ΔAIC is within a range where Monte Carlo noise may affect the conclusion. Consider running additional evaluation replicates at the MLE to pin down the true log-likelihood difference.
+
+---
+
+### 6. Global search initializes all runs from a single local search result (if1[[1]])
+
+All three models' global searches use `mif2(if1[[1]], ...)` as the starting object, drawing parameters from the box but inheriting the cooling schedule history and particle state from the first local search run. The standard course approach starts global searches from the base pomp object so that the cooling trajectory is fresh and consistent across all global runs. Using if1[[1]] means that 100 ostensibly "global" runs actually share identical starting conditions in the parameter perturbation history, limiting the true diversity of the global search.
+
+**Fix:** Replace `mif2(if1[[1]], params=...)` with `mif2(N_breto_filt, params=...)` (or the appropriate model object) so that each global search run starts from a clean mif2 call with randomly drawn parameters and a fresh cooling schedule.
 
 ---
 
 ## Minor Issues
 
-- **Breto model: parameter inconsistency in the text equation.** Equation (4) states $Y_n = \exp\{H_n/2\}\sigma_n$, where the subscript on $\sigma$ suggests it is a state variable, but the code shows `Y_state = rnorm(0, exp(H/2))`. The text description of $\sigma_n$ as an i.i.d. N(0,1) sequence is correct but is placed in the wrong equation numbering; $\beta_n$ involves $Y_n$ which creates a simultaneity that is addressed in the code by using `Y_state` from the *previous* step, but this is not clearly explained in the text.
+### 7. tau and amplitude lack parameter transformations in partrans
 
-- **Breto model: initial parameter in text vs. code mismatch.** Section 2.2.2 states $\sigma_\nu = \exp(4.5)$ in the $\theta_0$ equation, but the code sets `sigma_nu = exp(-4.5)` (line 260), which is approximately 0.011. The text incorrectly states $\exp(4.5) \approx 90$. This is a transcription error in the mathematical display.
+The `tau` (degrees of freedom) and `amplitude` parameters in both modified models have no log, logit, or other transformation in `T_breto_partrans` / `T_basicSV_partrans`. During iterated filtering, the random walk perturbations are applied on the native (untransformed) scale. For `tau`, this means the optimizer may propose values ≤ 0, which are biologically nonsensical and handled only by a hard clamp (`nearbyint(tau) < 1 ? 1 : ...`). For `amplitude`, negative values would reverse the sign of the volatility shock, an unintended regime. The hard clamp creates a non-smooth boundary that can distort the iterated filtering trajectory. Adding `log="amplitude"` (with amplitude constrained to be positive) and a bounded transformation for `tau` (e.g., logit-scaled between 1 and 60) would be more principled.
 
-- **Computational settings not reported in the text.** The run-level settings (Np=2000, Nmif=200, Nreps_global=100, Nreps_eval=20) are buried in code and never mentioned in the narrative. Readers cannot assess computational adequacy without this information. These should be reported explicitly. (Wheeler et al. 2024, §6.)
+---
 
-- **No convergence traces discussed or shown for the Breto model's global search.** The ESS collapse at t=405 is acknowledged for the local search but the global search section repeats this observation without discussion of whether the convergence traces (Figure 7) show genuine parameter movement.
+### 8. No non-mechanistic benchmark for the POMP SV models
 
-- **"Linear correlations" in global search pair plots.** Section 2.3.4 states "the pair plot indicates linear correlations between the log-likelihood and $(\log(\sigma_\nu), \mu_h, \phi, \sigma_\eta)$." Linear correlations in global-search pair plots indicate the search has not converged to a bounded optimum and the likelihood may increase further outside the explored region — this is a sign of inadequate search coverage, not a positive finding, yet it is not explicitly flagged as a limitation requiring more search.
+Neither an ARMA model on log-returns nor an IID Gaussian or t model is used as a reference benchmark for the SV models. The T-GARCH model is itself a mechanistic volatility model that is more complex than a white-noise baseline. Per 531-conventions.md, benchmark comparison is "encouraged but not required," and this is noted as a minor issue rather than a major one. However, the course teaches that an IID (e.g., t-distribution) model provides the weakest meaningful benchmark: a mechanistic SV model that does not clearly outperform an IID fit calls its core motivation into question. Reporting the IID t-distribution log-likelihood would take only a few lines of code and would anchor the interpretation.
 
-- **`tau` global box upper bound spans Gaussian region.** The global search box for `tau` in the no-leverage model allows values up to 60 (line 921), and the authors themselves note in Section 4 that t-distributions with $\tau > 30$ are "practically indistinguishable from normal distributions." Including this region in the search box wastes computational budget. The same upper-bound concern applies to the leverage model box (upper = 30).
+---
 
-- **AIC table counts IVP parameters.** The AIC table in Section 2.5 counts `G_0` and `H_0` as free parameters in the leverage model (giving D=8 vs. D=5). Initial value parameters (IVPs) that are not informed by repeated observations contribute to model complexity, but it is worth noting that some authors exclude IVPs from AIC counts; the chosen convention should be stated explicitly.
+### 9. Seasonal component detected by STL but not modeled in any POMP specification
 
-- **Amplitude global box lower bound is zero for the no-leverage model.** The global search allows `amplitude=0` (line 924), which would deactivate the regime-shift modification entirely. This is not wrong, but the interpretation of models with amplitude near zero is the same as the base model without the modification, and this is not discussed.
+Figure 19 shows an STL decomposition of log returns revealing a clear seasonal component. The Discussion acknowledges this as a limitation but does not attempt to incorporate it even in the modified SV model. Because the project's main POMP fits precede this diagnostic, the reader cannot tell whether the detected seasonality is strong enough to materially affect the volatility estimates or the leverage conclusion. At minimum, the seasonal pattern should be described quantitatively (amplitude, dominant frequency) so readers can assess its importance.
 
-- **Typo in Section 2.4.3 narrative.** "The key parametersrs" (line 670, repeated typo) contains a double "rs".
+---
 
-- **Reference [12] (a prior STATS 531 project) is not a peer-reviewed source.** The prior project is cited to motivate the dataset size concern, but course projects do not carry the methodological authority of reviewed work. A published reference on POMP model complexity vs. sample size would be more appropriate.
+### 10. Base Breto SV model and modified SV model not formally compared
+
+The paper transitions from the base Breto SV model (Section 2.2, best log-likelihood ~429.8) to the modified SV models (Sections 2.3–2.4, best log-likelihood ~437.1 and ~434.8) without a formal AIC comparison between them. The improvement (~7 log-likelihood units) is described qualitatively as "significant advancement," but with 2 additional parameters (tau and amplitude) added, the AIC difference is approximately 7×2 − 2×2 = 10, which is sizable. Presenting this as part of the model comparison table in Section 2.5 would clarify the contribution of the modifications.
+
+---
+
+### 11. epsilon_n appears in text but not in model equations
+
+Section 2.2.1 states "{ε_n} is an i.i.d. N(0,1) sequence" in the description of the Breto model, but ε_n does not appear in any of equations (1)–(4). The role of ε_n in generating Y_n is left implicit. In Breto (2014), Y_n = exp(H_n/2) · ε_n, which corresponds to equation (4) only if σ_n ≡ ε_n · exp(H_n/2). Explicitly defining this relationship, or simply removing the orphaned mention of ε_n, would improve clarity.
+
+---
+
+### 12. No exploratory data analysis section
+
+The report moves from Introduction directly to model specification and results (Section 2) without a dedicated EDA section. Properties of the log returns relevant to model choice — ACF/PACF of returns and squared returns, fat-tail diagnostics (QQ plot), unconditional variance — are not presented prior to model fitting. While STL decomposition appears at the end as a diagnostic, earlier EDA would motivate the choice of a t-distribution observation model and the heavy emphasis on regime shifts.
+
+---
+
+### 13. Ratio of parameter perturbation sizes not discussed
+
+The rw.sd for `tau` is set to 1.0 (on the untransformed scale), while other parameters use rw.sd = 0.02 on their (log or logit) transformed scale. A step size of 1.0 for a parameter ranging from 5 to 60 is proportionally large relative to the 0.02 used elsewhere. The authors do not justify this choice or report any sensitivity analysis. If the step size is too large, iterated filtering for `tau` will not converge well; if too small, the parameter will not be updated efficiently. This deserves brief justification.
+
+---
+
+### 14. Conclusions overstate statistical evidence for the leverage hypothesis
+
+Section 3 states that the findings "provide evidence that leverage effects in gasoline prices may be less pronounced." However, the ΔAIC between the leverage and no-leverage models is only 1.4 units — below the conventional rule of thumb of 2 AIC units for distinguishing models — and the log-likelihood difference (2.3 units) is smaller than the hard-coded regime specification's influence on the fit. The conclusion is further undermined by the absence of a formal test (likelihood ratio test, profile CI for σ_ν crossing zero) and the data snooping concern noted above. The paper appropriately hedges in the Discussion, but the Conclusion section still presents the hypothesis as supported rather than as tentative.
+
+---
+
+### 15. fGarch log-likelihood normalization not verified
+
+The paper directly compares the fGarch log-likelihood (435.509) to the POMP particle filter log-likelihood (434.8) without verifying that both use the same normalization convention. While for Student-t errors applied to the same data both should in principle evaluate the same density, the fGarch package has historically included sign and scaling conventions that differ across versions and options (Error 2.9 in the weakness reference: "trusting software likelihood output without checking conventions"). A one-line check — confirming the sign convention of `@fit$llh` and comparing against a hand-computed log-density — would validate the comparison.
 
 ---
 
 ## Files Consulted
 
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/SKILL_pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-global-search-init-audit/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-pseudo-profile-audit/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-profile-single-restart-audit/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-rw-sd-magnitude-error/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/sarima-baseline-audit/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-simulate-as-latent-state-inference/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-dmeas-rmeas-scale-inconsistency/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/stationarity-test-conclusion-audit/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project17/blinded.Rmd`
+**Skill files:**
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/SKILL_pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-conventions.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-weakness-reference.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/README.md`
+
+**Project files:**
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W25/project17/blinded.Rmd`

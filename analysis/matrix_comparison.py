@@ -2,6 +2,8 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+import pandas as pd
+from pathlib import Path
 
 plt.rcParams['font.family'] = 'DejaVu Sans'
 
@@ -9,110 +11,145 @@ baseline_color = '#4C72B0'
 cd_color       = '#DD8452'
 orch_color     = '#8172B3'
 
-# 3 shared + 3 unique per agent
-ROWS = [
-    # Shared by all — AI flagged, human missed across all agents
-    ('data', 'Global search inherits cooled schedule, not truly global (optimization flaw)', True,  True,  True,  '#eeeeee'),
-    ('data', 'No ESS or particle filter diagnostics reported (verification gap)',            True,  True,  True,  '#eeeeee'),
-    ('data', 'Cross-family log-likelihood comparison invalid (scale mismatch)',        True,  True,  True,  '#eeeeee'),
-    # Baseline: code-level bugs caught without any skill file
-    ('data', 'Modifying one variable silently changes another (implementation bug)', True,  False, False, '#dce8f8'),
-    ('data', 'Code does not implement the model as written (implementation bug)',    True,  False, False, '#dce8f8'),
-    ('data', 'Computation produces wrong values without error (implementation bug)', True,  False, False, '#dce8f8'),
-    # 531_Ref / Meta-Skill: statistical methodology failures
-    ('data', 'Confidence interval procedure is wrong (methodology flaw)',     False, True,  False, '#f8e8d8'),
-    ('data', 'No simpler baseline model for comparison (model evaluation)',   False, True,  False, '#f8e8d8'),
-    ('data', 'Too few starting values explored in fitting (optimization flaw)',False, True,  False, '#f8e8d8'),
-    # Orchestrator: profile quality + domain knowledge issues
-    ('data', 'Profile too flat/noisy to extract CIs (identifiability issue)', False, False, True,  '#e8e0f4'),
-    ('data', 'Incorrect biological formula in model (domain error)',           False, False, True,  '#e8e0f4'),
-    ('data', 'Results lack parameter estimates or captions (omission)',False, False, True,  '#e8e0f4'),
+
+
+REVIEWER_MAP = {'Alex': 'Baseline', 'Charlie': 'CourseGuided', 'Doug': 'MetaSkill', 'Evan': 'Orchestrator'}
+
+df = pd.read_csv(Path(__file__).parent / "comparator_results.csv")
+df['Agent'] = df['Reviewer'].map(REVIEWER_MAP)
+n_proj = df[['Semester', 'Project']].drop_duplicates().shape[0]
+ac_per_proj = (df.groupby('Agent')[['A', 'C']].sum().sum(axis=1) / n_proj).round(1)
+
+
+def agent_entry(name, color):
+    return (name, f'{ac_per_proj[name]:.1f}', color)
+
+BLOCKS = [
+    (
+        [
+            ('Global search inherits cooled schedule, not truly global (optimization flaw)', '1'),
+            ('Cross-family log-likelihood comparison invalid (scale mismatch)', '2'),
+            ('No ESS or particle filter diagnostics reported (verification gap)', '3'),
+        ],
+        [],
+        '#eeeeee',
+        'Found by\nall four\nagents',
+    ),
+    (
+        [
+            ('Modifying one variable silently changes another (implementation bug)', '4'),
+            ('Code does not implement the model as written (implementation bug)', '5'),
+            ('Computation produces wrong values without error (implementation bug)', '6'),
+        ],
+        [
+            agent_entry('Baseline', baseline_color),
+        ],
+        '#dce8f8',
+        None,
+    ),
+    (
+        [
+            ('Confidence interval procedure is wrong (methodology flaw)', '7'),
+            ('No simpler baseline model for comparison (model evaluation)', '8'),
+            ('Too few starting values explored in fitting (optimization flaw)', '9'),
+        ],
+        [
+            agent_entry('CourseGuided', cd_color),
+            agent_entry('MetaSkill', cd_color),
+        ],
+        '#f8e8d8',
+        None,
+    ),
+    (
+        [
+            ('Incorrect biological formula in model (domain error)', '10'),
+            ('Profile too flat/noisy to extract CIs (identifiability issue)', '11'),
+            ('Results lack parameter estimates or captions (omission)', '12'),
+        ],
+        [
+            agent_entry('Orchestrator', orch_color),
+        ],
+        '#e8e0f4',
+        None,
+    ),
 ]
 
-N_ROWS  = len(ROWS)
-DATA_H  = 0.46
-HDR_H   = 0.60
-FOOT_H  = 0.52
+DATA_H  = 0.52
+HDR_H   = 0.62
+FOOT_H  = 0.0
+LABEL_W = 2.6
+FIG_W   = 14.2
 
-FIG_W   = 12.5
-FIG_H   = N_ROWS * DATA_H + HDR_H + FOOT_H + 0.5
+N_ROWS = sum(len(rows) for rows, _, _, _ in BLOCKS)
+FIG_H  = N_ROWS * DATA_H + HDR_H + FOOT_H + 0.4
 
-COL_B   = 9.0
-COL_C   = 10.1
-COL_E   = 11.5
-CAT_X   = 0.3
-GRID_L  = 0.15
-GRID_R  = 12.2
-SEP_X   = 8.5
+GRID_L = 0.15
+GRID_R = FIG_W - 0.3
+CAT_X  = LABEL_W + 0.25
 
 fig, ax = plt.subplots(figsize=(FIG_W, FIG_H))
 ax.set_xlim(0, FIG_W)
 ax.set_ylim(0, FIG_H)
 ax.axis('off')
 
-# ── Single header row: title on left, agent names on right ───────────────────
 hdr_top = FIG_H
 hdr_bot = FIG_H - HDR_H
 hdr_mid = (hdr_top + hdr_bot) / 2
-
-# Title left-aligned in the category column area
-ax.text(CAT_X, hdr_mid, 'Domain Specific Breakdown of Agent-Unique Review Overlap',
+ax.text(GRID_L, hdr_mid, 'Domain-Specific Breakdown of Agent-Unique Review Overlap',
         ha='left', va='center', fontsize=16, fontweight='bold', color='#1a1a1a', zorder=2)
 
-# Agent names centered in their columns
-ax.text(COL_B, hdr_mid, 'Baseline',
-        ha='center', va='center', fontsize=13, fontweight='bold', color=baseline_color, zorder=2)
-ax.text(COL_C, hdr_mid, '531_Ref /\nMeta-Skill',
-        ha='center', va='center', fontsize=12, fontweight='bold', color=cd_color, zorder=2)
-ax.text(COL_E, hdr_mid, 'Orchestrator',
-        ha='center', va='center', fontsize=13, fontweight='bold', color=orch_color, zorder=2)
+y = hdr_bot
+for rows, agents, bg, label_override in BLOCKS:
+    block_h = len(rows) * DATA_H
+    block_top, block_bot = y, y - block_h
 
-# ── Top row: AI-unique finding counts ─────────────────────────────────────────
-foot_bg = '#f5f5f5'
-ax.add_patch(mpatches.Rectangle(
-    (GRID_L, hdr_bot - FOOT_H), GRID_R - GRID_L, FOOT_H,
-    facecolor=foot_bg, edgecolor='#cccccc', linewidth=0.4, zorder=1
-))
-foot_mid = hdr_bot - FOOT_H / 2
 
-ax.text(CAT_X, foot_mid, 'AI-unique findings (A+C) — total across W21–W25',
-        ha='left', va='center', fontsize=11, fontweight='bold', color='#1a1a1a', zorder=2)
-
-for col_x, label, color in [
-    (COL_B, '929\n(12.9/proj)', baseline_color),
-    (COL_C, '958\n(13.3/proj)', cd_color),
-    (COL_E, '641\n(8.9/proj)',  orch_color),
-]:
-    ax.text(col_x, foot_mid, label, ha='center', va='center',
-            fontsize=11, fontweight='bold', color=color, zorder=2)
-
-# ── Data rows ─────────────────────────────────────────────────────────────────
-y = hdr_bot - FOOT_H
-for _, label, b, c, e, bg in ROWS:
     ax.add_patch(mpatches.Rectangle(
-        (GRID_L, y - DATA_H), GRID_R - GRID_L, DATA_H,
-        facecolor=bg, edgecolor='#cccccc', linewidth=0.4, zorder=1
+        (GRID_L, block_bot), LABEL_W, block_h,
+        facecolor=bg, edgecolor='none', zorder=1
     ))
-    mid_y = y - DATA_H / 2
-    ax.text(CAT_X, mid_y, label,
-            ha='left', va='center', fontsize=12.5,
-            fontweight='bold', color='#1a1a1a', zorder=2)
-    for col_x, present, color in [(COL_B, b, baseline_color),
-                                   (COL_C, c, cd_color),
-                                   (COL_E, e, orch_color)]:
-        if present:
-            ax.text(col_x, mid_y, '✓', ha='center', va='center',
-                    fontsize=18, color=color, fontweight='bold', zorder=2)
-    y -= DATA_H
+
+
+    for i, (label, sup) in enumerate(rows):
+        ax.add_patch(mpatches.Rectangle(
+            (GRID_L + LABEL_W, block_top - (i + 1) * DATA_H), GRID_R - GRID_L - LABEL_W, DATA_H,
+            facecolor=bg, edgecolor='#cccccc', linewidth=0.4, zorder=1
+        ))
+        mid_y = block_top - (i + 0.5) * DATA_H
+        text = label if sup is None else f'{label}$^{{{sup}}}$'
+        ax.text(CAT_X, mid_y, text, ha='left', va='center', fontsize=12,
+                fontweight='bold', color='#1a1a1a', zorder=2)
+
+
+    label_x = GRID_L + LABEL_W / 2
+    block_mid = block_top - block_h / 2
+
+    if label_override is not None:
+        ax.text(label_x, block_mid, label_override, ha='center', va='center',
+                fontsize=13, fontweight='bold', color='#555555',
+                linespacing=1.4, zorder=2)
+    else:
+        n_agents = len(agents)
+        fontsize = 14 if n_agents == 1 else 12
+        offset_step = 0.55
+        for j, (name, count, color) in enumerate(agents):
+            txt = f'{name}\n({count}/proj)'
+            offset = ((n_agents - 1) / 2 - j) * offset_step
+            ax.text(label_x, block_mid + offset, txt, ha='center', va='center',
+                    fontsize=fontsize, fontweight='bold', color=color,
+                    linespacing=1.4, zorder=2)
+
+    y = block_bot
 
 end_y = y
-
-# Bottom border
 ax.plot([GRID_L, GRID_R], [end_y, end_y], color='#888888', linewidth=1.0)
+ax.plot([GRID_L, GRID_R], [hdr_bot, hdr_bot], color='#888888', linewidth=1.0)
 
-# Vertical dividers
-for vx in [SEP_X, (COL_B + COL_C) / 2, (COL_C + COL_E) / 2]:
-    ax.plot([vx, vx], [end_y, hdr_bot], color='#cccccc', linewidth=0.8, zorder=0)
+
+ax.plot([GRID_L + LABEL_W, GRID_L + LABEL_W], [end_y, hdr_bot],
+        color='#888888', linewidth=1.0, zorder=3)
+
+ax.set_ylim(end_y - 0.15, FIG_H)
 
 plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
 plt.savefig('matrix_comparison.png', dpi=150, bbox_inches='tight')

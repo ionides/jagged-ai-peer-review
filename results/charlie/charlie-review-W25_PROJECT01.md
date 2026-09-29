@@ -1,110 +1,192 @@
-# Peer Review: W25 Project 01
-## "Unveiling the Dynamics of Influenza in the Great Lakes Region"
+# Review: W25 Project 01
+## *Unveiling the Dynamics of Influenza in the Great Lakes Region*
+
+---
+
+## Paper Metadata
+
+| Field | Details |
+|-------|---------|
+| **Inference method** | IF2 (mif2) via iterated filtering; replicated pfilter for likelihood evaluation |
+| **R packages used** | pomp, doFuture, doParallel, forecast, tseries, tidyverse |
+| **Code publicly available** | Yes — submitted via course repository; .R files (seirs_global.R, seirs_beta.R) included |
+| **Data publicly available** | Yes — CDC ILINet, CDC FluVaxView, CDC vaccine effectiveness data |
+| **Benchmark comparison included** | Yes — regression with SARMA(2,1)(0,2)_52 errors |
+
+---
+
+## POMP Checklist Scorecard
+
+*✓ = satisfies practice, ~ = partially satisfies, ✗ = does not satisfy, N/A = not applicable*
+
+| # | Practice | Status | Notes |
+|---|----------|--------|-------|
+| 1 | Likelihood-based inference | ✓ | IF2 + replicated pfilter used correctly |
+| 2 | Benchmark comparison | ✓ | SARMA regression benchmark included and compared quantitatively |
+| 3 | Quantitative goodness-of-fit reporting | ~ | Log-likelihoods reported, but profile CI for rho covers a range inconsistent with the global MLE |
+| 4 | Model diagnostics | ✗ | No conditional log-likelihood plots, no ESS monitoring |
+| 5 | Parameter identifiability and uncertainty | ✗ | Alpha and gamma profiles are likelihood slices; rho profile does not cover MLE region |
+| 6 | Computational adequacy | ~ | Multiple global searches run; convergence partially demonstrated |
+| 7 | Forecast methodology | N/A | No forecasting attempted |
+| 8 | Model variations and nested comparisons | ✓ | Multiple model versions compared with log-likelihood |
+| 9 | Stochasticity | ✓ | Binomial transitions with negative binomial measurement model |
+| 10 | Reproducibility and extendability | ~ | Code and data included; no renv/sessionInfo; HPC scripts absent |
+| 11 | Corroboration with scientific knowledge | ~ | Parameters checked against literature; biologically implausible gamma and A acknowledged |
+| 12 | Measurement model specification | ~ | Negative binomial used; H accumulator has a double-zeroing bug |
+| 13 | Initial conditions | ~ | Initial conditions derived from mu_EI and mu_IR; R=0 simplification acknowledged |
+
+*Checklist based on Wheeler et al. (2024), PLOS Computational Biology 20(4): e1012032.*
 
 ---
 
 ## Summary
 
-This project models weekly influenza-like illness (ILI) counts in HHS Region 5 (Great Lakes) from 2015 to 2024 using a SEIRS-based POMP framework augmented with seasonal transmission, vaccine effects, COVID-19 suppression, and antigenic drift modeled as Brownian motion. The authors compare their mechanistic model against a regression-with-SARMA-errors baseline. The project's strengths include an ambitious scope (covering three distinct epidemic phases), thorough biological motivation for parameter ranges, and honest acknowledgment of model limitations. However, the mechanistic model is undermined by a critical accumulator bug that corrupts weekly incidence tracking, severe parameter non-identifiability with biologically implausible estimates, absence of proper convergence diagnostics, insufficient profile likelihood analysis (only one parameter profiled, using a non-standard approach), and no effective sample size (ESS) monitoring. These issues are serious enough to cast doubt on the quantitative conclusions and parameter interpretations.
+The paper fits a SEIRS POMP model to weekly influenza surveillance data from CDC Region 5 (Great Lakes) spanning 2015 to 2023, incorporating seasonal transmission forcing, antigenic drift modeled as Brownian motion, COVID-19 suppression via logistic ramp functions, and vaccine effects as time-varying covariates. The analysis is compared against a non-mechanistic regression with SARMA(2,1)(0,2)_52 errors, and multiple iterative model refinements are presented with thoughtful biological motivation.
+
+**Strengths:** The project is ambitious, incorporating several biologically motivated mechanisms into a single SEIRS framework. The authors engage seriously with model diagnostics, acknowledging biologically implausible parameter estimates (gamma, A, mu_EI) rather than ignoring them. Benchmark comparison with a competitive SARMA model is included and performed at a comparable likelihood scale. The biological parameter justification section draws on CDC literature. Convergence evidence via trace plots is shown for multiple local and global searches.
+
+**Weaknesses:** The profile likelihood analysis for rho evaluates a grid that excludes the global search MLE by more than an order of magnitude, rendering the reported confidence interval meaningless. The alpha and gamma "profiles" are likelihood slices rather than proper profile likelihoods, a course-confirmed error (CC-Yes, Error 1.2). The H accumulator in the Csnippet contains a double-zeroing bug that discards approximately 1/7 of each week's incidence. The paper's stated data span ("2015 to 2024") does not match the code's filter (`YEAR < 2024`). The estimated COVID suppression amplitude (A ≈ 9%) is biologically implausible given that influenza cases dropped to near zero during 2020–2022.
 
 ---
 
 ## Major Issues
 
-### 1. Double-Reset Bug in the Accumulator Variable H
+### 1. Profile likelihood for rho evaluates a range incompatible with the global search MLE
 
-The Csnippet for the extended SEIRS model (blinded.Rmd, around line 1000) contains a manual reset:
+The global search (bvgcseirs_global_search3.rds) produces a maximum likelihood estimate of rho ≈ 0.004 (reported in the parameter table in Section 5, "Reasonableness of Estimated Parameters"). However, the poor man's profile for rho (Section 5, "Profile Likelihood Evaluation — Poor Man's Profile over rho") evaluates rho on the grid `seq(0.02, 0.08, length.out=25)`, and the true profile (Section 5, "True Profile Likelihood Evaluation") evaluates `seq(0.02, 0.04, length.out=30)`. Neither grid includes values near rho = 0.004. The poor man's profile correctly shows the likelihood is maximized at the lower bound of the grid (rho ≈ 0.02), which signals the true maximum lies below the evaluated range — consistent with the global search MLE at rho = 0.004. Yet the true profile, by re-optimizing other parameters at each fixed rho, finds a maximum near rho ≈ 0.038, contradicting the global search. The two profiles give qualitatively opposite information about where the MLE lies, and the reported 95% CI for rho is computed entirely outside the MLE region. The authors then fix rho = 0.036 for the final global search, but this value has no valid profile likelihood support.
+
+**Fix:** Re-center the profile grid around the global MLE (rho ≈ 0.004), with the grid spanning roughly one order of magnitude on each side (e.g., `seq(0.001, 0.02, length.out=30)`). The CI should be computed from this properly centered profile. The inconsistency between the global search MLE and the profile maximum needs to be resolved before any confidence interval is reported.
+
+---
+
+### 2. Alpha and gamma "poor man's profiles" are likelihood slices, not profile likelihoods (CC-Yes, Error 1.2)
+
+The paper constructs "poor man's profiles" for alpha and gamma by holding all other parameters at their MLE values and varying only the target parameter. The authors explicitly state: "this approach does not re-optimize other parameters at each rho." This is a likelihood slice, not a profile likelihood. A profile likelihood requires maximizing the likelihood over all nuisance parameters at each fixed value of the target parameter. Slices are always narrower than profiles and produce artificially tight apparent confidence regions. The course explicitly tested the distinction between slice and profile (Q10-02, CC-Yes). The conclusions drawn from these plots — that "a moderate antigenic effect (0.25) best explains the data" and that gamma exhibits a "wide optimal range" — are artifacts of the slice approach and cannot support identifiability claims. The same issue applies to the rho poor man's profile, though for rho a true profile is subsequently computed.
+
+**Fix:** Construct true profile likelihoods for alpha and gamma by running mif2 at each fixed value of the target parameter with all other parameters freely estimated. Given computational constraints, 10–15 profile points with 3–5 mif2 replicates each would be sufficient to characterize the profile shape. The existing poor man's profiles can be retained as exploratory tools but should not be used to draw identifiability conclusions.
+
+---
+
+### 3. H accumulator double-zeroing in rprocess discards first sub-step's incidence
+
+The seirs_step Csnippet (Section 4, "Modeling with Seasonal Beta...") contains the following logic at the end of each step:
 
 ```c
+H += dN_EI;   // accumulate incidence
+// ...
 if (fabs(fmod(t, 1.0)) < 1e-8) {
-  H = 0;
+  H = 0;      // manual reset at integer t
 }
 ```
 
-This resets H to zero whenever `t` is an integer — that is, at the start of every observation interval. With `delta.t = 1/7`, the Euler sub-steps run through `t, t+1/7, t+2/7, ..., t+6/7`. The condition fires at `t = 1, 2, 3, ...`, zeroing H at sub-step 0 (the very first sub-step of each weekly period) immediately after `H += dN_EI` would have accumulated the first 1/7 of that week's incidence. Then `accumvars = "H"` performs its own reset after measurement. The double-reset means that approximately 1/7 of weekly incidence is systematically dropped on each sub-step where `t` is integer, and the interaction between the Csnippet reset and the `accumvars` mechanism is not clearly defined. This is a concrete reproducibility and validity failure analogous to the measurement model discrepancy documented in Wheeler et al. (2024) as a cautionary example. The authors should remove the manual reset and rely solely on `accumvars`, which is the standard pomp mechanism for accumulator variables.
+Because the model also specifies `accumvars="H"` in the pomp call, H is zeroed by pomp's automatic accumvars mechanism at each observation time before rprocess runs. When rprocess then executes the first sub-step (from t = k to t = k + 1/7 with t = k an integer), H accumulates dN_EI and is then immediately reset to 0 by the manual check. This discards the first sub-step's contribution entirely. The following six sub-steps accumulate normally. As a result, H at each observation time captures approximately 6/7 of the true weekly incidence, causing a systematic ~14% undercount. This forces rho and other parameters to compensate, making parameter estimates unreliable. The manual `H = 0` in seirs_step is redundant with accumvars and should be removed; the automatic accumvars mechanism handles the reset correctly.
 
-### 2. Biologically Implausible Parameter Estimates and Identifiability Failure
+**Fix:** Remove the manual `if (fabs(fmod(t, 1.0)) < 1e-8) { H = 0; }` block from seirs_step. The `accumvars="H"` specification already handles the reset at each observation time without discarding the first sub-step's contribution. Rerun the global searches and profile likelihoods after this fix to obtain corrected parameter estimates.
 
-Multiple parameter estimates are biologically implausible throughout the analysis. The basic SEIRS global search produces `mu_IR = 23.9` (recovery in 7 hours), which the authors themselves call "utterly ridiculous." In the extended model, `gamma = 6.9526` implies that immunity wanes in approximately 19 days under moderate antigenic drift and only 10 days under stronger drift — which the authors acknowledge contradicts empirical knowledge (blinded.Rmd, lines 1347–1370). The estimated `rho = 0.004213444` (0.4% reporting rate) is an order of magnitude below the lower bound of estimates the authors themselves calculate (1%–23%). These are not merely borderline values; they suggest systematic model misspecification rather than genuine biological findings. Wheeler et al. (2024) warn explicitly that "implausible parameter estimates flagged as potential signs of model misspecification" (Wheeler et al., §Identifiability and uncertainty). The authors partially acknowledge this but frame it as a tractable issue that will be left to future work rather than addressing it as evidence of fundamental model failure.
+---
 
-### 3. No Effective Sample Size Monitoring or Particle Filter Diagnostics
+### 4. Data span misrepresented in text: code filters YEAR < 2024, not through 2024
 
-No ESS traces are presented for any particle filter run. With a complex 17-parameter model including Brownian motion state components, particle filter degeneracy is a serious risk. Without ESS monitoring, there is no way to determine whether the reported log-likelihoods are reliable estimates of the true likelihood or artifacts of particle collapse. The simulation-based validation checklist (Morris et al. 2019; Wheeler et al. 2024, §Computational adequacy) requires that ESS be monitored during filtering and that persistent ESS collapse be flagged as evidence of model-data mismatch or insufficient particles. The authors use Np = 2000 for mif2 runs and Np = 5000 for likelihood evaluation, but without ESS traces, it is unclear whether these particle counts are sufficient for the extended model with 7 continuous state variables.
+The Introduction states: "we restrict our analysis to the years 2015 through 2024" (Section 1), and this phrasing is repeated in the Conclusion: "we model influenza dynamics... from 2015 to 2024." However, the data filtering code at line 257 reads `data |> filter(YEAR < 2024) -> data`, and an identical filter is applied again at line 715. The filter `YEAR < 2024` excludes all 2024 data; the actual analysis spans 2015–2023 (approximately 9 years, not 10). The 2024 exclusion is partially justified by the vaccine covariate availability, but the Introduction still claims "our analysis... is concerned with the data from 2015 to 2024." This misrepresentation affects the stated scope of findings.
 
-### 4. Incomplete Profile Likelihood — Only One Parameter, Non-Standard Construction
+**Fix:** Change all text references from "2015 to 2024" to "2015 to 2023" (or equivalently "2015 through 2023") to match the code. Alternatively, if 2024 data should be included, change the filter to `YEAR <= 2024` and verify the vaccine covariate is properly padded for 2024.
 
-Profile likelihoods are computed only for `rho` (and a "poor man's profile" for `alpha` and `gamma`). The "poor man's profile" approach, which fixes the profiled parameter while keeping all others at their MLE values without re-optimization, does not constitute a valid profile likelihood. The authors acknowledge this limitation themselves (blinded.Rmd, line 1493: "this approach does not re-optimize other parameters at each rho, and therefore may misrepresent the true likelihood surface"). The true profile over `rho` (blinded.Rmd, lines 1573–1635) uses only 5 mif2 replicates per fixed `rho` value across 30 grid points with Nmif = 100 + 100 — this is likely insufficient to find the constrained MLE reliably. No profile likelihoods are computed for `Beta0`, `Beta1`, `mu_IR`, `mu_RS`, or `alpha` using a proper profile design. Wheeler et al. (2024, §Identifiability) require profile likelihoods for key parameters to assess identifiability, and the failure to compute them means the confidence intervals reported for `rho` cannot be trusted.
+---
 
-### 5. Convergence Not Established — Log-Likelihood Thresholds Are Arbitrary
+### 5. Estimated COVID-19 suppression amplitude A ≈ 0.088 is biologically implausible given near-zero observed influenza
 
-The global search pair plots are presented with a filter of `loglik > max - 2000` or `max - 500`, which is an extremely wide window that includes near-random starting values and is not informative about convergence. In legitimate POMP analyses (Wheeler et al. 2024, §Computational adequacy), convergence is established by showing that multiple independent random starting points converge to the same likelihood region (typically within 10–20 log-likelihood units of the maximum). The authors use `nseq = 200` starting points with Nmif = 50 + 50 iterations — the number of iterations is modest for a 17-parameter model with Brownian motion components. There is no evidence that the reported maximum log-likelihood is near the true MLE.
+The EDA (Section 2) documents that "from 2020 to 2022, influenza cases dropped to near zero" — a reduction of over 95% from pre-pandemic levels. However, the final model estimates a maximum COVID suppression amplitude A = 0.0881, meaning the covid_effect term reduces the transmission rate by at most 8.8%. The paper explains this as a "nonlinear compounding effect" whereby a small reduction in beta, when sustained, drives the disease to near-extinction. While this logic is mathematically coherent (if R0 drops below 1), the explanation is not demonstrated quantitatively: no simulation or calculation shows that A = 0.088 actually reproduces the observed two-year near-zero period. The posterior predictive checks (Sections 5.6 and 5.7) show substantial overprediction of peak cases without disaggregating the COVID period specifically. A suppression of only 9% is inconsistent with the observed orders-of-magnitude reduction unless the baseline R0 is very close to 1, which itself raises model specification concerns. The paper identifies this tension but does not resolve it.
 
-### 6. Measurement Model Inconsistency: H Accumulates dN_EI, Not Reported Cases
+**Fix:** Add a simulation that specifically evaluates whether A = 0.088 reproduces the 2020–2022 near-zero period. If it does not, consider whether the COVID suppression onset/offset parameters (r1, r2, t_start, t_end) and amplitude A together need refitting, possibly as estimated rather than mostly fixed parameters.
 
-The authors state that H tracks "incident symptomatic cases, consistent with ILI report definitions" and accumulate H via `H += dN_EI` (transitions from E to I). However, `dN_EI` counts newly infectious individuals, not reported symptomatic cases. ILI surveillance captures individuals who seek medical care with influenza-like symptoms — this is a subset of the infectious population, typically represented by a fraction `rho` of the I compartment (or `dN_IR`, those recovering from acute illness), not by E-to-I transitions. The measurement model `dmeas = dnbinom_mu(reports, k, rho * H)` then multiplies by the reporting rate `rho`. This misalignment between the biological meaning of the accumulator and the observation process creates a structural mismatch analogous to the measurement model discrepancies documented in Wheeler et al. (2024).
+---
 
-### 7. Benchmark Comparison Is Flawed Due to Scale Incompatibility
+### 6. R0 < 1 at baseline for the interpretable final model
 
-The authors correctly note (blinded.Rmd, lines 308–323) that the SARMA model is fitted to raw (untransformed) data to allow likelihood comparison with the POMP model. However, the SARMA model fitted to non-log-transformed count data has heavy-tailed, non-normal residuals (confirmed by the authors' own Q-Q plot), and the log-likelihood of an ARIMA model fitted to raw counts is not on the same footing as the log-likelihood of a POMP model with a negative-binomial measurement model. Specifically, the ARIMA model implicitly assumes Gaussian errors, producing a likelihood on a different probability scale. The comparison of `logLik = -3620.72` (SARMA) vs. `logLik = -3622.88` (SEIRS) is not meaningful because the two models define probability density over the data using different base measures. A valid benchmark would use a non-mechanistic time-series model with the same negative-binomial observation model (e.g., auto-regressive negative binomial, as recommended by Wheeler et al. 2024, §Benchmark comparison).
+The appendix section "Justification of Biological Plausibility" computes R0 = Beta0/mu_IR = 0.8425/0.8756 ≈ 0.962 for the fixed-rho model (the interpretable final model). R0 < 1 means the infection cannot sustain transmission under constant conditions. The paper notes that the peak R0 including seasonal forcing reaches ≈ 1.074, making persistence possible only during the winter peak. An influenza R0 below 1 at baseline, with persistence dependent entirely on seasonal amplification to breach 1, is inconsistent with the widespread consensus that seasonal influenza has R0 ∈ [1.19, 1.37] (Biggerstaff et al., cited as reference [14] in the paper). This may indicate that the frho model is misspecified or that fixing rho = 0.036 forces other parameters into biologically implausible regions. By contrast, the main estimated model (bvgcseirs_global_search3) implies R0 ≈ Beta0/mu_IR ≈ 1.5758/1.5210 ≈ 1.04, which is at least positive but still below the literature range.
 
-### 8. COVID Suppression End Date: Internal Inconsistency
+**Fix:** Compute and report R0 for all major model variants, and explicitly compare to literature estimates. If R0 is consistently below the literature range, this is evidence of model misspecification (possibly too high a recovery rate or too low a transmission rate) and should motivate structural revision rather than parameter fixing.
 
-The text of blinded.Rmd (line 694) states that `t_end = 333` corresponds to "the week of 05-17-2021, when most states in HHS region 5 lifted mask mandates." However, `seirs_beta.R` (line 49) documents the same constant as "Week of 2023-05-08, Public Health Emergency for COVID-19... expires at the end of 2023-05-11" — a full two years later. Furthermore, the comment in seirs_beta.R (line 54) uses a third end time: "returned to baseline by week 436." These three inconsistent justifications for the same parameter value (333) indicate confusion about the temporal anchor of the analysis and undermine the credibility of the hardcoded suppression endpoint. The suppression model is presented as a key feature, but neither the chosen endpoint nor the logistic ramp parameters (r1 = 0.15, r2 = 0.25) are estimated from the data — they are fixed based on inconsistently-documented reasoning.
+---
+
+### 7. No conditional log-likelihood plots or ESS monitoring (Wheeler et al. 2024, Checklist Item 4)
+
+The paper does not present conditional log-likelihoods (per-observation log-likelihoods) across time, nor are effective sample sizes monitored during particle filtering. These diagnostics are particularly important given the structural breaks in the data (COVID suppression in 2020–2022, post-pandemic surge in 2022–2023). Conditional log-likelihoods would reveal whether the model fails specifically during the pandemic period or the post-pandemic surge, guiding structural improvements. Wheeler et al. (2024) demonstrate that such plots were essential for discovering Model 3's failure to explain the Hurricane Matthew surge, motivating the addition of hurricane parameters. Without these diagnostics, it is impossible to assess where the model succeeds and fails across the ten-year span.
+
+**Fix:** Add a conditional log-likelihood plot (per-week loglik contributions) using `pfilter()` output. Add ESS monitoring to identify filter degeneracy. Focus attention on the 2020–2022 and 2022–2023 sub-periods.
+
+---
+
+## Computational and Diagnostic Assessment
+
+**Convergence:** Multiple local and global searches are presented with trace plots showing log-likelihood trajectories across IF2 iterations. The loglik panel generally converges upward, and the authors correctly interpret spread in parameter traces as weak identifiability (not failure). However, the absolute convergence is difficult to assess: multiple model versions are explored iteratively rather than starting fresh global searches from diverse initial conditions within a fixed model specification. The "best" model by log-likelihood (loglik > -3600, mentioned in the Conclusion) is different from the interpretable model (loglik ≈ -3622), and the convergence evidence for the final interpretable model is less thorough.
+
+**Particle filter:** Particle counts of Np = 2000 for the profile likelihood computation and Np = 5000 for likelihood evaluation are reasonable for run_level=2/3 work. However, ESS is never monitored, so it is not possible to assess whether particle degeneracy affects inference. The likelihood evaluation uses `replicate(20, logLik(pfilter(...))) |> logmeanexp(se=TRUE)`, which is the correct course-standard pattern.
+
+**Conditional log-likelihoods:** Not reported. This is a meaningful gap given the structural complexity of the 10-year span.
+
+**Profile likelihoods:** A true profile for rho is computed (30 profile points, 5 mif2 runs each), but the grid range [0.02, 0.04] is inconsistent with the global MLE at rho ≈ 0.004 (see Major Issue 1). Profiles for alpha and gamma are likelihood slices, not profiles (see Major Issue 2). No profiles are computed for mu_IR, mu_RS, Beta0, or Beta1, which are the most biologically interpretable parameters.
+
+**Computational scale:** CPU usage and HPC job information are not reported. The paper states runs were performed on a cluster using SLURM (based on the `Sys.getenv("SLURM_CPUS_PER_TASK")` call), but no CPU-hours or cluster specifications are provided.
+
+---
+
+## Reproducibility Assessment
+
+**Code availability:** Source code is included in the submission, including the two R scripts (seirs_global.R, seirs_beta.R) for cluster execution. Cached .rds files are provided for all major computation steps, enabling figures to be reproduced without re-running optimization.
+
+**Final parameters:** Final MLE parameter vectors are stored in .rds files in the gl/ subdirectory. These are loaded throughout the Rmd for reproducibility.
+
+**Model-code consistency:** The measurement model in code (`dnbinom_mu(reports, k, mean, give_log)`) matches the mathematical description. However, the H accumulator double-zeroing identified in Major Issue 3 constitutes a discrepancy between the intended behavior (weekly incidence accumulation) and the actual implementation.
+
+**Package versions:** No `sessionInfo()` output or renv lockfile is provided. The `pomp` API has changed substantially across versions, and results may not reproduce on a different version without pinning. Additionally, the code includes an automatic package installation block that installs missing packages without user consent, which is a coding practice violation.
+
+**Auxiliary data:** Vaccination coverage (Flu_vac_region_5_monthly.csv), vaccine effectiveness (vaccine-effectiveness.csv), and the ILI data (ILINet.csv, ilitotal2015.csv) are all included in the submission. Covariate construction code is embedded in the Rmd.
+
+**HPC reproducibility:** SLURM job submission scripts are not included. Reproduction on a cluster requires manually configuring the parallel environment.
 
 ---
 
 ## Minor Issues
 
-### 9. Duplicate Parameter in `rw_sd_profile` (Code Bug)
+- The second code chunk at the top of the Rmd automatically installs missing packages (`install.packages(pkg)`) without user consent, which violates good coding practice (code supplement checklist: "No auto-installing packages without user consent"). This should be replaced with a comment instructing the reader to install required packages manually.
 
-In the profile likelihood code (blinded.Rmd, lines 1600–1611), `gamma` appears twice in `rw_sd(...)`:
+- The imported-cases restarter (`if (I < 10) { double imported = rpois(0.2); I += imported; H += imported; }`) adds imported cases to both I and H. Including imported cases in H means they enter the observation likelihood, inflating the likelihood during the COVID near-zero period. Since imported cases are an artificial modeling device (not true ILI reports), they should not be added to H. Consider adding only to I.
 
-```r
-rw_sd_profile <- rw_sd(
-  rho = 0,
-  mu_RS = 0.005,
-  gamma = 0.01,       # first occurrence
-  Beta0 = 0.01, Beta1 = 0.01,
-  mu_EI = 0.01, mu_IR = 0.01,
-  eta = 0.00005,
-  alpha = 0.01, gamma = 0.01,   # second occurrence
-  ...
-)
-```
+- Multiple fixed parameters (sigma_mut, r1, r2, k, mu_EI, phase) are fixed without profile likelihood or sensitivity analysis. While fixing parameters is sometimes necessary given computational constraints, the paper should at minimum report a sensitivity table showing how the maximum log-likelihood changes as each fixed parameter is varied over a plausible range.
 
-In R, duplicate named arguments in a function call typically cause an error or silently use the last value. This may invalidate the profile results or cause an unreported error. The authors should verify this code ran without error and remove the duplicate.
+- The paper presents two competing "best" models at the end: the highest-likelihood model (loglik > -3600, biologically implausible parameters) and the interpretable fixed-rho model (loglik ≈ -3622). The Conclusion discusses both but does not clearly state which is the primary result. A single primary model should be designated.
 
-### 10. Data Inconsistency: `data$ILITOTA` vs. `data$ILITOTAL`
+- Trace plots for local searches display well, but the global search pair plots use `loglik > max(loglik, na.rm=TRUE) - 2000` or `-500` as filter thresholds. These windows are extremely wide (2000 log-units covers a range that includes many qualitatively different parameter combinations) and may obscure structure near the MLE. A window of 10–20 log-units is standard for examining near-optimal parameter distributions.
 
-At blinded.Rmd line 377, the SARMA model is fitted as `arima(data$ILITOTA, ...)` — missing the final `L` from `ILITOTAL`. This is a potential silent error that would cause the model to fit on an unexpected column or return an error. The `.rds` file is cached so this typo may not have been caught at runtime, but it introduces reproducibility doubt about whether the fitted model in the cached file actually uses the intended data column.
+- The spectral periodogram subtitle reads "Cycles per Year" and a vertical line is correctly placed at frequency = 1 (1 cycle per year). The dominant peak at frequency ≈ 1 is interpreted as "a dominant frequency of one cycle per year." However, the data has been set as `ts(..., frequency=52)`, so additional peaks at integer multiples (harmonics at 2, 3, ...) would also be present and deserve brief comment. The paper does not acknowledge higher-harmonic structure that may reflect within-season variation.
 
-### 11. No Seed or Computational Budget Reported for Global Searches (Main Results)
+- The "Justification of Biological Plausibility" in the appendix uses parameters from the frho model (Beta0=0.8425, mu_IR=0.8756) without clearly labeling which model version these come from. Given that the main paper discusses a different parameter set (Beta0=1.5758, mu_IR=1.521), readers may confuse which model is being justified.
 
-The global searches in the Rmd are loaded from cached `.rds` files with no documentation of how many particles, iterations, or starting points were used in producing those files. The `seirs_beta.R` file provides some of this information for the final search, but the intermediate global searches (e.g., `bvgcseirs_global_search1.rds`, `bvgcseirs_global_search2.rds`, `bvgcseirs_global_search3.rds`) lack corresponding documentation in the Rmd. Wheeler et al. (2024, §Computational adequacy) require that computational effort be reported.
+- Notation: the notation `mu_RS` and `mu_{RS}` are used interchangeably between inline math and code. This is a minor presentation inconsistency.
 
-### 12. Profile Likelihood Range for `rho` Does Not Bracket the MLE
+- At line 338, the paper states "we discard [ARMA(3,0)] as there is a mathematical inconsistency between ARMA(3,0) and ARMA(3,1)." The AIC inconsistency (AIC(3,1) > AIC(3,0)) is correctly identified as a potential numerical optimization failure (CC-Yes, Error 2.13 from the student weakness reference), but the diagnosis is framed as a "mathematical inconsistency" rather than an optimization artifact. The language should be revised to note that this may indicate the ARMA(3,1) optimization did not converge, not that ARMA(3,0) is inherently preferred.
 
-The profile likelihood for `rho` is computed over the range `[0.02, 0.04]` (blinded.Rmd, line 1588), but the authors report their MLE at `rho ≈ 0.004213444` — roughly 5 times outside the lower bound of the profiled range. The profile therefore does not bracket the true maximum, and the resulting 95% CI cannot be valid. The authors acknowledge the discrepancy (observing the poor man's profile maximizes at its lower bound, line 1493), but the true profile is computed on the wrong range. The computed CI of rho is therefore unreliable.
+---
 
-### 13. `eta` Non-Identifiability Not Adequately Addressed
+## Recommendation
 
-The authors note that `eta` (initial infected fraction) is non-identifiable across both the basic SEIRS and extended models. For identifiable parameters, non-identifiability of `eta` inflates log-likelihood uncertainty and may compromise estimates of correlated parameters. The authors treat this as a known limitation but do not fix `eta` to a principled value, offer a sensitivity analysis, or discuss how uncertainty in `eta` propagates to conclusions about `Beta0`, `rho`, or `mu_RS`.
-
-### 14. Posterior Predictive Check Conflates Forward Simulation with Model Validation
-
-The "posterior predictive check" (blinded.Rmd, lines 1517–1565 and 1685–1726) simulates trajectories from the estimated MLE parameters using `simulate()`. This produces forward simulations from estimated initial conditions, not from the filtering distribution conditioned on observed data. As noted in Wheeler et al. (2024, §Forecast methodology), forward simulation and filtering-distribution simulation serve different diagnostic purposes and should not be conflated. The relevant diagnostic for model fit is a comparison of simulations conditioned on all observed data (via `pfilter()`), not forward simulations from a fixed parameter vector, which will show much greater uncertainty.
-
-### 15. ChatGPT Used to Generate Parameter Interpretation Table and Code
-
-The authors explicitly state that ChatGPT was used to "create the following table" (blinded.Rmd, line 1263) of parameter interpretations, and to "help preparing the above plot" (line 1335). Using a language model to interpret biological plausibility of parameter estimates is methodologically unreliable — a language model cannot perform quantitative validation and may hallucinate or mischaracterize biological ranges. These judgments should rely on primary literature and the authors' own quantitative calculations, not on an AI-generated table. The authors do cite primary literature elsewhere and perform some calculations independently, but the direct outsourcing of biological interpretation to ChatGPT undermines the credibility of the parameter assessment.
+**Major Revision.** The project demonstrates genuine ambition and biological thoughtfulness. The benchmark comparison, multiple iterative model refinements, and acknowledgment of biologically implausible estimates are all commendable. However, three issues require correction before the analysis can support its conclusions: (1) the profile likelihood for rho is computed in the wrong region relative to the global MLE, making the reported CI invalid; (2) the alpha and gamma profiles are likelihood slices, not profiles, producing overstated identifiability claims; and (3) the H accumulator double-zeroing is a model implementation error that systematically biases all parameter estimates. After addressing these issues and rerunning the global searches and profiles, the authors should verify that the key comparative finding (POMP likelihood competitive with SARMA) holds. Adding conditional log-likelihood plots to assess fit during the pandemic sub-period would substantially strengthen the model diagnostics.
 
 ---
 
 ## Files Consulted
 
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/SKILL_pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project01/blinded.Rmd`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project01/seirs_beta.R`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project01/ilitotal2015.csv`
+### Skill Files
+
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/SKILL_pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/assets/rev_template_pomp.qmd`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-conventions.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-weakness-reference.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/README.md`
+
+### Project Files
+
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W25/project01/blinded.Rmd`

@@ -66,7 +66,24 @@ If no — the task was routine and required no novel reasoning — **stop here. 
 If yes, continue.
 
 
-## 2. Define the Skill
+## 2. Check the Existing Skill Library
+
+Before proposing a new skill, read the SKILL.md file of every existing skill in the repository.
+
+For each existing skill, ask:
+
+- Does its **trigger condition** already cover the pattern I observed?
+- Does its **procedure** already describe the steps I improvised?
+- Is my candidate skill a narrow variant or special case of an existing skill?
+
+If an existing skill already covers the pattern — even partially — **do not create a new skill.** Instead, note which existing skill applies and stop here.
+
+If the pattern is genuinely absent from all existing skills, continue to Step 3.
+
+If the pattern is partially covered but the existing skill has a meaningful gap (e.g., it handles the epidemiological case but not the political science case), consider whether the better fix is to **extend the existing skill** rather than create a new one. Only create a new skill if the extension would make the existing skill's trigger condition too broad or its procedure too complex to follow.
+
+
+## 3. Define the Skill
 
 Provide the following elements.
 
@@ -87,23 +104,12 @@ Avoid vague names such as:
 - `review-tool`
 
 
-### Task Context
-
-Describe the task that revealed the need for the skill.
-
-Include:
-
-- the task type
-- what made it difficult
-- what reasoning was required
-
-
 ### Core Value
 
-In one sentence: what future task does this skill make meaningfully easier or more consistent?
+In one sentence: what future task does this skill make meaningfully easier or more consistent? This sentence becomes the `description` field in the skill's frontmatter — make it precise and discriminating, not a general summary.
 
 
-## 3. Extract the Core Method
+## 4. Extract the Core Method
 
 Describe the reusable procedure that defines the skill.
 
@@ -119,7 +125,7 @@ Example structure:
 Focus on the steps that made the approach effective.
 
 
-## 4. Define Limitations and Edge Cases
+## 5. Define Limitations and Edge Cases
 
 Describe conditions where this skill would break down, produce unreliable output, or should not be applied.
 
@@ -132,7 +138,7 @@ Ask:
 This section forces honest scoping and prevents overuse.
 
 
-## 5. Define the Trigger
+## 6. Define the Trigger
 
 Specify when the new skill should activate.
 
@@ -146,6 +152,18 @@ Examples:
 
 Avoid triggers like "when analyzing data" — too broad to be reliable.
 
+
+# Self-Check
+
+Before saving the skill file, verify each of the following. If any check fails, revise before saving.
+
+- [ ] **Description discriminates**: would the `description` frontmatter avoid firing on a routine review that doesn't involve this specific error pattern?
+- [ ] **"Do not use when" is present**: does "When to Activate" include at least one explicit exclusion condition?
+- [ ] **Procedure is operational**: are the steps numbered and concrete enough that a different reviewer could follow them without additional context?
+- [ ] **Library check was completed**: was every existing skill file in Skills/ read before deciding to create this skill?
+- [ ] **Not a duplicate or narrow variant**: does this skill catch something that no existing skill (including host skills with folded steps) already covers?
+
+If all checks pass, save the skill file. If any fail, either revise the skill or — if the pattern turns out to be covered after all — do not save.
 
 # Quality Guidelines
 
@@ -178,7 +196,11 @@ description: <one sentence: when to trigger, what it does, and what distinguishe
 
 ## When to Activate
 
-<Precise trigger conditions.>
+<Precise trigger conditions — what must be true for this skill to apply.>
+
+Do not use this skill when:
+- <Condition under which this skill does not apply>
+- <A task that looks similar but where this skill gives bad or redundant results>
 
 ## Procedure
 

@@ -1,101 +1,201 @@
 # Peer Review: W25 Project 05
-## "Analysis of Malaria Cases in Florida"
+## *Analysis of Malaria Cases in Florida*
+
+---
+
+## Paper Metadata
+
+| Field | Details |
+|-------|---------|
+| **Inference method** | IF2 (mif2) via the `pomp` R package; replicated pfilter for likelihood evaluation |
+| **R packages used** | `pomp`, `forecast` (Arima), `foreach`, `doFuture`, `ggplot2`, `tidyverse` |
+| **Code publicly available** | Yes — submitted as part of course repository |
+| **Data publicly available** | Yes — Project Tycho (CC BY 4.0), DOI: 10.25337/T7/ptycho.v2.0/US.61462000 |
+| **Benchmark comparison included** | No (no non-mechanistic benchmark for POMP evaluation) |
+
+---
+
+## POMP Checklist Scorecard
+
+| # | Practice | Status | Notes |
+|---|----------|--------|-------|
+| 1 | Likelihood-based inference | ~ | IF2 used with replicated pfilter, but see Issues 3, 7 |
+| 2 | Benchmark comparison | ✗ | No ARMA or IID benchmark at the POMP scale; SARIMA comparison is on a different observation scale |
+| 3 | Quantitative goodness-of-fit reporting | ~ | Log-likelihoods reported, but SARIMA/POMP comparison is methodologically invalid |
+| 4 | Model diagnostics | ✗ | No ESS monitoring; no conditional log-likelihood plots; visual comparisons only |
+| 5 | Parameter identifiability and uncertainty | ✗ | No profile likelihoods; no confidence intervals; scatter plots misrepresent identifiability |
+| 6 | Computational adequacy | ~ | Global search with 20 starts and Nmif=100 is reasonable but poorly constructed (see Issue 7) |
+| 7 | Forecast methodology | N/A | No forecasts attempted |
+| 8 | Model variations and nested comparisons | ✗ | Immigration model tested but never actually implemented; no formal comparison |
+| 9 | Stochasticity | ~ | Process noise (Gamma white noise) is included; measurement model is Poisson despite σ_M declared as overdispersion |
+| 10 | Reproducibility and extendability | ~ | Code present; but critical bugs prevent reproduction of intended analysis |
+| 11 | Corroboration with scientific knowledge | ✗ | Parameter units are inconsistent with described biology; implausible values not flagged |
+| 12 | Measurement model specification | ✗ | Code and text disagree; σ_M never used; ε value in code differs from parameter |
+| 13 | Initial conditions | ~ | Initial compartments specified; N_0 = 100,000 unjustified for Florida |
+
+*Checklist based on Wheeler et al. (2024), PLOS Computational Biology 20(4): e1012032.*
 
 ---
 
 ## Summary
 
-This project analyzes monthly reported malaria cases in Florida (2006–2016) using two approaches: a SARIMA baseline and a mechanistic SEIR-with-splines POMP model adapted from a dengue model in the literature. The authors identify seasonal structure in the data, fit a SARIMA(0,1,1)(0,1,1)[12] model, and then build a stochastic SEIR model with periodic B-spline forcing and an immigration parameter, estimating parameters via IF2 (iterated filtering). While the combination of SARIMA and POMP approaches is appropriate for this type of data, and the motivation for immigration-based infection pressure is scientifically reasonable, the execution has critical weaknesses: the POMP model substantially underperforms the SARIMA benchmark (-328 vs. -96 log-likelihood), no explanation or resolution is offered; parameter identifiability is not demonstrated; computational effort is marginal; and the measurement model contains internal inconsistencies between the mathematical description and the code.
+This project fits SARIMA and SEIR-based POMP models to monthly malaria case counts in Florida (2006–2016) from Project Tycho. The SARIMA analysis is well structured, and the use of a biologically motivated SEIR model with B-spline forcing is a reasonable design choice for a seasonally driven disease. However, the paper suffers from several critical implementation errors: the "immigration model" is never actually built into the pomp object (the rprocess is never updated), rendering the central biological claim unsupported; rate parameters described in days are applied in a monthly time-unit model, producing biologically implausible latent and infectious periods; and a declared overdispersion parameter (σ_M) is never used in the measurement model while the implemented code differs from the stated formula. The likelihood comparison between SARIMA and the POMP models conflates AIC and log-likelihood and compares values computed on different observation scales.
+
+**Strengths:** The biological motivation for adapting the dengue SEIR model with splines is clearly articulated. The SARIMA analysis is competent, including log transformation, seasonal differencing, AIC model selection, invertibility check, and residual diagnostics. The use of replicated pfilter with logmeanexp for likelihood evaluation is correct.
+
+**Weaknesses:** The immigration model is not implemented (critical code bug); rate parameters have unit inconsistencies making all biology-based interpretations unreliable; the measurement model code contradicts the text; the SARIMA-POMP likelihood comparison is methodologically invalid; no profile likelihoods or confidence intervals are produced; no benchmark comparison is made at the POMP scale.
 
 ---
 
 ## Major Issues
 
-### 1. POMP model dramatically underperforms the SARIMA benchmark with no resolution
+### 1. Immigration model is never actually implemented in the pomp object
 
-The authors report a SARIMA log-likelihood of approximately -96 and final POMP log-likelihoods around -328, representing a gap of over 230 log-likelihood units. This gap is acknowledged in the Comparison section but dismissed as "scope for improvement." A mechanistic model that performs this far below a simple non-mechanistic baseline provides no evidence that it captures any meaningful biological structure beyond what a time-series model can achieve. Per Wheeler et al. (2024), benchmark comparisons are essential precisely because they reveal whether the mechanistic model adds anything beyond a simple statistical approximation. The authors are comparing AIC-based SARIMA selection with log-likelihood from the POMP model on the log-transformed vs. raw scale, making the comparison potentially invalid on its face (see Issue 2). Regardless of scale comparability, the direction of the result (SARIMA wins by a wide margin) demands a serious discussion and diagnostic follow-up, neither of which is provided.
+This is the most critical error in the paper. In the `setup-immi` chunk, the authors redefine the R variable `rproc` to a new Csnippet that includes immigration dynamics. However, they never call `pomp(...)` again to rebuild `seir_spline_model` with this new process model. The only update applied to `seir_spline_model` is `coef(seir_spline_model) <- c(...)`, which only updates the parameter vector. The `rprocess` slot of `seir_spline_model` still holds the old Csnippet from the initial model, which contains no immigration term.
 
-**Fix:** Either (a) demonstrate that the log-likelihood values are on a comparable scale (same observation model, same data transform), and if so, diagnose why the POMP model fails so badly, or (b) explicitly acknowledge that the comparison is not valid as stated and conduct a proper one.
+When `mif2(seir_spline_model, ...)` is called in the immigration local search, `immigration_rate` is in the parameter vector but is not referenced by the active C code. The `pomp` package silently ignores the unreferenced parameter and runs the original SEIR model, which explains the identical log-likelihood of -332.02 for both models. The claim "POMP model with immigration yields the same likelihood (-332.02)" and the biological conclusion that "introducing an immigration parameter in the SEIR framework was the right call" are both based on a model that was never computed.
 
-### 2. Log-likelihood comparison between SARIMA and POMP models is not valid as stated
+**Fix:** After defining the new `rproc`, reconstruct the pomp object: `seir_spline_model_immi <- pomp(seir_spline_model, rprocess = euler(rproc_immi, delta.t = 1/24))` before fitting.
 
-The SARIMA model is fit on log-transformed data (`log1p(monthly_all$Y)`) while the POMP model is fit on the raw count data with a Poisson measurement model. Log-likelihoods from these two models are defined on different scales and are not directly comparable. The authors nonetheless compare them numerically ("-96 vs. -328") without any acknowledgment of this incompatibility. Wheeler et al. (2024) emphasize that quantitative goodness-of-fit comparisons must be "on the same data and observation model so values are directly comparable."
+---
 
-**Fix:** Either fit the SARIMA model on the same scale as the POMP observation model (raw counts, negative binomial or Poisson), or convert both to the same likelihood scale. Until this is done, no quantitative model comparison is possible.
+### 2. Rate parameters described in days are applied in a monthly time-unit model
 
-### 3. Measurement model is Poisson but described as incorporating overdispersion parameter sigma_M
+The POMP model time unit is months: `monthly_all$time = 1:132` for 132 monthly observations, and the spline period is `period = 12` (months). All rate parameters must therefore be per month. However, the parameter descriptions state:
 
-The parameter table (Initial Parameter Settings & Description) lists sigma_M = 0.3 as "Fixed measurement overdispersion," implying a negative binomial or similar overdispersed distribution. However, both the mathematical specification and the C-snippet code implement a Poisson measurement model: `rmeas <- Csnippet("Y = rpois(rho * I + 1e-6);")` and `dmeas <- Csnippet("lik = dpois(Y, rho * I + 1e-6, give_log);")`. The parameter `sigma_M` appears in `paramnames` and `par_trans` (it is log-transformed) but is never used in either `rmeas` or `dmeas`. This is a concrete internal inconsistency between the documented model and the implemented model, and constitutes a reproducibility failure of the type documented by Wheeler et al. (2024). The Poisson measurement model also has no overdispersion, which is inappropriate for count data from disease surveillance that typically exhibits substantial extra-Poisson variation.
+- `mu_EI = 1/25.2` — "Progression rate from exposed to infectious (1/latent period), 25.2 days"
+- `gamma = 1/20.5` — "Recovery rate, 1/infectious period, ~20.5 days"
 
-**Fix:** Implement a negative binomial measurement model that actually uses sigma_M (or an equivalent dispersion parameter), or remove sigma_M from the parameter set entirely and update all documentation to reflect that the Poisson model is intentional.
+In a monthly model, `mu_EI = 1/25.2` implies an average E→I latent period of 25.2 months (~2.1 years), not 25.2 days. Similarly, `gamma = 1/20.5` implies an infectious period of 20.5 months (~1.7 years). The biologically correct values in monthly units would be approximately `mu_EI ≈ 30/14 ≈ 2.14` per month (for a ~14-day latent period) and `gamma ≈ 30/20.5 ≈ 1.46` per month. The values used are off by a factor of approximately 30. This is Error 1.3 (inconsistent units between latent process and measurement model), which the course explicitly tested and classified as Major severity. All biological interpretations of the fitted parameters are unreliable.
 
-### 4. Cumulative cases C are computed from E->I transitions but the measurement model observes I
+**Fix:** Divide all day-scale rates by 30.44 (average days per month) to convert to per-month units, or document clearly that the time unit is days and adjust the data and spline period accordingly.
 
-The state variable C is defined as cumulative cases and updated as `C += rho * dEI` (proportional to E->I transitions). However, the measurement model observes `Y ~ Poisson(rho * I + 1e-6)` — it observes the current infectious count I, not the new cases from C. This creates an incoherence: C accumulates cases but is never used in the measurement model; instead I (the prevalence, not incidence) is the basis for observations. For a monthly reporting system, one would expect Y to relate to new cases (incidence) or at least to have a consistent definition. Furthermore, `accumvars = "C"` is set in the `pomp()` call, which means C is reset to 0 at each observation time — but since C is not used in dmeas, this has no effect on inference. The state variable C is essentially dead weight in this model.
+---
 
-**Fix:** Align the measurement model with the state variables. If cases are reported incidence, measure Y from accumulated new infections (dEI or the reset accumvar C). If Y measures prevalence, remove C from the model and clarify the epidemiological interpretation.
+### 3. Measurement model code contradicts the mathematical description; σ_M is declared but never used
 
-### 5. No profile likelihoods; parameter identifiability not assessed
+The paper states the measurement model as `Y_t ~ Poisson(ρ I_t + ε)` where `ε` is "small background risk pressure" parameterized as `epsilon = 1`. The parameter table also lists `σ_M = 0.3` as "Fixed measurement overdispersion." Neither statement matches the implemented code:
 
-The project presents no profile likelihood plots for any parameter. The trace plots show that parameters do not converge across IF2 runs ("our model is weakly identifiable for our parameters because the iterations don't converge in value"), and the authors note this explicitly. This is a correct diagnosis but an unresolved problem: with non-converging parameters, the reported MLEs are not reliable estimates of the true maximum likelihood, and any interpretations of parameter values (e.g., the immigration rate, rho, or spline coefficients) are untrustworthy. Wheeler et al. (2024) require profile likelihoods and MCAP confidence intervals for key parameters. The scatter plots of loglik vs. parameter values from the global search are informative but are not substitutes for proper profile likelihoods.
+- The `rmeas` Csnippet uses `rpois(rho * I + 1e-6)` and `dmeas` uses `dpois(Y, rho * I + 1e-6, give_log)`. The hardcoded constant `1e-6` is used, not the parameter `epsilon` (= 1).
+- `sigma_M = 0.3` appears in `paramnames` and is initialized, but it is referenced nowhere in `rmeas`, `dmeas`, or `rproc`. It has no effect on the model.
 
-**Fix:** Compute profile likelihoods for at least the scientifically most important parameters (rho, immigration_rate, and possibly g or sigma_P). If profiles are flat, explicitly report this as evidence of non-identifiability.
+A Poisson model has variance equal to its mean. Using `sigma_M` as overdispersion (e.g., in a negative binomial) would substantially change the likelihood surface and fitted parameters. The discrepancy between the stated measurement model (which mentions overdispersion) and the implemented model (pure Poisson with a mismatched ε value) constitutes a reproducibility failure consistent with the pattern documented in Wheeler et al. (2024). This is also a violation of POMP checklist item #12 (measurement model specification).
 
-### 6. Computational effort is insufficient; no convergence demonstrated
+**Fix:** Decide whether the model should be Poisson (remove `sigma_M`, use `epsilon` correctly) or negative binomial (implement overdispersion using `sigma_M`). Ensure the mathematical statement and the C snippets agree.
 
-The local search uses Np=1000 particles and Nmif=50 iterations across 10 replicates; the global search uses Np=2000/4000, Nmif=100, across 20 replicates. Given that the trace plots themselves show non-convergence, these settings are clearly insufficient. The fact that the local and immigration models both converge to the same log-likelihood of -332.02 after local search is suspicious — it suggests the optimizer is not exploring the space effectively. Wheeler et al. (2024) emphasize that log-likelihood traces should demonstrate convergence, and that insufficient computation can make a good model look bad. The total computation budget (20 global replicates × Nmif=100 × Np=2000) is modest for a 12-parameter model on 132 monthly observations. No computation time or CPU-hour budget is reported.
+---
 
-**Fix:** Increase the number of particles and IF2 iterations until trace plots show convergence. Run multiple independent global searches and demonstrate that different starting points reach the same final log-likelihood. Report total computation time.
+### 4. Cumulative cases accumulator C is tracked but never used in the observation model
 
-### 7. Global search parameter initialization is flawed: replicate() with base_params creates duplicate initial points
+The model defines `accumvars = "C"` and updates `C += rho * dEI` in `rproc`, accumulating a fraction of E→I transitions. However, the measurement model observes `rpois(rho * I + 1e-6)`, which uses the current stock of infectious individuals I, not the accumulator C. These are different quantities: C records cumulative reported incidence, while I is prevalence. The paper does not clarify which quantity `Y` is supposed to represent (new monthly cases, which would correspond to flow, or current count, which would correspond to I). Given that the data consists of monthly reported case counts (new cases per month), observations from C would be more appropriate. As implemented, C is computed and discarded.
 
-The global search code uses `replicate(20, { c(base_params, c(...)) })` where `base_params <- coef(seir_spline_model)`. Using `c()` to merge the two vectors results in parameters from `base_params` appearing twice in the initialization vector — the randomly drawn values for b_1...b_5, g, rho, etc. are appended after the base parameters, but `c()` does not replace named elements. In R, when you call `c(base_params, c(b_1=runif(1,...), ...))`, you get a vector with duplicated names; the `pomp` framework likely uses the first occurrence of each parameter name, meaning the random variation intended for the global search is silently ignored. This would explain why the global and local searches find identical or near-identical likelihoods. The correct approach is to modify `base_params` directly (e.g., `params <- base_params; params["b_1"] <- runif(1, -2, 2); ...`).
+**Fix:** If Y represents new monthly cases, use `dmeas` based on C (and reset C at each observation time). If Y represents a stock, remove the accumulator and clarify the biological interpretation.
 
-**Fix:** Verify the parameter initialization by printing one of the `global_inits` entries and checking that the intended random values are actually used. Rewrite the initialization to explicitly overwrite named elements in `base_params`.
+---
 
-### 8. Birth rate parameter r is biologically implausible and inconsistent
+### 5. No profile likelihoods and no confidence intervals
 
-The parameter r = 0.135 is listed as "Birth rate" with units implied as per-month (since the model uses monthly time steps). A birth rate of 0.135 per month corresponds to approximately 162% per year — far exceeding any plausible human birth rate (which is approximately 0.01–0.015 per year for Florida). This is likely a transcription error from the dengue source model where r may have had different units or interpretation. During the global search, r is randomized in `runif(1, 0, 0.001)`, suggesting the authors recognized the problem but did not address it in the base model or documentation.
+The paper presents scatter plots of loglik vs. parameter values from the global search (the "parameter-loglik-plots" chunk) but does not compute profile likelihoods. A profile likelihood requires maximizing the likelihood over all nuisance parameters at each fixed value of the target parameter. The scatter plots show the raw distribution of optimization results across starting points, which is a slice (fixed starting-point scatter), not a profile. This is Error 1.2 (computing a likelihood slice instead of a profile), explicitly tested in course quiz Q10-02 and classified as Major severity. Without profile likelihoods, no confidence intervals are available for any POMP parameter, and the identifiability of the model cannot be assessed. The claim of "weak identifiability" in the conclusion is based on scatter in parameter values rather than examination of the likelihood surface.
 
-**Fix:** Clarify the units of r and verify that the value used is consistent with Florida's demographic data. Given that malaria is imported and not endemic, consider whether a full birth-death demographic structure is even necessary for a 10-year window.
+**Fix:** Compute proper profile likelihoods for at least the key parameters (e.g., `rho`, `mu_EI`, `gamma`, `immigration_rate`) following the course standard: fix target parameter, optimize all others via mif2 at each grid point, and evaluate using replicated pfilter.
+
+---
+
+### 6. SARIMA AIC and POMP log-likelihood are compared on different scales
+
+The conclusion states: "as seen in the difference in likelihoods between the SARIMA model (-96) and the POMP models (-328), there is a significant scope for improvement in the mechanistic models." This comparison is invalid on two counts.
+
+First, -96 is the AIC of the SARIMA model, not its log-likelihood. AIC = -2·loglik + 2k; for SARIMA(0,1,1)(0,1,1)[12] with k = 2, the log-likelihood is approximately (-96 − 4)/(−2) = 50, not -96.
+
+Second, the SARIMA is fit to `log1p(Y)` (the log-transformed series), while the POMP model is fit to raw counts Y. These likelihoods are densities evaluated on different observation scales and are not directly comparable without a Jacobian correction. This is Error 2.2 (AIC comparison between ARIMA and POMP without noting non-comparability), tested in quiz Q4-05/Q11-01.
+
+If the intent is to benchmark the POMP model against a simpler model on the same data and scale, the appropriate comparison would be to fit a negative binomial or Poisson ARMA model directly to the raw count data Y and compare log-likelihoods.
+
+**Fix:** Either fit a benchmark model on the same observation scale (raw counts) or explicitly note that the SARIMA and POMP likelihoods are not comparable and refrain from drawing conclusions based on their numerical difference.
+
+---
+
+### 7. Global search starting points are incorrectly constructed due to duplicate parameter names
+
+In the global search, `global_inits` is constructed as `c(base_params, c(b_1 = runif(1, -2, 2), ...))`. Since `base_params` already contains `b_1`, `b_2`, ..., `b_5`, `g`, `rho`, `sigma_P`, etc., the resulting vector has duplicate names. In R, when a named vector contains duplicate names and is subscripted (or passed to a function that extracts by name), the first matching element is returned. The `pomp` package extracts parameters by name from the `params` argument to `mif2`; it will use the first occurrence, which comes from `base_params`, not from the intended random initialization. As a consequence, the "global" search is effectively a local search from the same fixed starting point, merely with different random seeds for the stochastic optimizer. This likely explains why the global search yields only "marginal" improvement over the local search. The diversity of starting points — the entire purpose of global search — is defeated.
+
+**Fix:** Build `global_inits` by updating `base_params` with the new values using named assignment: start from a copy of `base_params`, then set `params["b_1"] <- runif(1, -2, 2)`, etc.
+
+---
+
+### 8. No benchmark model comparison for POMP
+
+No non-mechanistic benchmark (e.g., ARMA, Poisson regression, negative binomial regression on raw counts) is compared against the POMP models. The course explicitly taught (quiz Q11-01, Error 1.6) that comparing a mechanistic model to such a benchmark is a necessary validation step. Without it, there is no way to assess whether the SEIR structure adds explanatory value over a simple statistical model. Given that the POMP log-likelihood is approximately -332 while the model has numerous parameters, an IID negative binomial fit to the raw counts could plausibly achieve a competitive log-likelihood. The paper cannot support its biological conclusions without this baseline.
+
+**Fix:** Fit an ARMA or negative binomial model to the raw monthly case counts Y and report the log-likelihood for direct comparison with the POMP models.
+
+---
+
+## Computational and Diagnostic Assessment
+
+**Convergence:** Trace plots from the global search are shown for all parameters and loglik together. The paper claims the loglik "seems to be converging to -328," but the relevant diagnostic — a clear, separate loglik panel showing consistent upward convergence across all 20 runs to a common plateau — is not shown or discussed explicitly. The parameter panels show substantial spread, which is expected for weakly identified parameters, but the convergence criterion should be terminal loglik agreement across runs, not visual impressions.
+
+**Particle filter:** The particle count is Np = 2000 for local search evaluation and Np = 4000 for global search evaluation (both using 10 replications with logmeanexp). These are reasonable. However, no ESS monitoring is performed at any point. ESS collapse during filtering is a key diagnostic for identifying time periods of poor model-data agreement, and its absence means the paper has no information about where the model fails.
+
+**Conditional log-likelihoods:** Not reported. Per-observation log-likelihoods are among the most useful diagnostics for identifying model deficiencies (Wheeler et al. 2024, §Model diagnostics); their absence is a meaningful gap.
+
+**Profile likelihoods:** Not computed. See Major Issue 5.
+
+**Computational scale:** Not reported. CPU-hours or equivalent are not mentioned. The local search uses Nmif = 50 with 10 starts; the global search uses Nmif = 100 with 20 starts. These are within the run_level=2 range and appear adequate for a preliminary analysis, though the incorrectly constructed global search (Issue 7) limits the value of the global component.
+
+---
+
+## Reproducibility Assessment
+
+**Code availability:** Code is embedded in the Rmd file and data is included. The analysis can nominally be re-run.
+
+**Final parameters:** No archived MLE parameter vectors are provided separately from the optimization code. Readers must re-run the full optimization to evaluate the reported likelihoods.
+
+**Model-code consistency:** The measurement model in the text uses `ε` (epsilon = 1) but the code uses the hardcoded constant `1e-6`. The parameter `σ_M` is described as "Fixed measurement overdispersion" but is never referenced in the measurement code. See Major Issue 3.
+
+**Package versions:** No `sessionInfo()` output or `renv` lockfile is provided. The `pomp` API has changed across versions; readers cannot verify which version was used.
+
+**Auxiliary data:** The Project Tycho CSV file is included in the submission directory. Covariate tables (B-spline basis) are constructed programmatically within the Rmd and do not require external files.
 
 ---
 
 ## Minor Issues
 
-### 9. Measurement model uses I (prevalence) rather than new infections for a reporting context
+- **Periodogram x-axis mislabeled (Error 2.8):** The `spec.pgram` call labels the x-axis as `"Frequency (cycles per year)"`, but with monthly data the native frequency unit is cycles per month. The paper correctly identifies the dominant period as approximately 12 months (at frequency ≈ 0.0888), but the x-axis label is inconsistent with the stated unit. The label should read "cycles per month."
 
-Monthly reported cases in a surveillance system represent newly diagnosed cases (incidence), not the stock of currently infectious individuals. Observing Y ~ Poisson(rho * I) implies that all currently infectious individuals are observed each month, which conflates stock and flow. A more appropriate measurement model would link Y to new cases per reporting period (e.g., rho * dEI accumulated over the month, via the accumvar C). This is a minor issue if the authors acknowledge it, but it is related to Major Issue 4 and affects interpretation of rho.
+- **SARIMA model equation notation error:** The equation `(1+θ₁)(1+Θ₁B¹²)εₜ` is missing the backshift operator in the first factor. The correct notation is `(1+θ₁B)(1+Θ₁B¹²)εₜ`.
 
-### 10. SARIMA model selection table is restricted to a very narrow grid
+- **Population size N_0 = 100,000 not justified:** Florida's population during 2006–2016 was approximately 18–20 million. The choice of N_0 = 100,000 is not explained. Using a representative sub-population is sometimes acceptable, but the effect on parameter estimates (especially ρ and the transmission coefficients) should be acknowledged.
 
-The AIC model selection grid searches only p_max=1, q_max=1, P=1, Q=1. This means the selected model SARIMA(0,1,1)(0,1,1)[12] is the best among only a 2x2x2x2=16 models. Standard practice is to search a broader grid (e.g., p,q up to 3-5, P,Q up to 2) to ensure the globally best SARIMA model is found. The claim that this is the "best fitting model" is only valid within the restricted search space.
+- **Birth rate r = 0.135/month is biologically implausible:** The initial value `r = 0.135` in a monthly model corresponds to a ~14% monthly birth rate (>100% annually). The global search constrains `r ∈ [0, 0.001]` but never questions the initial value. No justification for any value of r is provided.
 
-### 11. Periodogram frequency axis labeling is misleading
+- **σ_M parameter is listed in the parameter table as "Fixed measurement overdispersion" but is never used:** This creates the false impression that the measurement model accounts for overdispersion. If σ_M is not used, it should not appear in the parameter table or description.
 
-The code labels the x-axis as "Frequency (cycles per year)" but `spec.pgram` for monthly data with default settings returns frequency in cycles per observation (here, cycles per month). The identified dominant frequency 0.0888 cycles/month corresponds to a 11.26-month period (approximately annual), but the text states it "translates to a cycle period of 12 months." The conversion and labeling should be made explicit to avoid confusion.
+- **No formal model comparison between initial and immigration models:** The paper states that immigration "explains the model fit better" but no likelihood ratio test, AIC comparison, or even a clear statement of both models' log-likelihoods is provided. The identical loglik (-332.02) in the local search actually suggests no improvement.
 
-### 12. Invertibility check does not verify that the model is on the boundary
+- **Causal language in conclusions (Error 2.10):** The conclusion states "introducing an immigration parameter... supports the assumption that the force of infection is coming from outside Florida." This is causal language applied to a fitted model that did not in fact include immigration (Issue 1). Even were the model correctly implemented, observational model fit does not establish a causal mechanism.
 
-The authors report the model is invertible, but for the airline model (SARIMA(0,1,1)(0,1,1)[12]), it is common for the MA coefficients to be near or at -1, indicating the model is on the boundary of invertibility (unit root in the MA polynomial). The code checks `Mod(roots) > 1` but does not check whether roots are near 1 (e.g., within a tolerance). Being near the boundary has implications for forecast uncertainty and parameter stability that should be acknowledged.
+---
 
-### 13. No ESS monitoring during particle filtering
+## Recommendation
 
-Neither the local nor global search reports effective sample size (ESS) from the particle filter. For a model that shows poor fit (log-likelihood of -328 vs. a baseline of -96), ESS collapse is a likely symptom that would explain the poor optimization performance. The simulation study checklist (Wheeler et al. 2024, §Model diagnostics) requires ESS monitoring to detect particle degeneracy.
-
-### 14. Simulation comparison is purely visual with no quantitative summary statistics
-
-The simulated trajectories plots compare 100 simulated paths to observed data visually, but no summary statistics are computed (e.g., coverage of observed data by simulation envelope, peak timing comparison, seasonal amplitude). Wheeler et al. (2024) note that "visual comparisons alone are only a weak and informal measure of goodness-of-fit." Given that the model appears to systematically over-predict case counts based on the simulation plot description, quantitative summaries would clarify the extent of the discrepancy.
-
-### 15. Session information and package versions not reported
-
-No `sessionInfo()` output or package version information is provided. The `pomp` package has undergone substantial API changes across versions, and the code relies on `doFuture` with `plan(multisession)` which is version-sensitive. Without version information, the code may not reproduce on other installations. The code-supplement checklist requires explicit pinning of `pomp` version and, ideally, an `renv` lockfile.
+**Major Revision.** The paper has a clear scientific motivation and a coherent analytical plan: SARIMA for time-series characterization, followed by a mechanistic SEIR model with seasonal B-spline forcing and an immigration extension. The SARIMA component is well executed. However, the POMP component contains multiple critical errors that, taken together, mean the primary mechanistic analysis is unreliable: the immigration model is never actually implemented (the rprocess is never updated), rate parameters have unit inconsistencies of factor ~30, the measurement model code contradicts the text, profile likelihoods are absent, and the global search is incorrectly constructed. The biological conclusions rest entirely on the immigration model, which was not computed. Revision must address Major Issues 1–3 at minimum before the POMP results can be interpreted.
 
 ---
 
 ## Files Consulted
 
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/SKILL_pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project05/blinded.Rmd`
+**Skill files — guided-pomp-review:**
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/SKILL_pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/assets/rev_template_pomp.qmd`
+
+**Skill files — 531_references:**
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-conventions.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-weakness-reference.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/README.md`
+
+**Project files:**
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W25/project05/blinded.Rmd`
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W25/project05/Malaria Counts USA 1951-2017/README.txt`

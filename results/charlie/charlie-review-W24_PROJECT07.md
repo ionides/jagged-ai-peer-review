@@ -1,182 +1,180 @@
-# Review: W24 Project 07
+# Peer Review: W24 Project 07
+## "Time Series Analysis of Apple Inc. (AAPL) Stock Price"
+
+---
 
 ## Paper Metadata
 
 | Field | Details |
 |-------|---------|
-| **Inference method** | IF2 (iterated filtering via `mif2`), particle filter (`pfilter`) |
-| **R packages used** | `pomp`, `quantmod`, `doParallel`, `foreach`, `doRNG`, `rugarch`, `tseries`, `forecast` |
-| **Code publicly available** | Partial — code is embedded in the Rmd, but expensive computations are cached in `.rda` files |
-| **Data publicly available** | Yes — retrieved live from Yahoo Finance via `quantmod` |
-| **Benchmark comparison included** | Partial — ARMA and GARCH models are fitted but never formally compared to POMP using log-likelihood on the same scale |
+| **Inference method** | IF2 (mif2) via pomp R package; GARCH via tseries and rugarch |
+| **R packages used** | quantmod, pomp, doParallel, foreach, doRNG, tseries, rugarch, forecast |
+| **Code publicly available** | Git repository (no external archive/DOI) |
+| **Data publicly available** | Fetched live from Yahoo Finance via quantmod |
+| **Benchmark comparison included** | No — ARMA/GARCH and POMP likelihoods are never compared quantitatively |
 
 ---
 
 ## POMP Checklist Scorecard
 
-*checkmark = satisfies practice, ~ = partially satisfies, x = does not satisfy, N/A = not applicable*
-
 | # | Practice | Status | Notes |
 |---|----------|--------|-------|
-| 1 | Likelihood-based inference | ~ | IF2 used correctly but particle count of 1000 is low and convergence is incomplete |
-| 2 | Benchmark comparison | x | ARMA and GARCH fitted but log-likelihoods never compared on a common scale to the POMP model |
-| 3 | Quantitative goodness-of-fit reporting | ~ | Log-likelihoods reported for POMP but not stated for ARMA/GARCH; no AIC table |
-| 4 | Model diagnostics | ~ | ESS and conditional log-likelihood plots shown; no forward-simulation vs. filtering-distribution distinction |
-| 5 | Parameter identifiability and uncertainty | x | No profile likelihoods; sigma_nu and phi convergence problems acknowledged but not resolved |
-| 6 | Computational adequacy | x | Only 100 IF2 iterations, 1000 particles, 20 local / 100 global starts; MIF2 convergence traces show non-convergence |
-| 7 | Forecast methodology | x | No forecasts generated from POMP model; ARMA forecast ignores volatility clustering |
-| 8 | Model variations and nested comparisons | x | No nested model comparisons; GARCH models compared by AIC but not against POMP |
-| 9 | Stochasticity | checkmark | Model includes process noise (omega, nu) and measurement noise; appropriate for financial data |
-| 10 | Reproducibility and extendability | ~ | Archived `.rda` files provided; global search results file `AAPL_global.csv` referenced but not included |
-| 11 | Corroboration with scientific knowledge | ~ | phi near 1 (high persistence) plausible; sigma_eta values in global search appear very large (0-30 range) without discussion |
-| 12 | Measurement model specification | ~ | Gaussian measurement model may underfit heavy tails; not compared to t-distribution alternative in POMP |
-| 13 | Initial conditions | ~ | G_0 and H_0 estimated but sensitivity analysis absent |
-
-*Checklist based on Wheeler et al. (2024), PLOS Computational Biology 20(4): e1012032.*
+| 1 | Likelihood-based inference | ~ | mif2 used; logmeanexp applied correctly to pfilter replicates |
+| 2 | Benchmark comparison | ✗ | POMP model never compared to ARMA or GARCH likelihood |
+| 3 | Quantitative goodness-of-fit reporting | ~ | Log-likelihoods reported but rendered incomparable by data mismatch (see Issue 1) |
+| 4 | Model diagnostics | ~ | ESS and conditional log-likelihoods shown; no simulation-based validation |
+| 5 | Parameter identifiability and uncertainty | ✗ | No profile likelihoods; no confidence intervals; sigma_eta ranges 0–150+ |
+| 6 | Computational adequacy | ~ | 100 global replicates at Np=1000 Nmif=100; loglik shows reasonable convergence for global search |
+| 7 | Forecast methodology | N/A | No forecasting from POMP model attempted |
+| 8 | Model variations and nested comparisons | ✗ | No nested model comparisons |
+| 9 | Stochasticity | ✓ | Stochastic leverage model with Gaussian noise; normal measurement model |
+| 10 | Reproducibility and extendability | ~ | Code present; some plots as .rda archives; no final MLE parameter file |
+| 11 | Corroboration with scientific knowledge | ✗ | sigma_nu near zero and sigma_eta near zero at MLE not interpreted scientifically |
+| 12 | Measurement model specification | ✓ | Normal observation model is consistent with code and text |
+| 13 | Initial conditions | ~ | G_0, H_0 included as estimated parameters; initialization in pfilter is on simulated data (see Issue 1) |
 
 ---
 
 ## Summary
 
-This project analyzes Apple Inc. (AAPL) daily log returns from April 2020 to April 2024 using three progressively complex model classes: ARIMA, GARCH variants, and a stochastic leverage POMP model based on the Breto (2014) formulation. The POMP model treats leverage as a latent Gaussian random walk and estimates parameters via IF2. While the project demonstrates familiarity with the pomp workflow and motivates the leverage model appropriately, it falls short on several critical dimensions: the three model families are never compared on a common quantitative goodness-of-fit scale, the IF2 optimization shows clear non-convergence for key parameters (notably phi and sigma_eta), profile likelihoods are entirely absent, and there is no evaluation of whether the POMP model outperforms the simpler GARCH benchmarks that are already fitted in the paper.
+This project applies ARMA, GARCH, and a stochastic leverage POMP model (following Bretó 2014) to daily log returns of Apple Inc. stock from April 2020 to April 2024. The project demonstrates familiarity with the mechanics of iterated filtering and includes both local and global IF2 searches. However, the analysis contains a critical structural error that invalidates the initial benchmark comparison, and the POMP section lacks profile likelihoods, simulation-based diagnostics, and any quantitative comparison to the ARMA/GARCH models. The conclusion that "GARCH proved to be the most effective" is asserted without supporting evidence.
 
-**Strengths:**
-- Correctly implements the Breto (2014) stochastic leverage model in pomp, including the parameter transformation and the covariate-table trick for the filtering vs. simulation objects
-- Runs both local and global IF2 searches and reports ESS and conditional log-likelihood diagnostic plots
-- Explores three GARCH variants (basic, asymmetric apARCH, t-distribution) with AIC-based model selection within each family
+**Strengths:** The POMP implementation follows the Bretó (2014) leverage model correctly; logmeanexp is used properly for likelihood aggregation; global and local searches are both presented; filter diagnostics (ESS and conditional log-likelihoods) are included.
 
-**Weaknesses:**
-- No unified quantitative comparison across ARMA, GARCH, and POMP; the paper's stated goal of assessing performance comparatively is not met
-- IF2 convergence diagnostics plainly show non-convergence for phi and sigma_eta yet no remediation is attempted
-- Profile likelihoods are entirely absent; the identifiability of sigma_nu is explicitly questioned but not formally investigated
-- The GARCH model selection chooses the minimum of the log-likelihood table (erroneous direction) when using `tseries::garch`
-- Global search parameter box for sigma_eta (0.5–1) is inconsistent with results showing sigma_eta ranging 0–30, suggesting the global search departed far outside the specified box
+**Weaknesses:** (1) The initial pfilter benchmark is computed on simulated data rather than the real AAPL data, making the claimed comparison meaningless; (2) GARCH model selection likely picks the worst rather than best model due to a minimum/maximum error; (3) No profile likelihoods or confidence intervals are computed; (4) There is no quantitative comparison of the three model families; (5) Convergence problems in the local search are acknowledged but not resolved.
 
 ---
 
 ## Major Issues
 
-### 1. No Unified Quantitative Comparison Across Model Families
+### 1. Initial pfilter benchmark computed on simulated data, not on real AAPL returns
 
-The central stated goal is to "assess [model] performances at last" (Introduction), but the Conclusion section compares models only in vague qualitative terms ("GARCH model proved to be the most effective"). Log-likelihoods from ARMA and GARCH models are never reported alongside the POMP log-likelihood of approximately 2655. Without a unified comparison — e.g., a table reporting log-likelihood (and ideally AIC, accounting for parameter counts) for ARMA(1,1), GARCH(1,1)-t, and the POMP leverage model — it is impossible to determine whether the POMP model provides meaningful improvement. Wheeler et al. (2024) emphasize that "visual comparisons alone are only a weak and informal measure of goodness-of-fit" and that mechanistic models must be compared against benchmarks quantitatively. The ARMA and GARCH models are already fitted in this paper; reporting their likelihoods on the same observation scale as the POMP model requires only a few lines of code.
+The pfilter likelihood of −1501.19 reported as the "initial benchmark" (line 484) is computed on `sim1.filt`, which is a pomp object containing data simulated from the model under `params_test`, not the observed AAPL returns in `AAPL_filter`. The code constructs `sim1.sim = simulate(sim1.sim, seed=531, params=params_test)` and then applies `pfilter(sim1.filt, Np=AAPL_Np)`. In contrast, the subsequent mif2 local and global searches both target `AAPL_filter` (lines 505 and 566), which produce log-likelihoods around 2650. The authors treat −1501.19 as a baseline for the real-data optimization ("much higher than the initial benchmark"), but these quantities are on completely different datasets. The true log-likelihood of the test parameters on the real data is not reported anywhere. This error corrupts the stated interpretation of the optimization progress.
 
-**Fix:** Add a summary table reporting log-likelihood and AIC for ARMA(1,1), the best GARCH(1,1)-t, and the POMP leverage model. Compute the ARMA/GARCH likelihoods using the same observation sequence (mean-centered log returns) as the POMP model.
-
-### 2. IF2 Non-Convergence for Key Parameters — Not Addressed
-
-The MIF2 convergence diagnostics (local_d2.png, global_d2.png) show clear non-convergence: phi traces in the global search do not stabilize, and sigma_eta values fan out across an enormous range (0–30) rather than converging. The text acknowledges that "phi doesn't show convergence in our diagnostics (which is weakly identified)" but takes no corrective action. Simply citing non-convergence without attempting remedies — e.g., increasing Nmif, widening cooling schedule, tightening the random-walk SD on problematic parameters, or fixing phi at interpretable values — does not constitute adequate analysis. Wheeler et al. (2024) note that insufficient computational effort can make a good model appear to perform poorly, and that increasing effort substantially changed inferred log-likelihoods. With only 100 IF2 iterations and 1000 particles, the current settings are likely too conservative for a 1000-observation dataset with six free parameters.
-
-**Fix:** Increase Nmif (e.g., to 200–300) and Np (e.g., to 2000–5000) and re-examine convergence. If phi remains weakly identified, formally assess it via a profile likelihood. Report the total CPU-hours used.
-
-### 3. Absence of Profile Likelihoods — Parameter Identifiability Unresolved
-
-No profile likelihoods are computed for any parameter. The text itself acknowledges uncertainty about whether sigma_nu is identifiable ("this local search did not show us much evidence for the hypothesis that sigma_nu > 0"), but this is precisely the situation requiring a profile likelihood: fix sigma_nu at a grid of values, optimize over all other parameters, and plot the resulting log-likelihood to determine whether sigma_nu = 0 is within the 95% confidence region. Without profiles, there is no formal evidence that any parameter is identified from these data. Wheeler et al. (2024, checklist item 5) treat profile likelihoods as a required practice: "Profile likelihoods should be computed to assess whether parameters are identifiable from the data."
-
-**Fix:** Compute profile likelihoods for at least sigma_nu and phi using `foreach` over a grid with `mif2` re-optimization at each grid point. Report 95% confidence intervals via MCAP.
-
-### 4. Erroneous Model Selection in Basic GARCH Section
-
-The code for basic GARCH parameter selection uses `tseries::garch` and fills `garch_table` with log-likelihood values. It then selects the parameters with the **minimum** log-likelihood (`which(garch_table == min_value)`), but higher log-likelihoods are better fits. This is the opposite of correct model selection. If the intent is to minimize AIC (= -2*logLik + 2k), the sign convention is wrong; if the intent is to maximize log-likelihood, the `min` function should be `max`. The chosen model (p=1, q=4) should be verified. This error may propagate into the GARCH baseline used for comparison.
-
-**Fix:** Replace `min(garch_table)` with `max(garch_table)` and re-run the basic GARCH analysis. Verify whether the conclusion about the best GARCH order changes.
-
-### 5. Global Search Box Inconsistency for sigma_eta
-
-The global search specifies `sigma_eta = c(0.5, 1)` in `AAPL_box` (line 546), but the resulting pairwise scatter plot (global.png) shows sigma_eta values ranging from 0 to approximately 30. This is physically impossible if the search is initialized uniformly within [0.5, 1] and IF2 perturbations are of magnitude 0.02 on the log scale — the optimizer cannot reach sigma_eta = 30 from a starting point in [0.5, 1] in 100 iterations. This suggests either (a) the archived `.rda` files do not correspond to the displayed code, (b) the global search code was edited after the results were generated, or (c) sigma_eta values shown are on the log scale and the axis label is misleading. This discrepancy undermines reproducibility and the credibility of the reported results.
-
-**Fix:** Clarify whether sigma_eta in the plot is on the original or log scale. Ensure the code shown in the document matches the `.rda` files used for the figures. If the box was changed, disclose this.
-
-### 6. POMP Model Uses Only Gaussian Measurement Noise Despite Heavy Tails
-
-The dmeasure is `dnorm(y, 0, exp(H/2), give_log)` — a Gaussian measurement model. The GARCH analysis earlier in the paper explicitly documents that the Gaussian GARCH residuals have heavy tails (normal Q-Q plots show many outliers on both sides) and that a t-distribution improves fit. Despite this, the POMP model retains a Gaussian observation distribution with no justification. For financial return data, a t-distributed or skew-t measurement model would be more appropriate and is consistent with the paper's own GARCH findings. Wheeler et al. (2024, checklist item 12) require that the measurement model be carefully specified and justified.
-
-**Fix:** Fit a version of the POMP model with a t-distributed measurement error (using `dt(y/exp(H/2), df=nu, log=TRUE) - log(exp(H/2))`) and compare log-likelihoods to the Gaussian version. The degrees-of-freedom parameter nu can be estimated or fixed at a value suggested by the GARCH-t fit.
-
-### 7. Decomposition of Non-Seasonal Data Is Methodologically Inappropriate
-
-The EDA section applies `decompose(data_lr)` to the log return series. The `decompose` function assumes the series has a deterministic seasonal component. Financial log returns are not expected to have deterministic seasonality: daily returns on a stock exchange occur on trading days only, and the frequency of 253 (trading days per year) does not imply annual seasonality is present. The subsequent ACF analysis correctly concludes no seasonality is observed, but the decomposition plot was still produced and presented without noting this conflict. Using `decompose` on such a series is misleading and produces a seasonal component that is an artifact of the method, not the data.
-
-**Fix:** Remove the `decompose` call from the EDA. If seasonal patterns are of genuine interest, use spectral analysis or STL decomposition with appropriate justification.
+**Fix:** Replace `pfilter(sim1.filt, ...)` with `pfilter(AAPL_filter, params=params_test, ...)` to compute an honest baseline on the actual observed data.
 
 ---
 
-## Computational and Diagnostic Assessment
+### 2. Factual discrepancy: description claims "20 replicates with 2000 particles," code uses 10 and 1000
 
-**Convergence:** The MIF2 convergence traces (local_d2.png, global_d2.png) show that log-likelihood increases during iterations but that key parameters — particularly phi and sigma_eta in the global search — do not stabilize. Multiple chains in global_d2.png show phi values drifting across the full [0.85, 0.99] range at iteration 100. This is not convergence. The paper acknowledges this but does not remediate it.
+The text at line 484 states "We replicated the filtering process 20 times with 2000 particles in each iteration." However, the code sets `AAPL_Nreps_eval = switch(run_level, 4, 10, 10)` (10 replicates at run_level=3) and `AAPL_Np = switch(run_level, 100, 1e3, 1e3)` (1000 particles at run_level=3). The description is off by a factor of two in both quantities. While 10 replicates at 1000 particles is acceptable, the stated description is factually wrong and undermines confidence in the analysis.
 
-**Particle filter:** ESS is monitored (local_d1.png, global_d1.png) and shows frequent collapses to low values, indicating model-data tension. The particle count of 1000 is marginal for a 1000-step time series with repeated ESS collapses; this may be contributing to noisy likelihood estimates. The initial benchmark uses `AAPL_Nreps_eval = 10` replicates with 1000 particles; the reported log-likelihood of -1501.19 (from sim1.filt) is not directly comparable to the later estimate of ~2655 (from AAPL_filter) because they operate on different pomp objects.
-
-**Conditional log-likelihoods:** Conditional log-likelihood plots are provided as part of the filter diagnostics plots. Persistent low-ESS periods coincide with periods of high volatility in the data, suggesting the model has difficulty during volatility spikes.
-
-**Profile likelihoods:** Not computed. See Major Issue 3.
-
-**Computational scale:** The paper does not report total CPU-hours. The Makefile is present in the folder but not referenced in the document. Run levels suggest moderate computation but are insufficient for a dataset of this length.
+**Fix:** Correct the prose to match the code: 10 replicates with 1000 particles each.
 
 ---
 
-## Reproducibility Assessment
+### 3. GARCH model selection selects the worst-fitting model
 
-**Code availability:** Code is embedded in the Rmd file. The expensive computations (local and global MIF2 searches) are cached using `stew()` into `.rda` files (`pf1-3.rda`, `mif1-3_2.rda`) which are provided in the project folder. However, `box_eval-3.rda` (the global search results) is **not** included in the project folder, meaning the global search figures cannot be reproduced from the provided files.
+In the basic GARCH grid search, the code populates `garch_table` with values from `tseries:::logLik.garch(fit_garch)` and then selects the model with `min(garch_table)`. If these are log-likelihoods (which are negative for typical financial data), minimizing selects the most negative value — the worst-fitting model, not the best. The tseries package is known to report non-standard likelihood values (Error 2.9, 531-weakness-reference), and directly using `min` without verifying the convention is a reliability risk. As a result, the selected GARCH(1,4) model may be the worst-performing specification in the grid, undermining the entire GARCH section.
 
-**Final parameters:** Final MLE parameter vectors are not archived as a standalone CSV or RDS file. The text mentions `AAPL_params2.csv` and `AAPL_global.csv` but neither file is present in the project folder. Readers cannot evaluate results without re-running the optimization.
+**Fix:** Verify the sign convention of `tseries:::logLik.garch`. If it returns standard log-likelihoods, replace `min` with `max`. Alternatively, use AIC (via rugarch or manual computation) for consistent model selection.
 
-**Model-code consistency:** The Rmd local search chunk (lines 501-521) references `write.table(local_results, file="AAPL_params2.csv", ...)` but the object `local_results` is never defined in the code — only `r.if1` is created. This is a bug that would cause the code to fail if run. Similarly, the global search chunk does not write `r.box` to disk correctly in the provided form.
+---
 
-**Package versions:** No `sessionInfo()` output is provided and no `renv` lockfile is present. The `pomp` version used is unknown, which is a reproducibility risk given API changes across versions.
+### 4. No profile likelihoods or confidence intervals for any POMP parameter
 
-**Auxiliary data:** Data is fetched live from Yahoo Finance at runtime using `getSymbols`. While this makes the data source transparent, results will differ if Yahoo Finance revises historical prices (which happens occasionally for corporate actions). The actual data used is not archived.
+Neither local nor global searches are followed by any profile likelihood computation. The global search pairwise plot shows that sigma_eta ranges from near 0 to over 150 and sigma_nu concentrates near zero without any confidence bounds reported. Without profile likelihoods, it is impossible to determine whether any parameter is identifiable from the data. The apparent near-zero MLE for both sigma_nu and sigma_eta (leverage and volatility of volatility) suggests the fitted model may be collapsing toward a deterministic structure, which would be a scientifically important finding — but it is never tested or discussed. This violates POMP checklist item #5 and Error 1.9 from the student weakness reference.
 
-**HPC reproducibility:** The code references `SLURM_NTASKS_PER_NODE`, indicating cluster usage, but no SLURM job scripts are provided. It is unclear whether computations were run locally or on a cluster.
+**Fix:** Compute profile likelihoods (using mif2 with the target parameter fixed across a grid, as taught in Chapter 16) for at least sigma_nu, phi, and mu_h. Report 95% confidence intervals using the Wilks threshold.
+
+---
+
+### 5. No quantitative comparison between ARMA, GARCH, and POMP model likelihoods
+
+The conclusion states "the GARCH model proved to be the most effective in forecasting volatility" but no numerical comparison between the log-likelihoods of the three model families is presented. The ARMA log-likelihood can be extracted from the fitted object; the GARCH log-likelihood is in the infocriteria output; the POMP log-likelihood is reported from the global search. Comparing these on the same data and scale would provide the quantitative support needed for the conclusion. Without this, the ranking of models is unsubstantiated (Error 1.6 from weakness reference; POMP checklist item #2). Note that per 531-conventions.md, likelihoods from different model classes (ARIMA, GARCH, POMP) evaluated on the same data are directly comparable.
+
+**Fix:** Collect the best log-likelihood from each model class — ARMA(1,1), best GARCH, and the global POMP search — in a single comparison table. Discuss whether the POMP model adds value beyond the simpler alternatives.
+
+---
+
+### 6. Convergence failure in local search acknowledged but not addressed
+
+The text states "We can hardly say the log likelihood converges from the MIF2 convergence diagnostics plot" for the local search, and the local_d2.png trace plot confirms that sigma_eta is increasing and H_0 is drifting throughout 100 iterations with no sign of stabilization. Despite this acknowledged convergence failure, the project proceeds directly to a global search without any structural revision to the model or increase in computational resources. Error 1.8 from the weakness reference applies: missing convergence evidence for iterated filtering is a major issue. The global search log-likelihood trace (global_d2.png) shows better convergence in the loglik panel but sigma_eta still shows wide spread across runs, reaching values above 200.
+
+**Fix:** Either (a) increase Nmif sufficiently until the loglik trace and key parameter traces stabilize, or (b) revisit model structure if convergence cannot be achieved (e.g., add constraints, reparametrize). At minimum, the convergence failure must be discussed as a limitation rather than passed over.
+
+---
+
+### 7. sigma_nu near zero and sigma_eta implausibly large — scientific interpretation absent
+
+The global search (global.png pairwise plot) reveals that sigma_eta, which controls the volatility of volatility, attains values from near 0 to above 150, and is labeled as "around 0" at the MLE. Simultaneously, sigma_nu (which drives the leverage random walk G_n) concentrates near zero. Together, these suggest that the leverage effect R_n ≈ 0 at the MLE, which would reduce the model to a simpler SV model with no leverage. This is a scientifically important finding — it suggests leverage may not be detectable in the AAPL data over this period — but it is never interpreted. Implausible parameter estimates can indicate model misspecification (POMP checklist item #11), and zero estimates are a diagnostic flag per Wheeler et al. (2024).
+
+**Fix:** Discuss the biological and financial interpretation of sigma_nu ≈ 0 and sigma_eta ≈ 0. Test whether a reduced model without leverage (sigma_nu fixed to 0) achieves a comparable log-likelihood, and compare via likelihood ratio test or AIC.
 
 ---
 
 ## Minor Issues
 
-- The Introduction states "We will mainly use ARIMA, GARCH and POMP to model the stock prices" but the paper models log returns throughout, not prices. This discrepancy is never reconciled.
+- **No simulation-based model validation**: No forward simulations from the fitted POMP model are compared to the observed log returns. The filter diagnostics show ESS occasionally dropping to single digits (global_d1.png around time 400), suggesting periods of model-data mismatch, but this is not investigated through simulated trajectory overlays (POMP checklist item #4).
 
-- Reference [2] cites "CatGPT" (presumably ChatGPT/Claude) for LaTeX generation. This is an unusual citation; AI-assisted writing should be disclosed in the methods, not cited as a reference with a URL.
+- **decompose() applied to daily log returns without justification**: The `decompose(data_lr)` call (line 46) applies additive seasonal decomposition with frequency=253 (trading days per year) to log returns. Financial log returns have no physical seasonality at this frequency; the seasonal component found by `decompose` is artifactual. The result is plotted but never discussed or used. This component should either be justified or removed.
 
-- The ARIMA model selection grid searches only p, q in {1,2,3,4} — excluding ARMA(0,0) (i.e., white noise), which is a natural baseline for financial returns. Including p=0 or q=0 would allow the AIC to confirm whether any AR/MA structure is warranted.
+- **Run_level=3 set but uses run_level=2 parameter values**: The switch statement at lines 466–470 sets `AAPL_Np = 1000` and `AAPL_Nmif = 100` when run_level=3, which match the course run_level=2 defaults (Np=1000, Nmif=100). The course standard for run_level=3 is Np=5000, Nmif=200. While the conventions file notes that context-dependent values are acceptable, the mislabeling creates confusion about the computational effort invested.
 
-- The text refers to "2000 particles" in the Local Search section ("20 local filtering objects, each with 2000 particles") but the code specifies `AAPL_Np = switch(run_level, 100, 1e3, 1e3)`, which gives 1000 particles at run_level=3. This is a direct contradiction.
+- **ARIMA section title but ARMA model fitted**: The section is labeled "ARIMA Model" throughout, but the model fitted is ARMA (with d=0, no differencing). Since the data are already stationary log returns, an ARMA is appropriate, but the section title is inconsistent with the fitted model.
 
-- The initial benchmark log-likelihood of -1501.19 is computed on `sim1.filt` (which uses simulated data from the test parameters), not on the actual AAPL data. The comparison to the local/global search likelihoods of ~2650 is therefore meaningless — these are different datasets.
+- **References given as bare URLs rather than bibliographic citations**: References [1], [2], [3], [4], and [6] are raw URLs with no author, title, or publication date. Reference [5] (Bretó 2014) provides partial information but no volume/page numbers. Academic standards require full citations.
 
-- The `run_level` variable is set to 3 in the filter section but the local and global search chunks use `eval=FALSE`, making it ambiguous which settings were actually used to produce the saved `.rda` files.
+- **Acknowledgment of AI tool for LaTeX writing**: Reference [2] cites "CatGPT" (likely a pseudonym for ChatGPT) for writing LaTeX. The appropriateness of this use should be clarified according to course policy, and any AI-generated mathematical content should be verified carefully.
 
-- `AAPL_Nreps_global = switch(run_level, 10, 20, 100)` gives 100 repetitions at run_level=3, but the global search text states "100 repeated iterations." It should be clarified that this is 100 independent starting points, not iterations.
+- **Grid search over ARMA(p,q) excludes p=0 or q=0**: The grid search at lines 112–128 considers only p in {1,2,3,4} and q in {1,2,3,4}, excluding pure AR or pure MA models. The best AIC from this restricted grid could be inferior to ARMA(1,0) or ARMA(0,1).
 
-- The text in the Conclusion states "some of the parameters do not display convergence, we can learn from [6] that this reflects the uncertainty about the parameter given the data." Reference [6] is a homework solution; the claim about parameter non-convergence reflecting uncertainty is an over-simplification that obscures a genuine computational problem.
+- **AIC comparison within the basic GARCH grid is omitted**: For the basic GARCH table, log-likelihoods are compared without a penalty for model complexity. Models with more parameters will generally have higher (better) log-likelihoods regardless of whether the extra parameters are justified. AIC would be more appropriate.
 
-- The pairwise plot for global search (global.png) includes `G_0` and `H_0` but these are absent from the local search pairwise plot (local.png). This inconsistency makes cross-search comparisons harder.
+---
 
-- Figure axis labels in global.png are very small and the scatter points overlap substantially, making it difficult to read the parameter ranges. Using `ggpairs` or increasing figure dimensions would improve readability.
+## Computational and Diagnostic Assessment
+
+**Convergence:** The global search log-likelihood trace (global_d2.png) converges rapidly in the first 10–15 iterations and stabilizes near 2650, which is acceptable for a loglik panel. The local search (local_d2.png) shows loglik approaching a plateau but sigma_eta and H_0 are still drifting at iteration 100. More iterations or a structural revision would be needed to declare convergence for the local search.
+
+**Particle filter:** ESS is monitored and plotted. Global filter diagnostics (global_d1.png) show ESS frequently dropping below 100 and occasionally to single digits at certain time points (notably around time 400 and time 800), suggesting model-data tension at specific periods. These drops are not discussed.
+
+**Conditional log-likelihoods:** Plotted but not analyzed. The conditional log-likelihood panel in global_d1.png shows spikes downward at the same time points as the ESS drops, reinforcing that specific market events cause poor model fit. No corrective action is taken.
+
+**Profile likelihoods:** Not computed for any parameter. This is the most significant computational omission.
+
+**Computational scale:** Global search uses 100 replicates at Np=1000, Nmif=100. No CPU time or computational cost is reported for the mif2 runs (only for the initial pfilter: 1.61 seconds). Total computational effort is unquantified.
+
+---
+
+## Reproducibility Assessment
+
+**Code availability:** Code is embedded in the Rmd file with external images loaded from pre-saved PNG files. The `.rda` files (mif1-3_2.rda, pf1-3.rda) cache results. This is standard course practice.
+
+**Final parameters:** No standalone CSV or RDS file of final MLE parameter estimates is provided. Readers cannot evaluate results without re-running mif2 from the archived .rda outputs.
+
+**Model-code consistency:** The mathematical model (equations in Section 4.1) matches the C snippets (`rproc1`, `rproc.filt`) — tanh(G) is used for R_n and the variance formula for omega is correctly implemented.
+
+**Package versions:** No sessionInfo() or renv lockfile is provided. The pomp API has changed across versions, so results may not reproduce on current CRAN releases.
+
+**Auxiliary data:** Data is fetched live from Yahoo Finance at runtime. This is a reproducibility risk: the data could change if Yahoo Finance revises historical prices (split adjustments, etc.), and the exact dataset used is not archived.
 
 ---
 
 ## Recommendation
 
-**Major Revision.**
-
-The paper applies a reasonable model framework (Breto 2014 stochastic leverage) to an interesting financial dataset and demonstrates basic familiarity with the pomp workflow. However, it fails to deliver on its stated goal of comparing model performance: no unified quantitative comparison across ARMA, GARCH, and POMP is ever presented. The IF2 optimization shows clear non-convergence for key parameters (phi, sigma_eta) with no remediation. Profile likelihoods — the standard tool for assessing parameter identifiability — are entirely absent despite the paper explicitly noting identifiability concerns. A bug in the GARCH model selection (minimizing rather than maximizing log-likelihood) casts doubt on the GARCH baseline. Archived result files referenced in the code are missing from the supplement.
-
-Before acceptance, the authors must: (1) produce a unified log-likelihood/AIC comparison table across all model families; (2) increase computational effort and demonstrate convergence, or provide formal evidence via profile likelihoods that problematic parameters are weakly identified; (3) fix the GARCH model selection direction error; (4) archive all intermediate result files (`AAPL_global.csv`, `box_eval-3.rda`) and a `sessionInfo()` output; and (5) resolve the contradiction between stated particle counts and code.
+**Major Revision.** The project demonstrates reasonable familiarity with the POMP modeling workflow and includes appropriate filter diagnostics. However, three issues require resolution before the analysis can be considered valid: (1) the initial benchmark must be recomputed on the real data rather than simulated data; (2) the GARCH model selection criterion must be corrected; and (3) profile likelihoods must be computed for at least the key POMP parameters to support any inferential claims. The lack of a quantitative cross-model comparison also undermines the stated conclusion. These are addressable with targeted revisions to the code and analysis sections.
 
 ---
 
 ## Files Consulted
 
-**Skill files:**
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/SKILL_pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/assets/rev_template_pomp.qmd`
+**Skill files — guided-pomp-review:**
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/SKILL_pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/assets/rev_template_pomp.qmd`
+
+**Skill files — 531_references:**
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-conventions.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-weakness-reference.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/README.md`
 
 **Project files:**
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W24/project07/blinded.Rmd`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W24/project07/local.png`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W24/project07/local_d1.png`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W24/project07/local_d2.png`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W24/project07/global.png`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W24/project07/global_d1.png`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W24/project07/global_d2.png`
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W24/project07/blinded.Rmd`
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W24/project07/global.png`
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W24/project07/global_d1.png`
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W24/project07/global_d2.png`
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W24/project07/local.png`
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W24/project07/local_d1.png`
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W24/project07/local_d2.png`

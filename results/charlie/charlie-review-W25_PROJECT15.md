@@ -1,113 +1,165 @@
 # Peer Review: W25 Project 15
-## "Volatility Analysis on Bitcoin Returns: a Fear & Greed Index Perspective"
+## Bitcoin Volatility Analysis with the Fear & Greed Index
 
 ---
 
 ## Summary
 
-This project fits a suite of stochastic volatility models to daily Bitcoin log-returns (Jan 2020 – Apr 2025) and asks whether incorporating the Crypto Fear & Greed Index as an exogenous covariate improves model fit. Six model variants are estimated: a GARCH(3,1) baseline, the Breto (2014) leverage-SV model, a modified Breto model augmented with the differenced Fear & Greed Index, both Breto variants with Student's t measurement, and a simplified Heston-style SV model in both normal and t flavors. The project's main claims are that (a) the modified Breto model with t-distribution achieves the best log-likelihood among all candidates, and (b) a negative gamma coefficient indicates that increasing fear drives Bitcoin volatility.
+This project applies six stochastic volatility models to daily Bitcoin log-returns from January 2020 through April 2025: a GARCH(3,1) benchmark, a basic Breto POMP model, a modified Breto model incorporating the Fear & Greed (FG) index, the same modified model with a Student's t measurement distribution, and two Heston-style simple stochastic volatility models (normal and t-distributed). The main scientific question is whether incorporating market sentiment improves volatility modeling and whether fear or greed is the stronger driver of Bitcoin volatility.
 
-The project demonstrates genuine effort in model building and shows familiarity with the pomp IF2 workflow. However, it contains a critical stew() filename collision that silently invalidates the entire "New Global Search" section, along with a pervasive global-search initialization error that anchors every global search to a previous mif2 chain. Profile likelihoods are absent, model comparison across the six models relies on point log-likelihood values without uncertainty quantification, the Heston process equation is misspecified, and no non-mechanistic benchmark is provided for the POMP models. Several additional methodological and presentation deficiencies are described below.
+Key strengths include a clearly motivated research question, use of iterated filtering (IF2) with multiple restarts at run_level=3, appropriate use of logmeanexp for likelihood aggregation, and a creative attempt to extend the Breto framework with an external covariate. However, the analysis has several critical flaws that undermine the core comparative conclusions: the Breto family and the Heston family are fitted to different versions of the data (making their log-likelihoods incomparable), a filename collision in `stew()` renders the "New Global Search" results unreliable, the Heston-model code does not implement the equation stated in the text, and the GARCH likelihood comparison is acknowledged as invalid but treated as valid in the conclusion. No profile likelihoods or confidence intervals are reported for any model.
 
 ---
 
 ## Major Issues
 
-### 1. stew() filename collision invalidates the "New Global Search" entirely
+### 1. Breto and simple stochastic volatility models are fitted to different data, making cross-family comparisons invalid
 
-The Breto model section runs two sequential global searches using `stew()`. Both calls construct their cache filename as `paste0("box_eval_bitcoin_", run_level, ".rda")` (lines 532 and 586 of blinded.Rmd). With `run_level = 3`, both evaluate to the string `"box_eval_bitcoin_3.rda"`. When the document is rendered, the first call writes the file; the second call silently loads from the existing file without executing its body. As a result, `if.box.new` and `L.box.new` are populated with the first search's results, not the narrowed-box search's results.
+The Breto family uses demeaned log-returns (`logd`, line 108-109 and 777): `logd <- log_returns - mean(log_returns)`. The simple stochastic volatility (Heston-style) family uses raw (non-demeaned) log-returns (`btc$log_return`, lines 1363-1366). Because the log-likelihood is a function of the observed data, comparing log-likelihoods across these two families is invalid — they are not evaluated on the same observations. The conclusion claims the basic Breto model "outperforms the benchmarks (GARCH and simple stochastic volatility model)" on the basis of log-likelihood, but this comparison is unsupported. The difference in the mean (a single nuisance parameter) can shift the likelihood by a non-trivial amount.
 
-Every result reported in the "New Global Search" section — the log-likelihood summary, the pairs plot (Figure 12), the convergence diagnostics (Figure 13), and the narrative claiming "the log-likelihood curve now exhibits a single, well-defined peak" confirming the global maximum — is a duplicate of the broad global search output. The central conclusion of that section ("This close agreement gives us strong confidence that we have indeed captured the true global maximum") is not supported by any actual computation. The fix is to assign a distinct filename to the narrowed-box search, e.g., `paste0("box_eval_bitcoin_narrow_", run_level, ".rda")`.
+**Fix:** Re-fit all models on the same data series (either all demeaned or all raw), then restate the comparative results.
 
-### 2. Global search initialization error across all models: mif2 called on a prior IF2 result
+---
 
-In every global search across all four POMP models, the `mif2()` call inside the `foreach` loop passes a previous IF2 chain as its first argument rather than the base pomp object:
+### 2. `stew()` filename collision makes the "New Global Search" results unreliable
 
-- Breto model global search (line 535): `mif2(if1[[1]], params = apply(bitcoin_box, 1, function(x) runif(1, x)))`
-- Breto model new global search (line 589): same pattern with `if1[[1]]`
-- Modified Breto normal global search (line 972): `mif2(if2_list[[1]], params = start_params)`
-- Modified Breto t-distribution global search (line 1294): `mif2(if2_list[[1]], params = start_params)`
+Both the first global search (line 532) and the "New Global Search" (line 586) for the basic Breto model use the identical cache file:
 
-When a previous IF2 result is passed as the first argument, mif2 inherits the internal cooling schedule from that chain. Because the local IF2 search ran for Nmif = 200 iterations with cooling.fraction.50 = 0.5, the inherited chain is at or near its final cooling state — the perturbation standard deviations are already decayed to approximately 0.5^(200/50) × rw.sd = 0.5^4 ≈ 0.06 of their initial values. The random starting parameters drawn from the box are applied for a single step before the perturbations effectively shrink to near zero, meaning every global replicate performs little genuine exploration from its random start. The global searches reported for all four POMP models are effectively anchored near the local-search solution, and the "global maximum" likelihoods may not represent the true global optimum. The fix is to replace `if1[[1]]` / `if2_list[[1]]` / `btc_mif[[1]]` with the base `bitcoin.filt` / `filt_modified` / `btc.pomp` pomp object in each global search loop.
-
-### 3. No profile likelihoods; parameter identifiability unresolved
-
-No profile likelihoods are computed for any model. The text acknowledges a potential identifiability problem between phi and mu_h in the Breto model (the term (1-phi)*mu_h creates a ridge in the likelihood surface), and the convergence traces confirm the multimodal structure, but the identifiability issue is left unresolved. Without profile likelihoods, it is impossible to determine whether the reported MLEs are reliable, whether confidence intervals would span a large portion of parameter space, or whether the phi ≈ 0.5 versus phi ≈ 1 modes reflect genuine bimodality or inadequate computation. For the modified Breto model, the scientific conclusion that gamma_fng < 0 (fear drives volatility) rests entirely on a point estimate with no uncertainty quantification. Wheeler et al. (2024) §Parameter identifiability and uncertainty emphasize that profile likelihoods should be computed for key parameters, and that implausible estimates should be interpreted as potential signs of model misspecification rather than biological (or financial) truths.
-
-### 4. No non-mechanistic benchmark for POMP models
-
-The GARCH model is used as a benchmark in passing, but it is compared to the POMP models only informally and without a consistent comparison basis. The GARCH log-likelihoods are computed via `tseries::garch()` on demeaned returns, while the POMP models use a different data pipeline (some on `bitcoin_ret_demeaned` via covariate injection, others on the raw `log_return`). The project text explicitly notes that the tseries::garch log-likelihoods cannot be directly compared to POMP log-likelihoods (line 287: "we cannot directly compare loglikelihood from tseries::garch"). No ARMA, ARIMA, or auto-regressive negative binomial benchmark is constructed in the pomp framework on the same data to provide a valid apples-to-apples comparison. Wheeler et al. (2024) §Benchmark comparison note that mechanistic models should be compared against non-mechanistic benchmarks with a quantitative (log-likelihood or AIC) comparison on the same observation model.
-
-### 5. Heston process equation is misspecified
-
-The rprocess Csnippet for both the normal and t-distribution Heston models (lines 1374–1378 and 1587–1592) reads:
-
+```r
+stew(file = paste0("box_eval_bitcoin_", run_level, ".rda"), { ... })
 ```
+
+Because `stew()` loads from the file if it already exists, the second call silently loads the first global search results rather than executing the new computation. The objects saved in the first call are `if.box` and `L.box`; the second call expects to save `if.box.new` and `L.box.new`. This means either the new objects do not exist in the loaded environment, or stale first-search objects are used. The authors conclude from this block that "the log-likelihood curve now exhibits a single, well-defined peak" and "gives us strong confidence that we have indeed captured the true global maximum" — a conclusion that rests on potentially invalid results.
+
+**Fix:** Use distinct filenames for distinct computations, e.g., `"box_eval_bitcoin_narrow_"`.
+
+---
+
+### 3. Heston model code does not implement the stated process equation
+
+The text defines the volatility process as:
+
+$$V_n = (1-\phi)\theta + \phi V_{n-1} + \xi\sqrt{V_{n-1}}\,\omega_n$$
+
+The R code in both the normal and t-distributed Heston models implements:
+
+```c
 V = theta * (1 - phi) + phi * sqrt(V) + sqrt(V) * omega;
 ```
 
-The standard Heston/CIR mean-reverting variance process is:
+The persistence term in the text is `phi * V_{n-1}` (linear), but the code uses `phi * sqrt(V)` (square-root). These define different dynamical systems. The code effectively models the square-root of volatility's mean-reversion, not volatility itself. All parameter estimates, interpretations, and comparisons for the simple stochastic volatility models rest on a model that differs from what is described. This matches the code-text discrepancy pattern flagged as a reproducibility failure in Wheeler et al. (2024).
 
+**Fix:** Either correct the mathematical description to match the code, or correct the code to implement the stated model. Clarify whether V is intended as variance or standard deviation.
+
+---
+
+### 4. GARCH vs POMP log-likelihood comparison is explicitly acknowledged as invalid but used in conclusions
+
+Footnote 5 cites the course quiz solution (ionides.github.io/531w25/quiz/quiz2-sol.pdf) and states "we cannot directly compare loglikelihood from tseries::garch." Despite this, the conclusion reads: "the basic Breto model models the volatility well as it outperforms the benchmarks (GARCH and simple stochastic volatility model)." The `tseries::garch` package reports a non-standard log-likelihood value that is not on the same scale as pomp-based particle filter likelihoods. Comparing GARCH loglik=3894.515 against Breto loglik~4100 is therefore without statistical basis. This corresponds to Error 2.9 from the course weakness reference (trusting software likelihood output without checking conventions), which is explicitly course-tested material.
+
+**Fix:** Either compute the GARCH log-likelihood on the same scale using an alternative package (e.g., `rugarch`, which is already loaded), or remove the quantitative GARCH comparison from the conclusions and restrict the claim to qualitative adequacy of GARCH residual diagnostics.
+
+---
+
+### 5. No profile likelihoods or confidence intervals reported for any model
+
+Across all six models, no profile likelihood is computed and no confidence intervals are reported for any parameter. The pairwise scatter plots of global search results provide some visual sense of parameter clustering but do not constitute profile likelihoods: they show the distribution of starting-point-dependent terminal estimates, not the maximized likelihood as a function of each parameter with all others profiled out. This is a course-confirmed major error (Error 1.9 from the weakness reference; POMP checklist item #5). Without profiles, identifiability of key parameters such as phi, mu_h, and gamma_fng cannot be assessed.
+
+**Fix:** Compute profile likelihoods for at least the scientifically most important parameters (phi, gamma_fng) using the standard IF2-based profile approach from Chapter 16 of the course notes.
+
+---
+
+### 6. sigma_nu converges to boundary (zero) in modified Breto models — not investigated as model misspecification
+
+The text notes for the modified Breto model: "sigma_nu converges to zero." This implies the G random walk has zero variance, which collapses the leverage effect (R_n becomes constant). A parameter estimate at the boundary of its feasible region is a diagnostic signal of model misspecification, as discussed in Wheeler et al. (2024) in the context of zero transmission rates. The authors observe this but do not investigate whether the leverage component (G, R_n) is identifiable or whether a simpler model without leverage achieves the same likelihood. The conclusion does not mention this potential degeneracy.
+
+**Fix:** Fit a nested model without the leverage component (sigma_nu fixed at zero) and compare log-likelihoods via a likelihood ratio test to assess whether leverage is supported by the data.
+
+---
+
+### 7. Fear & Greed Index loaded from a live time-dependent API — analysis is not reproducible
+
+The FG index is fetched via:
+
+```r
+response <- GET("https://api.alternative.me/fng/?limit=2000")
 ```
-V_n = theta*(1-phi) + phi*V_{n-1} + xi*sqrt(V_{n-1})*omega_n
-```
 
-The code applies `phi` to `sqrt(V)` rather than to `V` itself, which is not the model stated in the text (equation at line 1344: `V_n = (1-phi)*theta + phi*V_{n-1} + xi*sqrt(V_{n-1})*omega_n`). This is a code-text inconsistency in the process model. The fitted parameters and reported log-likelihoods for the simple Heston model are based on a misspecified process that differs from what is described and claimed. This is the type of code-text discrepancy flagged by Wheeler et al. (2024) as a concrete reproducibility and validity failure.
+The `limit=2000` parameter returns the most recent 2000 observations as of the request time. As time passes, the window shifts: a reader reproducing this analysis in a later period will receive a different dataset (different starting date). The Bitcoin price data is read from a local CSV (`bitcoin_2020-01-01_2025-04-06.csv`), but the FG index is not archived locally. This creates a non-reproducible analysis even though the Bitcoin data is static.
 
-### 6. Initial particle filter run on simulated data presented as a benchmark for the real-data model
-
-For the Basic Breto model (lines 448–456), the initial pfilter is run on `sim1.filt`, which is a pomp object constructed from a `simulate()` call on the simulated data, not from the actual Bitcoin return series. The log-likelihood reported from this step reflects the fit to the simulated dataset, not to the real data. The surrounding text ("Particle Filtering and Log-likelihood Evaluation") implies this is an evaluation on the real data. Because the simulated and real datasets differ, the log-likelihood values are not on the same scale and cannot serve as a meaningful benchmark or starting point for comparison with the subsequent IF2 results. The same pattern occurs in the modified Breto sections (lines 858–866 and 1180–1187).
-
-### 7. Model comparison table absent; log-likelihood values scattered and incomparable
-
-Six models are estimated, but no consolidated comparison table is presented. The best log-likelihoods across models are reported in different sections with different evaluation procedures (different Np, different numbers of pfilter replicates, different data objects for some runs), making a direct comparison unreliable. The conclusion that the "Modified Breto model with t-Distribution performed best" is asserted in the conclusion but cannot be verified from the reported numbers because the comparison is not made under controlled conditions. A formal AIC comparison on the same data with the same evaluation procedure is needed.
+**Fix:** Archive the FG index data as a local CSV file alongside the Bitcoin data, or pin the API query to fixed start/end dates that guarantee the same response.
 
 ---
 
 ## Minor Issues
 
-### 8. gamma_fng scientific conclusion drawn from a single point estimate without uncertainty
+### 8. Student's t degrees of freedom selected by trial-and-error without formal model selection
 
-The project concludes that "fear drives market volatility more than greed" based solely on the sign of the MLE for gamma_fng from the global search. However: (a) the local search found a positive gamma_fng (indicating greed dominates) while the global search found negative, without resolution of this contradiction; (b) no confidence interval or profile likelihood is reported for gamma_fng; (c) the global search itself is compromised by the initialization error described in Issue 2. The stated conclusion is not supported by the available evidence.
+The text states: "We experimented with different values for degrees of freedom ranging from 3–25, and found that the model captured the data best when the residuals were assumed to come from a t-distribution with 5 degrees of freedom." No likelihood values for alternative df settings are reported, and df is treated as fixed rather than estimated. Formally, df should either be estimated as a free parameter via mif2 (with an appropriate transformation to keep it positive and above 2) or compared across values using log-likelihoods from replicated pfilter runs. The current approach is an informal search over a discrete grid with no quantitative support for the chosen value.
 
-### 9. H_0 non-convergence acknowledged but not addressed
+---
 
-The text notes that H_0 does not converge in the modified Breto global search (line 1017), but no action is taken. Non-convergence of an initial condition parameter suggests either that H_0 is not identifiable from the data, that the global search box for H_0 is poorly specified, or that the model is misspecified for the initial period. Wheeler et al. (2024) §Initial conditions note that initial values can substantially affect model fit and should be estimated carefully or have sensitivity assessed.
+### 9. "New Global Search" is local parameter refinement, not a global search
 
-### 10. FG Index stationarity justification is informal and potentially incorrect
+The third optimization for the basic Breto model restricts phi to [0.45, 0.50] and mu_h to [-7.75, -7.40] — a narrow band centered on the previously found local optimum. Calling this a "New Global Search" is misleading: it is a local refinement around one mode. A genuine global search would draw starting values from the full biologically plausible range, not a 0.05-unit interval. The conclusion drawn from this ("gives us strong confidence that we have indeed captured the true global maximum") is not supported by the methodology.
 
-The ACF of the raw FG index decays slowly (Figure 14) and the authors conclude it is non-stationary, motivating differencing. However, a slowly decaying ACF does not definitively establish non-stationarity for a bounded series (0-100). No formal unit root test (ADF, KPSS) is reported. The choice to difference the index is consequential for the model interpretation: differencing means the model captures the effect of changes in sentiment, not the level of sentiment, which may not be the economically relevant quantity. This modeling choice is made without adequate justification.
+---
 
-### 11. rw.sd values are uniform across parameters; no rationale provided
+### 10. H_0 non-convergence acknowledged but not remediated
 
-All four random-walk standard deviations in the IF2 search are set to either 0.02 (regular parameters) or 0.1 (initial value parameters) without any justification. Given that sigma_nu converges to values near zero (on the order of 1e-4 to 1e-3), a uniform rw.sd of 0.02 on the natural scale is large relative to the MLE and may impede convergence. The authors do not discuss whether the rw.sd magnitudes were tuned or what the rationale was for their choice.
+The text notes "we also observe that H_0 does not converge" for the modified Breto model global search. Non-convergence of an initial condition parameter can indicate that either the model is insensitive to H_0 (weak identifiability) or that the optimization is numerically unstable for this parameter. Neither interpretation is explored. The standard remediation (fixing H_0 at a plausible value and checking sensitivity, or reparameterizing) is not attempted.
 
-### 12. t-distribution degrees of freedom chosen by "experimenting" without formal selection
+---
 
-The report states that 5 degrees of freedom were selected because "the model captured the data best when the residuals were assumed to come from a t-distribution with 5 degrees of freedom" after experimenting with values from 3 to 25 (line 1021). No likelihood-based criterion, AIC comparison, or profile likelihood over degrees of freedom is presented. Selecting degrees of freedom by informal experimentation and then reporting the best result without correction introduces selection bias.
+### 11. Interpretation of gamma sign is fragile across local and global optima
 
-### 13. stew() not used for the modified Breto and Heston searches; reproducibility reduced
+The local search for the modified Breto model (normal residuals) yields a positive gamma_fng, but the global search yields a negative gamma_fng. The paper concludes from the global search that "fear drives market volatility more than greed," but this conclusion is sensitive to which optimum is found. The instability of the gamma sign between local and global searches suggests that the FG index effect is weakly identified. Without a profile likelihood for gamma_fng, the sign conclusion has no inferential support.
 
-The Breto model uses `stew()` for caching, but the modified Breto, t-distribution Breto, and both Heston model sections do not use `stew()` for their IF2 and particle filter computations. Without caching, the document cannot be reproduced without re-running all expensive computations from scratch. The code supplement does not document total computational cost (CPU-hours), making it impossible for readers to assess feasibility of reproduction.
+---
 
-### 14. Title typo and code quality issues
+### 12. Title typo
 
-The document title reads "olatility analysis on Bitcoin returns" (missing leading "V"). Multiple library loading calls are repeated redundantly within each model section (e.g., `library(doParallel)`, `library(doRNG)` appear in nearly every chunk). The `plan(multisession)` call from `doFuture` is invoked in the modified Breto sections but the `doFuture` backend is not actually used (the code uses `%dopar%` which requires `doParallel`). These code quality issues suggest the code was assembled from templates without systematic review.
+The document title reads "olatility analysis on Bitcoin returns: a Fear & Greed Index perspective." The initial "V" is missing.
 
-### 15. References incomplete and improperly formatted
+---
 
-Several HTML footnote tags in the References section are not properly closed (lines 1800–1818: missing `</span>` and `>` closing angle brackets on multiple references). Reference [2] is a raw PDF semanticscholar URL with no author, title, or journal information. Multiple footnote IDs are duplicated (footnotes 4 and 12–14 all share `id="footnote-4"`). The Breto (2014) model is not formally cited despite being central to the methodology; the citations to w22 projects 14 and 22 are used as primary methodological references in place of the original peer-reviewed source.
+### 13. run_level=3 uses Np=2000, below the course standard of Np=5000
+
+The course conventions (Ch. 16, p.28-30) specify Np=5,000 for run_level=3. The project sets Np=2,000 at run_level=3 for all models. While the conventions note that "appropriate values of the algorithmic parameters for each run-level are context dependent," with approximately 1,826 daily observations the particle count may be marginal. The standard error of log-likelihood estimates is not systematically reported across all models, so it is unclear whether the Monte Carlo noise is negligible relative to the likelihood differences claimed.
+
+---
+
+### 14. No consolidated model comparison table
+
+Six models are evaluated across the paper but their log-likelihoods are presented in separate sections without a single summary table. The reader must collect numbers manually: GARCH loglik~3894 (non-standard), basic Breto~4100, modified Breto (normal)~4075–4100, modified Breto (t)~4090+, simple SV (normal)~3899, simple SV (t)~unknown from global search. The absence of a table makes it impossible to assess model comparisons systematically, especially given the additional confound that Breto and Heston models are fitted to different data.
+
+---
+
+### 15. Covariate alignment for dFNG uses an ad hoc zero-padding without justification
+
+The covariate table for the modified Breto model pads the differenced FNG series at t=0 with zero:
+
+```r
+covar_df <- data.frame(
+  time = 0:length(logd),
+  covaryt = c(0, logd),
+  dFNG    = c(0, diff(fng_subset$FNG_scaled))
+)
+```
+
+This forces the first data point to use dFNG=0, effectively treating the initial sentiment change as neutral. No justification is given for this choice, and sensitivity to this initialization is not explored. Alternative choices (e.g., using the first observed dFNG value, or dropping the first observation) could alter results near the start of the sample.
 
 ---
 
 ## Files Consulted
 
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/SKILL_pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-stew-filename-collision/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-global-search-init-audit/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-global-search-param-override-bug/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-profile-single-restart-audit/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/Skills/pomp-simdata-benchmark-error/SKILL.md`
-- `/Users/jin/Desktop/ai/week11/projects_Material/project/final_project_W25/project15/blinded.Rmd`
+**Skill files:**
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/SKILL_pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/code-supplement-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/guided-pomp-review/references/simulation-study-checklist-pomp.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-conventions.md`
+- `/Users/jin/Desktop/ai/rerun/isolated/Skills/531_references/531-weakness-reference.md`
+
+**Project files:**
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W25/project15/blinded.Rmd`
+- `/Users/jin/Desktop/ai/rerun/isolated/projects_Material/project/final_project_W25/project15/Makefile`
