@@ -159,10 +159,10 @@ df['Agent'] = df['Reviewer'].map(reviewer_map)
 agent_order = ['Baseline', 'CourseGuided', 'MetaSkill', 'Orchestrator']
 semester_order = ['W21', 'W22', 'W24', 'W25']
 
-groups = [df[df['Agent'] == a]['Human_Recall'].values for a in agent_order]
+groups = [df[df['Agent'] == a]['Human_Overlap'].values for a in agent_order]
 f_stat, p_value = stats.friedmanchisquare(*groups)
 
-mean_overlap = {a: df[df['Agent'] == a]['Human_Recall'].mean() * 100 for a in agent_order}
+mean_overlap = {a: df[df['Agent'] == a]['Human_Overlap'].mean() * 100 for a in agent_order}
 
 n_projects = df.groupby('Semester')['Project'].nunique()
 avg_human_issues = (
@@ -191,8 +191,8 @@ markers = {'Baseline': 'o', 'CourseGuided': 's', 'MetaSkill': 'D', 'Orchestrator
 #| label: tbl-coverage-raw
 #| tbl-cap: "Human Overlap (%) by agent and semester."
 
-agg = df.groupby(['Agent', 'Semester'])[['B', 'D', 'E']].sum().reset_index()
-agg['Human Overlap (%)'] = ((agg['B'] + agg['D']) / (agg['B'] + agg['D'] + agg['E']) * 100).round(1)
+agg = df.groupby(['Agent', 'Semester'])['Human_Overlap'].mean().reset_index()
+agg['Human Overlap (%)'] = (agg['Human_Overlap'] * 100).round(1)
 
 pivot = agg.pivot(index='Agent', columns='Semester', values='Human Overlap (%)')
 pivot = pivot.loc[agent_order, semester_order]
@@ -214,8 +214,8 @@ As the denominator of Human Overlap increased while AI coverage remained roughly
 import seaborn as sns
 sns.set_theme(style="ticks", font_scale=1.1)
 
-agg_sem = df.groupby(['Agent', 'Semester'])[['B', 'D', 'E']].sum().reset_index()
-agg_sem['overlap'] = (agg_sem['B'] + agg_sem['D']) / (agg_sem['B'] + agg_sem['D'] + agg_sem['E']) * 100
+agg_sem = df.groupby(['Agent', 'Semester'])['Human_Overlap'].mean().reset_index()
+agg_sem['overlap'] = agg_sem['Human_Overlap'] * 100
 
 x = list(range(len(semester_order)))
 fig, ax = plt.subplots(figsize=(8, 4.5))
@@ -251,7 +251,7 @@ sns.set_theme(style="ticks", font_scale=1.1)
 
 fig, ax = plt.subplots(figsize=(8, 4.5))
 
-data_to_plot = [df[df['Agent'] == a]['Human_Recall'].values * 100 for a in agent_order]
+data_to_plot = [df[df['Agent'] == a]['Human_Overlap'].values * 100 for a in agent_order]
 parts = ax.violinplot(data_to_plot, positions=range(len(agent_order)),
                       showmedians=False, showextrema=False)
 
