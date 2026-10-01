@@ -29,3 +29,6 @@ Produces the per-agent matrix of AI-unique (A/C) findings (`fig-matrix`)
 
 **Output**: `matrix_comparison.png`: `ms.qmd`'s Figure 4 (`fig-matrix`)
 
+## 4. Comparator Validation
+
+Five projects were selected at random from each semester where matches made by the Comparator were manually read and evaluated as clear, disputable, or incorrect. **`Comparator_Validation_Results.md`** records these per-reviewer counts with matches specifically cited for every disputable or incorrect matches. 
