@@ -730,7 +730,7 @@ These vignettes illustrate the scientific and statistical issues arising in the 
 
 \label{cs:ai-major-issue}
 
-**CS1.** \textbf{An example where the Comparator agent determined that AI reviewer agents had found a major issue missed by the humans} \textbf{(W21, Project 1)}.
+**CS1.** **An example where the Comparator agent determined that AI reviewer agents had found a major issue missed by the humans** **(W21, Project 1)**.
 All four review agents assessed that setting \texttt{H=I} in the measurement model was a major error.
 Here, \texttt{I} is a computational variable matching the model quantity $I(t)$, the continuous-time latent instantaneous number of infected individuals.
 \texttt{H} is a so-called accumulator variable linking \texttt{I} to observed data via the measurement model.
@@ -746,12 +746,12 @@ The phenomenon that humans make more errors, but are better at recovering after 
 
 \label{cs:dmeasure-rbinom-bug}
 
-**CS2.** \textbf{A fundamental measurement-model violation found independently by all four agents and missed by the humans} \textbf{(W22, Project 3)}.
+**CS2.** **A fundamental measurement-model violation found independently by all four agents and missed by the humans** **(W22, Project 3)**.
 A POMP model has two parts: a hidden/latent process that is not observed directly, and a measurement model describing the actual data as a noisy or incomplete observation of the hidden process. The function \texttt{dmeasure} computes the density $p(y_n | x_n, \theta)$, using this to weight each simulated hypothetical trajectory of the hidden state by how well it explains the real data. This function should be deterministic, given its inputs. However, this project's \texttt{dmeasure} instead begins by drawing a fresh random value on every call, \texttt{Views = rbinom(N-S, 1-exp(-Beta*S/N))}. This same variable, \texttt{Views}, is used in constructing the mean and standard deviation of the reported likelihood. Since \texttt{Views} is being regenerated independently each time \texttt{dmeasure} is evaluated, the same state and parameters yield a different log-likelihood value on every call. This violation of the formal POMP model assumptions risks invalidating theoretical guarantees for POMP methods such as the particle filter. The severity of this violation is unclear, but it should be noted.
 
 \label{cs:dN_RS-wrong-compartment}
 
-**CS3.** \textbf{A process-model coding bug found independently by all four agents, where only two of four diagnosed a related flaw} \textbf{(W22, Project 4)}.
+**CS3.** **A process-model coding bug found independently by all four agents, where only two of four diagnosed a related flaw** **(W22, Project 4)**.
 A compartmental model is a POMP model describing a population for which each individual falls in one compartment.
 Such models are specified by the transitions rates between compartments.
 This project concerns an epidemiological compartment model for which the total rate of transition from a recovered state to a susceptible state (i.e., loss of immunity) was mathematically specified to depend on the number of recovered individuals.
@@ -768,8 +768,8 @@ This finding is an example of how domain-specific skill files can sharpen an age
 
 \label{cs:poor-mans-profile-likelihood}
 
-**CS4.** \textbf{Identification of a methodological error in profile likelihood calculation}
-\textbf{(W24, Project 16)}.
+**CS4.** **Identification of a methodological error in profile likelihood calculation**
+**(W24, Project 16)**.
 All four AI review agents were concerned about confidence intervals that claimed to be constructed via profile likelihood. For example, according to the Baseline agent,
 “The figures presented for \texttt{Beta\_v}, \texttt{Beta\_u}, \texttt{mu\_IR\_v}, \texttt{mu\_IR\_u}, and the two ratios are produced by filtering the global search results and plotting the top values.
 A profile likelihood requires, for each fixed value of the parameter of interest, maximizing the likelihood over all other free parameters.
@@ -783,7 +783,7 @@ The humans, by contrast, failed to note the discrepancy.
 
 \label{cs:baseline-major-error}
 
-**CS5.** \textbf{A major error reported by the Baseline agent but not the other agents or the humans} \textbf{(W25, Project 5)}.
+**CS5.** **A major error reported by the Baseline agent but not the other agents or the humans** **(W25, Project 5)**.
 This concerns the following technical comment made by the Baseline agent:
 
 \vspace{1.2mm}
@@ -805,7 +805,7 @@ This finding illustrates the specific category in @fig-matrix where the code doe
 
 \label{cs:courseguided-metaskill-benchmark}
 
-**CS6.** \textbf{A finding raised by the CourseGuided and MetaSkill agents but not the Baseline or Orchestrator agents} \textbf{(W21, Project 8)}.
+**CS6.** **A finding raised by the CourseGuided and MetaSkill agents but not the Baseline or Orchestrator agents** **(W21, Project 8)**.
 This project fits three basic time series models (ARMA/ARIMA, GARCH, ARMA-GARCH) to provide benchmarks for comparison with the proposed mechanistic model.
 The benchmarks computed an exact Gaussian likelihood (or conditional likelihood, for GARCH) on the raw data scale. Later in the project, four POMP models (Gaussian HMM, Student-t HMM, Gaussian HMM AR(1), and Heston) were constructed and fitted.
 These have a stochastic hidden state that cannot be integrated out in closed form, so their likelihood was approximated via \texttt{pomp}'s particle filter.
@@ -818,7 +818,7 @@ This project has an unusually brief human review that raises only one weakness a
 
 \label{cs:orchestrator-sigma-nu-boundary}
 
-**CS7.** \textbf{A finding raised only by the Orchestrator agent} \textbf{(W22, Project 1)}.
+**CS7.** **A finding raised only by the Orchestrator agent** **(W22, Project 1)**.
 This project models the growth rate of online game player counts as a financial asset return, fitting a stochastic-leverage volatility model.
 The latent process (G) evolves as a Gaussian random walk with standard deviation parameter \texttt{sigma\_nu}.
 The report's table of maximum likelihood parameters shows an estimate \texttt{sigma\_nu = 0}, for which the process becomes a fixed constant for the entire series and the leverage, $R_n = \tanh(G_n)$, is deterministic.
@@ -829,27 +829,27 @@ This finding is representative of the identifiability-related category that @fig
 
 \label{cs:domain-data-context}
 
-**CS8.** \textbf{Two human-only points categorized as “Domain/data context.”}
-\textbf{(i) W21, Project 10}. There is an erroneous instantaneous drop in susceptibles evident when this is plotted. It later becomes clear that this corresponds to a huge spike in cases. A referee noticed the following: “I try to search for the news about this abnormality but cannot get a clear answer. Instead, I find a piece of news that could help to explain it. According to FOX 5 Atlanta Digital Team, ‘The spike in cases is also a spike in reported tests. The Georgia Department of Public Health said about 12,000 of the cases reported today are all from one facility in metro Atlanta that is catching up on reporting its numbers for the week.’”
-\textbf{(ii) W24, Project 1}. The dataset must somehow determine whether an election is free and fair, since many autocracies claim to have a democratic mandate. A brief explanation would help the reader.
+**CS8.** **Two human-only points categorized as “Domain/data context.”**
+**(i) W21, Project 10**. There is an erroneous instantaneous drop in susceptibles evident when this is plotted. It later becomes clear that this corresponds to a huge spike in cases. A referee noticed the following: “I try to search for the news about this abnormality but cannot get a clear answer. Instead, I find a piece of news that could help to explain it. According to FOX 5 Atlanta Digital Team, ‘The spike in cases is also a spike in reported tests. The Georgia Department of Public Health said about 12,000 of the cases reported today are all from one facility in metro Atlanta that is catching up on reporting its numbers for the week.’”
+**(ii) W24, Project 1**. The dataset must somehow determine whether an election is free and fair, since many autocracies claim to have a democratic mandate. A brief explanation would help the reader.
 
 \label{cs:statistical-interpretation}
 
-**CS9.** \textbf{Two human-only points categorized as “Statistical interpretation.”}
-\textbf{(i) W21, Project 7}.  The project report wrote, “Profile is flat, suggesting convergence issues or nonlinearity of the likelihood surface.” Neither of these is necessary for a flat profile. There can be a linear tradeoff between parameters, and perfect convergence, and a flat profile will result. An appropriate conclusion could be weak identifiability, or non-identifiability for a perfectly flat profile.
-\textbf{(ii) W22, Project 2}. The global search suggests a bimodality: a collection of searches seem to reach a different and inferior region of parameter space. This is not scientifically critical - the second mode has much lower likelihood - but may help to understand numerical issues.
+**CS9.** **Two human-only points categorized as “Statistical interpretation.”**
+**(i) W21, Project 7**.  The project report wrote, “Profile is flat, suggesting convergence issues or nonlinearity of the likelihood surface.” Neither of these is necessary for a flat profile. There can be a linear tradeoff between parameters, and perfect convergence, and a flat profile will result. An appropriate conclusion could be weak identifiability, or non-identifiability for a perfectly flat profile.
+**(ii) W22, Project 2**. The global search suggests a bimodality: a collection of searches seem to reach a different and inferior region of parameter space. This is not scientifically critical - the second mode has much lower likelihood - but may help to understand numerical issues.
 
 \label{cs:presentation-visualization}
 
-**CS10.** \textbf{Two human-only points categorized as “Presentation/visualization”}.
-\textbf{(i) W22, Project 4}. The plot titled “differenced data” is differenced log data, but the ACF next to it is unlogged data. None of this is apparent unless you study the source code.
-\textbf{(ii) W22, Project 18}. Where possible, numbers should not be hard-coded in the Rmd document. Rather, they should be referenced using inline R expressions.
+**CS10.** **Two human-only points categorized as “Presentation/visualization”**.
+**(i) W22, Project 4**. The plot titled “differenced data” is differenced log data, but the ACF next to it is unlogged data. None of this is apparent unless you study the source code.
+**(ii) W22, Project 18**. Where possible, numbers should not be hard-coded in the Rmd document. Rather, they should be referenced using inline R expressions.
 
 \label{cs:argument-narrative}
 
-**CS11.** \textbf{Two human-only points categorized as “Argumentation/Narrative.”}
-\textbf{(i) W22, Project 13}. For the introduction, it is better to include the background (epidemic situation) in the researched regions, California and Texas.
-\textbf{(ii) W24, Project 2}. The description of what is denoted by \texttt{peak\_rodent\_year} was a bit lacking. It was only described as, “Peak rodent year is scored as ‘yes’, otherwise ‘no’,” but it does not describe what is meant by that or how it is decided or when.
+**CS11.** **Two human-only points categorized as “Argumentation/Narrative.”**
+**(i) W22, Project 13**. For the introduction, it is better to include the background (epidemic situation) in the researched regions, California and Texas.
+**(ii) W24, Project 2**. The description of what is denoted by \texttt{peak\_rodent\_year} was a bit lacking. It was only described as, “Peak rodent year is scored as ‘yes’, otherwise ‘no’,” but it does not describe what is meant by that or how it is decided or when.
 
 \normalsize
 
