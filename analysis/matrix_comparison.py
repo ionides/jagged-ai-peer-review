@@ -25,53 +25,22 @@ def agent_entry(name, color):
     return (name, f'{ac_per_proj[name]:.1f}', color)
 
 BLOCKS = [
-    (
-        [
-            ('Global search inherits cooled schedule, not truly global (optimization flaw)', '1'),
-            ('Cross-family log-likelihood comparison invalid (scale mismatch)', '2'),
-            ('No ESS or particle filter diagnostics reported (verification gap)', '3'),
-        ],
-        [],
-        '#eeeeee',
-        'Found by\nall four\nagents',
-    ),
-    (
-        [
-            ('Modifying one variable silently changes another (implementation bug)', '4'),
-            ('Code does not implement the model as written (implementation bug)', '5'),
-            ('Computation produces wrong values without error (implementation bug)', '6'),
-        ],
-        [
-            agent_entry('Baseline', baseline_color),
-        ],
-        '#dce8f8',
-        None,
-    ),
-    (
-        [
-            ('Confidence interval procedure is wrong (methodology flaw)', '7'),
-            ('No simpler baseline model for comparison (model evaluation)', '8'),
-            ('Too few starting values explored in fitting (optimization flaw)', '9'),
-        ],
-        [
-            agent_entry('CourseGuided', cd_color),
-            agent_entry('MetaSkill', cd_color),
-        ],
-        '#f8e8d8',
-        None,
-    ),
-    (
-        [
-            ('Incorrect biological formula in model (domain error)', '10'),
-            ('Profile too flat/noisy to extract CIs (identifiability issue)', '11'),
-            ('Results lack parameter estimates or captions (omission)', '12'),
-        ],
-        [
-            agent_entry('Orchestrator', orch_color),
-        ],
-        '#e8e0f4',
-        None,
-    ),
+    ([('Global search inherits cooled schedule, not truly global (optimization flaw)', '1'),
+      ('Cross-family log-likelihood comparison invalid (scale mismatch)', '2'),
+      ('No ESS or particle filter diagnostics reported (verification gap)', '3')],
+     [], '#eeeeee', 'Found by\nall four\nagents'),
+    ([('Modifying one variable silently changes another (implementation bug)', '4'),
+      ('Code does not implement the model as written (implementation bug)', '5'),
+      ('Computation produces wrong values without error (implementation bug)', '6')],
+     [agent_entry('Baseline', baseline_color)], '#dce8f8', None),
+    ([('Confidence interval procedure is wrong (methodology flaw)', '7'),
+      ('No simpler baseline model for comparison (model evaluation)', '8'),
+      ('Too few starting values explored in fitting (optimization flaw)', '9')],
+     [agent_entry('CourseGuided', cd_color), agent_entry('MetaSkill', cd_color)], '#f8e8d8', None),
+    ([('Incorrect biological formula in model (domain error)', '10'),
+      ('Profile too flat/noisy to extract CIs (identifiability issue)', '11'),
+      ('Results lack parameter estimates or captions (omission)', '12')],
+     [agent_entry('Orchestrator', orch_color)], '#e8e0f4', None),
 ]
 
 DATA_H  = 0.52
@@ -84,7 +53,7 @@ N_ROWS = sum(len(rows) for rows, _, _, _ in BLOCKS)
 FIG_H  = N_ROWS * DATA_H + HDR_H + FOOT_H + 0.4
 
 GRID_L = 0.15
-GRID_R = FIG_W - 0.3
+GRID_R = FIG_W - 0.05
 CAT_X  = LABEL_W + 0.25
 
 fig, ax = plt.subplots(figsize=(FIG_W, FIG_H))

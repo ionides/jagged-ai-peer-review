@@ -24,6 +24,7 @@ format:
           afterskip=0.1em
         ]{subsubsection}
         \usepackage{fullpage}
+        \usepackage{enumitem}
         \usepackage{booktabs}
         \usepackage{caption}
         \usepackage{float}
@@ -35,43 +36,82 @@ jupyter: python3
 
 ## Abstract {.unnumbered}
 
-Despite their growing use in academic writing and statistical analysis, the performance of artificial intelligence (AI) tools in scientific peer review remains a largely unexplored area.
-A key challenge is *jagged AI*, a phenomenon where AI exhibits strong ability spikes in some domains while remaining deficient in others.
-To study this jaggedness in a practical data science context, we considered the task of reviewing partially observed Markov process (POMP) data analyses.
-POMP models, also known as state-space models or hidden Markov models, are used to fit mechanistic dynamic models to time series data in diverse applications including disease transmission, ecological dynamics, and financial risk assessment.
-High-quality peer review in this area entails assessment of scientific context, identification of errors in implementing complex algorithms, and decisions concerning methodological best practices.
-We studied 72 POMP projects from four semesters of a University of Michigan graduate time series course for which the project reports, the source code, and student peer reviews are anonymized and open-access.
-We compared the human reviews with four AI reviewing agents, using Claude Code with differing instructions implemented as skill files. 
-We found that AI reviewers exhibited a jagged capability profile, proficiently catching human-overlooked technical errors and invalid inference methodology, while failing to match human standards in checking interpretive errors, narrative coherence, and domain-informed model critique.
-The jaggedness was found to be similar for all agents, consistent with it being primarily a property of the underlying AI model rather than the specific instructions.
-Skill file configuration shifted which weaknesses agents emphasized, without removing the jaggedness.
+Despite their growing use in academic writing and statistical analysis,
+the performance of artificial intelligence (AI) tools in scientific peer
+review remains a largely unexplored area. A key challenge is
+\emph{jagged AI}, a phenomenon where AI exhibits strong ability spikes
+in some domains while remaining deficient in others. To study this
+jaggedness in a practical data science context, we considered the task
+of reviewing partially observed Markov process (POMP) data analyses.
+POMP models, a generalization of state-space models or hidden Markov models,
+are used to fit mechanistic dynamic models to time series data in
+diverse applications including disease transmission, ecological
+dynamics, and financial risk assessment. High-quality peer review in
+this area entails assessment of scientific context, identification of
+errors in implementing complex algorithms, and decisions concerning
+methodological best practices. We studied 72 POMP projects from four
+semesters of a University of Michigan graduate time series course for
+which the project reports, the source code, and student peer reviews are
+anonymized and open access. We compared the human reviews with four AI
+review agents, using Claude Code with differing instructions
+implemented as skill files. We found that the AI review agents exhibited a jagged capability profile, identifying plausible technical errors and instances of invalid inference methodology overlooked by humans, while showing lower capability at finding issues involving interpretive errors, narrative coherence, and domain-informed model critique. The jaggedness was similar for all agents, consistent with other research finding that the specific instructions can have limited effect on the capability of advanced AI models for some tasks. Skill file configuration shifted which weaknesses agents emphasized, without removing the jaggedness.
 
 
 **Keywords:** Peer review; Partially observed Markov process; Jagged artificial intelligence.
 
 # Introduction
+The use of large language models (LLMs) in academic contexts has grown
+substantially, raising important questions about where AI assistance
+enhances scientific outcomes and where it degrades them [@vaccaro24]. A foundational framework for understanding this boundary is the concept of the *jagged technological frontier* [@dellacqua26]. We define *jaggedness* to be a phenomenon where performance is super-human at some aspects of a task, and sub-human in others. This normative definition was proposed by [@morris26], and the reference humans for our investigation are those in our study. The term \emph{jagged} was introduced by [@dellacqua23], subsequently published in 2026.
+Jaggedness has become commonly used to refer to cognitive gaps in otherwise capable AI systems [@mineault26]. Tasks that appear equally demanding to human
+knowledge workers can fall on opposite sides of this frontier: where AI
+capabilities align with the task, AI complements and amplifies human
+performance; where they do not, AI output becomes unreliable and can
+actively degrade the quality of work. The benefit of AI assistance is
+therefore contingent on whether a given task lies within the current
+capability boundary---a boundary that is neither smooth nor predictable.
+Jaggedness is not a uniform capability ceiling but a pattern of uneven
+performance across domains. @morris26 characterize it as a
+tendency for AI to exhibit sharp ability spikes in certain areas while
+remaining persistently deficient in others, arguing that this unevenness
+fundamentally complicates any simple notion of AI generality.
 
-The use of large language models (LLMs) in academic contexts has grown substantially, raising important questions about where AI assistance enhances scientific outcomes and where it degrades them [@vaccaro24].
-A foundational framework for understanding this boundary is the concept of the *jagged technological frontier* [@dellacqua26].
-Tasks that appear equally demanding to human knowledge workers can fall on opposite sides of this frontier: where AI capabilities align with the task, AI complements and amplifies human performance; where they do not, AI output becomes unreliable and can actively degrade the quality of work.
-The benefit of AI assistance is therefore contingent on whether a given task lies within the current capability boundary—a boundary that is neither smooth nor predictable.
-Jaggedness is not a uniform capability ceiling but a pattern of uneven performance across domains.
-@morris26 characterize it as a tendency for AI to exhibit sharp ability spikes in certain areas while remaining persistently deficient in others, arguing that this unevenness fundamentally complicates any simple notion of AI generality.
+Data science peer review represents a complex, multi-layered task that
+is susceptible to jagged AI performance. A reviewer must verify
+statistical correctness, evaluate model assumptions, critique scientific
+reasoning, assess presentation quality, and apply domain
+knowledge---capabilities that vary considerably in how well they lend
+themselves to LLM evaluation. Early empirical studies have begun to map
+where LLM reviewing succeeds and fails: @liu23 found that
+GPT-4 detects deliberately inserted errors in fewer than half of tested
+manuscripts, while [@liang24] showed that AI-generated feedback
+on papers from major journals overlaps with human reviewers at rates
+comparable to inter-reviewer agreement, yet tends toward generic rather
+than targeted critique. These studies focus on AI reviewing of general
+scientific manuscripts; the performance of AI on technical,
+domain-specific statistical analyses, where correctness depends on both
+code implementation and inference methodology, remains largely
+unexplored. The task of reviewing Partially Observed Markov Process
+(POMP) data analysis @king16 provides a demanding scenario, requiring specialized knowledge of likelihood-based inference, particle filter diagnostics, computationally intensive algorithms, and the interplay between mechanistic model structure and statistical identifiability.
 
-Data science peer review represents a complex, multi-layered task that is susceptible to jagged AI performance.
-A reviewer must verify statistical correctness, evaluate model assumptions, critique scientific reasoning, assess presentation quality, and apply domain knowledge—capabilities that vary considerably in how well they lend themselves to LLM evaluation.
-Early empirical studies have begun to map where LLM reviewing succeeds and fails: @liu23 found that GPT-4 detects deliberately inserted errors in fewer than half of tested manuscripts, while @liang24 showed that AI-generated feedback on papers from major journals overlaps with human reviewers at rates comparable to inter-reviewer agreement, yet tends toward generic rather than targeted critique.
-These studies focus on AI reviewing of general scientific manuscripts; the performance of AI on technical, domain-specific statistical analyses, where correctness depends on both code implementation and inference methodology, remains largely unexplored.
-The task of reviewing Partially Observed Markov Process (POMP) data analysis [@king16] provides a demanding scenario, requiring specialized knowledge of likelihood-based inference, particle filter diagnostics, computationally intensive algorithms, and the interplay between mechanistic model structure and statistical identifiability.
+In this paper, we assess the jaggedness of AI in peer reviewing POMP
+data analysis projects, asking two related questions: (1) Which
+categories of weaknesses can AI effectively identify in POMP analyses,
+and which does it consistently miss? (2) Can this jaggedness be tuned
+through the use of specialized instructions, templates, and scripts for
+specific workflows? We evaluated four Claude Code agents (i.e.,
+instances of Claude Code provided with specific skill files) across 72
+open-access POMP projects, comparing their reviews against graduate
+student peer reviews validated by the course instructor. The resulting
+evidence provides a detailed characterization of AI jaggedness in a
+rigorous statistical peer review context, demonstrating that AI can
+effectively complement, but not replace, human judgment in scientific
+evaluation.
 
-In this paper, we assess the jaggedness of AI in peer reviewing POMP data analysis projects, asking two related questions:
-(1) Which categories of weaknesses can AI effectively identify in POMP analyses, and which does it consistently miss?
-(2) Can this jaggedness be tuned through the use of specialized instructions, templates, and scripts for specific workflows?
-We evaluated four Claude Code agents (i.e., instances of Claude Code provided with specific skill files) across 72 open-access POMP projects, comparing their reviews against graduate student peer reviews validated by the course instructor.
-The resulting evidence provides a detailed characterization of AI jaggedness in a rigorous statistical peer review context, demonstrating that AI can effectively complement, but not replace, human judgement in scientific evaluation.
 
 
 # Materials and Methods
+
 
 We used a corpus of 72 POMP analysis projects from the STATS 531 course "Modeling and Analysis of Time Series Data" at the University of Michigan, spanning four semesters:
 Winter 2021 ([W21, 16 projects](https://github.com/ionides/531w21/tree/main/final_project)),
@@ -109,11 +149,8 @@ Unlike the other three agents which reviewed projects in parallel, MetaSkill was
 Only claims that survived the challenge process appeared in the final review.
 Procedures where an agent orchestrates a multi-stage evaluation process have been found to improve outcomes for LLM annotations in learning analytics [@ahtisham26].
 
-
-Each AI finding was matched to a human issue if they referred to substantially the same underlying concern, even if phrased differently.
-The major/minor distinction (A vs. C, B vs. D) was determined solely by the AI reviewer's own label.
-Each human issue was counted exactly once.
-Each finding was classified into one of six categories:
+The POMP review skill was initially drafted by AI, using a prompt to build a skill summarizing the recommendations of @wheeler24.
+The course-guided skill was similarly constructed to provide a summary of the course notes. The eponymous meta-skill skill for the MetaSkill agent, and the agent description files, were drafted using internet advice for building self-improving agents. All configuration files were edited manually during pilot experimentation.
 
 | Code | Description |
 |:----:|:------------|
@@ -126,23 +163,69 @@ Each finding was classified into one of six categories:
 
 : Classification codes for issues raised in review {#tbl-letter-code}
 
-The classification was carried out by a team of two agents, called the Comparator and the ComparatorReviewer. 
-The Comparator extracted all distinct concerns from the aggregated human review as a numbered list, then called a new instance of ComparatorReviewer once per AI review agent (Baseline, CourseGuided, MetaSkill and Orchestrator) to classify that reviewer's findings against the human list.
-This design prevents cross-reviewer contamination: when all four reviewers were analyzed together in a single agent call, the classification agent would misattribute findings between reviewers.
-We manually checked the AI reviews and classification for all W21 projects and found no entirely unreasonable assessments; major weaknesses in particular were consistently well-grounded.
-We therefore treated all AI findings as plausible for the remaining semesters.
-A peer review, carried out by human or AI, that finds some substantive issues can be helpful whether or not other points are correct, and so our conclusions should be insensitive to a small fraction of undetected errors.
-The primary quantitative metric was _Human Overlap_ defined as
+Each AI finding was classified into one of the six categories A--F in @tbl-letter-code. The classification was carried out by a team of agents: the Comparator, a HumanExtractor, and the ComparatorReviewer. The Comparator delegated all reading and analysis to nested agents rather than reading files itself. A HumanExtractor instance read the aggregated human review and extracted its distinct concerns into a structured list, and a new ComparatorReviewer instance was called once per AI review agent (Baseline, CourseGuided, MetaSkill, and Orchestrator) to classify the reviewer's findings against the extracted human list. Each nested agent's output was written to disk individually, establishing an audit trail, and a deterministic script assembles the final per-project report from these outputs, while also identifying consensus misses: human issues classified as Category E for every one of the four reviewers. 
 
-$$\text{Human Overlap} = \frac{B + D}{B + D + E}.$$
+```{python}
+#| echo: false
+import re
+import pandas as pd
 
-This measured the fraction of human-confirmed weaknesses independently identified by the AI agent. 
-To assess whether Human Overlap differed across the four agents, we used the Friedman test [@friedman37], a non-parametric repeated measures test, treating the 72 projects as repeated units. 
-The null hypothesis $H_0$ is that the distribution of Human Overlap is the same across all agents, against the alternative $H_a$ that at least one agent differs.
-Since the aggregated human reviews represent instructor-verified review points, Human Overlap measures the extent to which AI matches validated human assessment.
-High Human Overlap is not necessarily desirable if the human reviews are missing important points.
-We addressed this by asking the Comparator to produce cross-reviewer aggregations identifying which human issues no AI reviewer addressed and which AI findings were raised universally across all reviewers.
-Category E findings were further classified into thematic categories by a separate Claude instance, and then manually verified across all semesters.
+_val_text = open("analysis/Comparator_Validation_Results.md").read()
+_val_reviewer_map = {'Alex': 'Baseline', 'Charlie': 'CourseGuided', 'Doug': 'MetaSkill', 'Evan': 'Orchestrator'}
+
+_val_rows = []
+_sem = None
+_reviewer = None
+for _line in _val_text.split('\n'):
+    _m_sem = re.match(r'^\* (W\d+)', _line)
+    if _m_sem:
+        _sem = _m_sem.group(1)
+        continue
+    _m_rev = re.match(r'^\s{2}\* (\w+)\s*$', _line)
+    if _m_rev:
+        _reviewer = _m_rev.group(1)
+        continue
+    _m_proj = re.match(r'^\s{4}\* P(\d+):(.*)$', _line)
+    if _m_proj and _sem and _reviewer:
+        _p, _rest = _m_proj.groups()
+        _m1 = re.search(r'M1=(\d+)', _rest)
+        _m2 = re.search(r'M2=(\d+)', _rest)
+        _m3 = re.search(r'M3=(\d+)', _rest) or re.search(r'(?<!M1)(?<!M2)(?<![0-9])M=(\d+)', _rest)
+        _val_rows.append((_sem, _val_reviewer_map.get(_reviewer, _reviewer), int(_p),
+                           int(_m1.group(1)), int(_m2.group(1)), int(_m3.group(1))))
+
+validation_df = pd.DataFrame(_val_rows, columns=['Semester', 'Agent', 'Project', 'Clear', 'Disputable', 'Incorrect'])
+_val_totals = validation_df[['Clear', 'Disputable', 'Incorrect']].sum()
+_val_total_matches = int(_val_totals.sum())
+pct_incorrect = round(_val_totals['Incorrect'] / _val_total_matches * 100, 1)
+pct_clear = round(_val_totals['Clear'] / _val_total_matches * 100)
+```
+
+For the quantitative evaluation, we scored each match identified by the Comparator agent as “clear,” “disputable,” or “incorrect.” Disputable matches were ones where we could see valid logic supporting the decision, but also lines of reasoning that could lead to alternative decisions. We found few incorrect matches (`{python} f"{pct_incorrect}"`\%) and a majority of clearly correct matches (`{python} f"{pct_clear}"`\%). See Appendix~B for additional details.
+
+
+Findings were matched to a human issue if they referred to
+substantially the same underlying concern, even if phrased differently.
+The major/minor distinction (A vs.~C, B vs.~D) was determined solely by
+the AI reviewer's own label. Each human issue was counted exactly once.
+A peer review, carried out by human or AI, that finds some substantive issues can be helpful whether
+or not other points are correct, and so our conclusions should be
+insensitive to a small fraction of undetected errors. 
+
+The primary
+quantitative metric was \emph{Human Overlap} defined as
+$$\text{Human Overlap} = 1 - \frac{E}{N},$$
+where $N$ is the number of issues raised by the human reviewer for the project.
+This measures the fraction of human-confirmed weaknesses independently
+identified by the AI agent. Human overlap does not necessarily measure AI review quality since non-overlapping points may be AI insights missed by humans, or AI errors, or human errors. It is an asymmetric measure of the similarity between the AI findings and the human reviews. To assess whether Human Overlap differed
+across the four agents, we used the Friedman test [@friedman37], a
+non-parametric repeated measures test, treating the 72 projects as
+repeated units. The null hypothesis \(H_0\) is that the distribution of
+Human Overlap is the same across all agents, against the alternative
+\(H_a\) that at least one agent differs. Since the aggregated human
+reviews represent instructor-verified review points, Human Overlap
+measures the extent to which AI matches validated human assessment. High Human Overlap is not necessarily desirable if the human reviews are missing important points. We addressed this concern by examining Category A findings: major AI findings that no human reviewer raised (see Section~\ref{what-ai-caught-that-humans-missed}). Separately, the consensus misses at the end of each Comparator report were aggregated across all 72 projects into a single list.
+We looked for verbal descriptions summarizing the types of issues falling into each category. Frontier AI models can be effective at this topic modeling task [@mu24], and we took advantage of that capability. The full workflow is detailed in the \texttt{analysis} folder of our code repository.
 
 # Results
 
@@ -165,13 +248,25 @@ f_stat, p_value = stats.friedmanchisquare(*groups)
 mean_overlap = {a: df[df['Agent'] == a]['Human_Overlap'].mean() * 100 for a in agent_order}
 
 n_projects = df.groupby('Semester')['Project'].nunique()
-avg_human_issues = (
-    df.groupby(['Semester', 'Reviewer'])[['B', 'D', 'E']].sum()
-    .assign(BDE=lambda x: x['B'] + x['D'] + x['E'])
-    .reset_index()
-    .groupby('Semester')['BDE'].mean()
-    .div(n_projects)
-)
+
+import re
+from pathlib import Path
+from decimal import Decimal, ROUND_HALF_UP
+
+human_issues_dir = Path("results/comparator/human-issues")
+human_issue_counts = []
+for f in sorted(human_issues_dir.glob("human-issues-*.md")):
+    sem = re.search(r"human-issues-(W\d+)_", f.name, re.IGNORECASE).group(1).upper()
+    n = len(re.findall(r"^\d+\.\s", f.read_text(), re.MULTILINE))
+    human_issue_counts.append((sem, n))
+
+human_issues_df = pd.DataFrame(human_issue_counts, columns=['Semester', 'N'])
+avg_human_issues = human_issues_df.groupby('Semester')['N'].mean()
+
+def round1(x):
+    """Round to 1 decimal place, half rounding up rather than Python's
+    default banker's rounding (e.g. 5.25 -> 5.3, not 5.2)."""
+    return float(Decimal(str(x)).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP))
 
 import matplotlib.pyplot as plt
 plt.rcParams['font.family'] = 'DejaVu Sans'
@@ -201,10 +296,10 @@ pivot.columns.name = None
 pivot
 ```
 
-@tbl-coverage-raw presents the Human Overlap by agent and semester.
-@fig-coverage-trends shows the Human Overlap trend across semesters for each agent.
-All agents exhibited a declining trend in Human Overlap from W22 to W25, partly because human reviews became more thorough over time: the average number of human-confirmed issues per project grew from `{python} f"{avg_human_issues['W21']:.1f}"` in W21 to `{python} f"{avg_human_issues['W24']:.1f}"` in W24 before settling at `{python} f"{avg_human_issues['W25']:.1f}"` in W25.
-As the denominator of Human Overlap increased while AI coverage remained roughly stable, the overlap rate naturally declined.
+Table~@tbl-coverage-raw presents the Human Overlap by agent and semester, computed by averaging each project's own Human Overlap ratio within that semester.
+Figure~@fig-coverage-trends shows the Human Overlap trend across semesters for each agent. Overall, there is a weak declining trend, perhaps because human reviews became more thorough over time: the average number of human-confirmed issues per
+project grew from `{python} f"{round1(avg_human_issues['W21']):.1f}"` in W21 to `{python} f"{round1(avg_human_issues['W24']):.1f}"` in W24 before settling at `{python} f"{round1(avg_human_issues['W25']):.1f}"` in
+W25. There are various other competing hypotheses for the trend: the introduction of a peer review component in the course might have had an effect on both the projects and reviews in subsequent years, since students were encouraged to inspect the publicly posted results from previous years; the COVID-19 pandemic might have affected early years, and the growing capabilities of AI might have affected later years.
 
 ```{python}
 #| echo: false
@@ -236,7 +331,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-The Friedman test on Human Overlap across the four agents yielded p = `{python} f"{p_value:.2f}"`, suggesting inclusive evidence against the null hypothesis.
+The Friedman test on Human Overlap across the four agents yielded p = `{python} f"{p_value:.2f}"`, suggesting inconclusive evidence against the null hypothesis.
 The overall mean overlap rates of `{python} f"{mean_overlap['Baseline']:.1f}"`% (Baseline), `{python} f"{mean_overlap['CourseGuided']:.1f}"`% (CourseGuided), `{python} f"{mean_overlap['MetaSkill']:.1f}"`% (MetaSkill), and `{python} f"{mean_overlap['Orchestrator']:.1f}"`% (Orchestrator) were similar across agents, with substantial project-level variance visible in @fig-per-project.
 
 A consistent finding across all agents and semesters was that the majority of each agent's output consisted of AI-unique findings that human reviewers never raised.
@@ -277,11 +372,14 @@ plt.show()
 
 ## What AI Caught That Humans Missed
 
-Despite low Human Overlap, AI agents generated a large and qualitatively consistent set of findings not raised by human reviewers.
-The findings divided along the axis of skill file configuration.
-The Baseline agent proficiently detected errors that required reading and executing code, rather than evaluating the statistical argument.
-This required the AI to understand particle filters, maximum likelihood via the iterated filtering (IF2) algorithm [@ionides15], and implementation via the pomp R package [@king16].
-These technical issues fell into four recurring categories, described below.
+\label{what-ai-caught-that-humans-missed}
+
+Despite low Human Overlap, AI agents generated a large and qualitatively
+consistent set of findings not raised by human reviewers (e.g., case studies CS1--7 in Appendix~A). The findings divided along the axis of skill file configuration. The Baseline agent's unique findings frequently required reading and executing code to evaluate, rather than assessing the statistical argument alone. This required the AI to understand particle filters, maximum likelihood via the iterated
+filtering (IF2) algorithm [@ionides15], and implementation via
+the pomp R package [@king16]. These technical
+issues fell into four recurring categories, described below.
+
 
 **Code-level bugs that silently corrupt computation.**
 The most consequential class of Baseline-unique findings involved code that ran without error while computing the wrong quantity.
@@ -320,18 +418,21 @@ The skill-equipped agents audited which parameters were actively perturbed durin
 #| echo: false
 e_total = int(df[df['Agent'] == 'Baseline'].groupby('Semester')['E'].sum().sum())
 theme_df = pd.read_csv("analysis/theme_counts.csv")
-theme_total = theme_df['Count'].sum()
-tc = dict(zip(theme_df['Theme'], theme_df['Count']))
+theme_total = int(theme_df['Count'].sum())
+tc = dict(zip(theme_df['Theme'], theme_df['Count'].astype(int)))
 ```
 
-To characterize the structure of human-unique findings, we analyzed `{python} theme_total.item()` human-raised issues that were missed (category E) for all four agents.
-Themes were identified by having Claude broadly classify each finding by content into general categories. The classification was manually verified across all semesters by reviewing the individual assignments and confirming the categorizations were reasonable.
-These clustered into five recurring themes, shown in @fig-themes.
+To characterize the structure of human-unique findings, we analyzed
+`{python} theme_total` human-raised issues that were missed for all
+four agents. Themes were identified by having Claude broadly classify
+each finding by content into general categories.
+Appendix A presents individually-verified case studies illustrating what these categories mean in practice for specific projects. These
+clustered into five recurring themes, shown in @fig-themes. 
 
 ```{python}
 #| echo: false
 #| label: fig-themes
-#| fig-cap: "Category breakdown of human-only findings across all semesters (W21--W25). Statistical interpretation accounts for the largest share, followed by argumentation/narrative and presentation/visualization."
+#| fig-cap: "Category breakdown of human-only findings across all semesters (W21--W25). Argumentation/narrative and statistical interpretation account for the largest, roughly comparable shares, followed by presentation/visualization."
 #| fig-pos: "H"
 pie_colors = ['#4C72B0', '#DD8452', '#55A868', '#C44E52', '#8172B3']
 counts_pie = theme_df['Count'].values
@@ -360,14 +461,14 @@ plt.show()
 
 **Statistical and scientific interpretation (n = `{python} tc['Statistical interpretation']`, `{python} round(tc['Statistical interpretation']/theme_total*100)`%).**
 Human reviewers correctly diagnosed the meaning of statistical results in ways AI consistently failed to replicate.
-Examples included: identifying flat profile likelihoods as evidence of non-identifiability rather than optimization failure, recognizing that bimodal likelihood surfaces warrant investigation and scientific discussion, and catching logically inconsistent conclusions such as rejecting a null hypothesis and then drawing a positive inference from the same p-value.
+Examples included: identifying flat profile likelihoods as evidence of non-identifiability rather than optimization failure, recognizing that bimodal likelihood surfaces warrant investigation and scientific discussion, and catching logically inconsistent conclusions such as rejecting a null hypothesis and then drawing a positive inference from the same p-value. See case study CS9 in Appendix A
 
 **Argumentation and narrative coherence (n = `{python} tc['Argumentation / narrative']`, `{python} round(tc['Argumentation / narrative']/theme_total*100)`%).**
 Human reviewers assessed whether the scientific argument was internally consistent, the research motivation was clearly stated, the model class was appropriate for the question posed, conclusions followed from the evidence presented, and the analysis contributed insight beyond prior work.
-The AI agents did not engage with these dimensions of review quality.
+The AI agents did not engage with these dimensions of review quality. See CS11
 
 **Presentation and visualization quality (n = `{python} tc['Presentation / visualization']`, `{python} round(tc['Presentation / visualization']/theme_total*100)`%).**
-Human reviewers caught specific figure and table problems that required holistic visual assessment: uninformative or unpolished EDA plots, reversed time axes in figures, excessive significant figures in tables, missing captions and figure numbers, and inconsistent or undefined notation.
+Human reviewers caught specific figure and table problems that required holistic visual assessment: uninformative or unpolished EDA plots, reversed time axes in figures, excessive significant figures in tables, missing captions and figure numbers, and inconsistent or undefined notation. See CS10
 
 **Model improvement direction (n = `{python} tc['Model improvement direction']`, `{python} round(tc['Model improvement direction']/theme_total*100)`%).**
 Human reviewers identified the specific structural change that would resolve an observed problem.
@@ -380,13 +481,12 @@ Examples included questioning how a dataset operationalized contested political 
 
 ## Skill File Focus Shift
 
-The quantitative equivalence in Human Overlap across agents masked a qualitatively significant divergence in the *types* of findings each agent generated.
-@fig-matrix illustrates this divergence: the Baseline agent captured implementation errors at consistently high rates, while skill-equipped agents systematically flagged inference-methodology violations that the Baseline missed.
+The lack of a statistically detectable difference in Human Overlap across agents masked a qualitatively significant divergence in the \emph{types} of findings each agent generated. @fig-matrix illustrates this divergence: the Baseline agent captured implementation errors at consistently high rates, while skill-equipped agents systematically flagged inference-methodology violations that the Baseline missed.
 
 ```{python}
 #| echo: false
 #| label: fig-matrix
-#| fig-cap: "Domain-specific comparison of agent-unique findings across all semesters. Checkmarks indicate findings systematically raised by that agent class but not others. The Baseline agent excelled at implementation checks; skill-equipped agents redirected focus to inference methodology."
+#| fig-cap: "Domain-specific comparison of issues raised by AI but not by human reviewers, aggregated across all semesters. The Baseline agent performed best at implementation checks; skill-equipped agents redirected focus to inference methodology."
 #| fig-pos: "H"
 import matplotlib.patches as mpatches
 
@@ -394,41 +494,40 @@ baseline_color = '#4C72B0'
 cd_color       = '#DD8452'
 orch_color     = '#8172B3'
 
-ac = df.groupby('Agent')[['A', 'C']].sum().assign(AC=lambda x: x['A'] + x['C'])['AC']
 n_proj_total = df[['Semester', 'Project']].drop_duplicates().shape[0]
-ac_baseline = int(ac['Baseline'])
-ac_cd = int((ac['CourseGuided'] + ac['MetaSkill']) / 2)
-ac_orch = int(ac['Orchestrator'])
+ac_per_proj = (df.groupby('Agent')[['A', 'C']].sum().sum(axis=1) / n_proj_total).round(1)
 
-ROWS = [
-    ('Global search inherits cooled schedule, not truly global (optimization flaw)', True,  True,  True,  '#eeeeee'),
-    ('No ESS or particle filter diagnostics reported (verification gap)',            True,  True,  True,  '#eeeeee'),
-    ('Cross-family log-likelihood comparison invalid (scale mismatch)',              True,  True,  True,  '#eeeeee'),
-    ('Modifying one variable silently changes another (implementation bug)',         True,  False, False, '#dce8f8'),
-    ('Code does not implement the model as written (implementation bug)',            True,  False, False, '#dce8f8'),
-    ('Computation produces wrong values without error (implementation bug)',         True,  False, False, '#dce8f8'),
-    ('Confidence interval procedure is wrong (methodology flaw)',                    False, True,  False, '#f8e8d8'),
-    ('No simpler baseline model for comparison (model evaluation)',                  False, True,  False, '#f8e8d8'),
-    ('Too few starting values explored in fitting (optimization flaw)',              False, True,  False, '#f8e8d8'),
-    ('Profile too flat/noisy to extract CIs (identifiability issue)',               False, False, True,  '#e8e0f4'),
-    ('Incorrect biological formula in model (domain error)',                         False, False, True,  '#e8e0f4'),
-    ('Results lack parameter estimates or captions (omission)',                      False, False, True,  '#e8e0f4'),
+def agent_entry(name, color):
+    return (name, f'{ac_per_proj[name]:.1f}', color)
+
+BLOCKS = [
+    ([('Global search inherits cooled schedule, not truly global (optimization flaw)', '1'),
+      ('Cross-family log-likelihood comparison invalid (scale mismatch)', '2'),
+      ('No ESS or particle filter diagnostics reported (verification gap)', '3')],
+     [], '#eeeeee', 'Found by\nall four\nagents'),
+    ([('Modifying one variable silently changes another (implementation bug)', '4'),
+      ('Code does not implement the model as written (implementation bug)', '5'),
+      ('Computation produces wrong values without error (implementation bug)', '6')],
+     [agent_entry('Baseline', baseline_color)], '#dce8f8', None),
+    ([('Confidence interval procedure is wrong (methodology flaw)', '7'),
+      ('No simpler baseline model for comparison (model evaluation)', '8'),
+      ('Too few starting values explored in fitting (optimization flaw)', '9')],
+     [agent_entry('CourseGuided', cd_color), agent_entry('MetaSkill', cd_color)], '#f8e8d8', None),
+    ([('Incorrect biological formula in model (domain error)', '10'),
+      ('Profile too flat/noisy to extract CIs (identifiability issue)', '11'),
+      ('Results lack parameter estimates or captions (omission)', '12')],
+     [agent_entry('Orchestrator', orch_color)], '#e8e0f4', None),
 ]
 
-N_ROWS = len(ROWS)
-DATA_H = 0.46
-HDR_H  = 0.60
-FOOT_H = 0.52
-FIG_W  = 12.5
-FIG_H  = N_ROWS * DATA_H + HDR_H + FOOT_H + 0.5
-
-COL_B  = 9.0
-COL_C  = 10.1
-COL_E  = 11.5
-CAT_X  = 0.3
+DATA_H  = 0.52
+HDR_H   = 0.62
+LABEL_W = 2.6
+FIG_W   = 14.2
+N_ROWS = sum(len(rows) for rows, _, _, _ in BLOCKS)
+FIG_H  = N_ROWS * DATA_H + HDR_H + 0.4
 GRID_L = 0.15
-GRID_R = 12.2
-SEP_X  = 8.5
+GRID_R = FIG_W - 0.05
+CAT_X  = LABEL_W + 0.25
 
 fig, ax = plt.subplots(figsize=(FIG_W, FIG_H))
 ax.set_xlim(0, FIG_W)
@@ -438,109 +537,165 @@ ax.axis('off')
 hdr_top = FIG_H
 hdr_bot = FIG_H - HDR_H
 hdr_mid = (hdr_top + hdr_bot) / 2
-
-ax.text(CAT_X, hdr_mid, 'Domain Specific Breakdown of Agent-Unique Review Overlap',
+ax.text(GRID_L, hdr_mid, 'Domain-Specific Breakdown of Agent-Unique Review Overlap',
         ha='left', va='center', fontsize=16, fontweight='bold', color='#1a1a1a', zorder=2)
-ax.text(COL_B, hdr_mid, 'Baseline',        ha='center', va='center', fontsize=13, fontweight='bold', color=baseline_color, zorder=2)
-ax.text(COL_C, hdr_mid, 'CourseGuided /\nMetaSkill', ha='center', va='center', fontsize=12, fontweight='bold', color=cd_color, zorder=2)
-ax.text(COL_E, hdr_mid, 'Orchestrator',    ha='center', va='center', fontsize=13, fontweight='bold', color=orch_color, zorder=2)
+y = hdr_bot
+for rows, agents, bg, label_override in BLOCKS:
+    block_h = len(rows) * DATA_H
+    block_top, block_bot = y, y - block_h
 
-foot_bg = '#f5f5f5'
-ax.add_patch(mpatches.Rectangle(
-    (GRID_L, hdr_bot - FOOT_H), GRID_R - GRID_L, FOOT_H,
-    facecolor=foot_bg, edgecolor='#cccccc', linewidth=0.4, zorder=1
-))
-foot_mid = hdr_bot - FOOT_H / 2
-ax.text(CAT_X, foot_mid, 'AI-unique findings (A+C) — total across W21–W25',
-        ha='left', va='center', fontsize=11, fontweight='bold', color='#1a1a1a', zorder=2)
-
-for col_x, count, color in [
-    (COL_B, ac_baseline, baseline_color),
-    (COL_C, ac_cd,       cd_color),
-    (COL_E, ac_orch,     orch_color),
-]:
-    ax.text(col_x, foot_mid, f'{count}\n({count/n_proj_total:.1f}/proj)',
-            ha='center', va='center', fontsize=11, fontweight='bold', color=color, zorder=2)
-
-y = hdr_bot - FOOT_H
-for label, b, c, e, bg in ROWS:
     ax.add_patch(mpatches.Rectangle(
-        (GRID_L, y - DATA_H), GRID_R - GRID_L, DATA_H,
-        facecolor=bg, edgecolor='#cccccc', linewidth=0.4, zorder=1
+        (GRID_L, block_bot), LABEL_W, block_h,
+        facecolor=bg, edgecolor='none', zorder=1
     ))
-    mid_y = y - DATA_H / 2
-    ax.text(CAT_X, mid_y, label, ha='left', va='center', fontsize=12.5,
-            fontweight='bold', color='#1a1a1a', zorder=2)
-    for col_x, present, color in [(COL_B, b, baseline_color), (COL_C, c, cd_color), (COL_E, e, orch_color)]:
-        if present:
-            ax.text(col_x, mid_y, '✓', ha='center', va='center',
-                    fontsize=18, color=color, fontweight='bold', zorder=2,
-                    fontfamily='DejaVu Sans')
-    y -= DATA_H
-
+    for i, (label, sup) in enumerate(rows):
+        ax.add_patch(mpatches.Rectangle(
+            (GRID_L + LABEL_W, block_top - (i + 1) * DATA_H), GRID_R - GRID_L - LABEL_W, DATA_H,
+            facecolor=bg, edgecolor='#cccccc', linewidth=0.4, zorder=1
+        ))
+        mid_y = block_top - (i + 0.5) * DATA_H
+        text = label if sup is None else f'{label}$^{{{sup}}}$'
+        ax.text(CAT_X, mid_y, text, ha='left', va='center', fontsize=12,
+                fontweight='bold', color='#1a1a1a', zorder=2)
+    label_x = GRID_L + LABEL_W / 2
+    block_mid = block_top - block_h / 2
+    if label_override is not None:
+        ax.text(label_x, block_mid, label_override, ha='center', va='center',
+                fontsize=13, fontweight='bold', color='#555555',
+                linespacing=1.4, zorder=2)
+    else:
+        n_agents = len(agents)
+        fontsize = 14 if n_agents == 1 else 12
+        offset_step = 0.55
+        for j, (name, count, color) in enumerate(agents):
+            txt = f'{name}\n({count}/proj)'
+            offset = ((n_agents - 1) / 2 - j) * offset_step
+            ax.text(label_x, block_mid + offset, txt, ha='center', va='center',
+                    fontsize=fontsize, fontweight='bold', color=color,
+                    linespacing=1.4, zorder=2)
+    y = block_bot
 end_y = y
 ax.plot([GRID_L, GRID_R], [end_y, end_y], color='#888888', linewidth=1.0)
-for vx in [SEP_X, (COL_B + COL_C) / 2, (COL_C + COL_E) / 2]:
-    ax.plot([vx, vx], [end_y, hdr_bot], color='#cccccc', linewidth=0.8, zorder=0)
-
+ax.plot([GRID_L, GRID_R], [hdr_bot, hdr_bot], color='#888888', linewidth=1.0)
+ax.plot([GRID_L + LABEL_W, GRID_L + LABEL_W], [end_y, hdr_bot],
+        color='#888888', linewidth=1.0, zorder=3)
+ax.set_ylim(end_y - 0.15, FIG_H)
 plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
 plt.show()
 ```
 
-This trade-off was directional and category-specific.
-The Baseline agent focused on data, code, and reporting errors: particle filter object identity, silent computation corruption, text-code mismatches at the parameter level, and attribution failures.
-The skill-equipped agents' focused on inference-methodology completeness: benchmark comparison requirements, profile likelihood validity, global search initialization correctness, and model diagnostic outputs, following the context framed by the skill files.
-The trade-off is consistent with the Friedman test result: the skill files redirected the agent to a different category of points without increasing total overlap with the human-identified weaknesses.
-CourseGuided and MetaSkill are grouped together (and their totals averaged) in @fig-matrix because their qualitative finding patterns were nearly identical despite MetaSkill accumulating additional skill files throughout its sequential run.
-This similarity reflects a point of diminishing returns: beyond a certain point, adding context through skill files did not produce meaningfully different coverage.
+This trade-off was directional and category-specific. The Baseline agent
+focused on data, code, and reporting errors: particle filter object
+identity, silent computation corruption, text-code mismatches at the
+parameter level, and attribution failures. For example, see CS5 in Appendix A.
+The skill-equipped agents
+focused on inference-methodology completeness: benchmark comparison
+requirements, profile likelihood validity, global search initialization
+correctness, and model diagnostic outputs, following the context framed
+by the skill files.
+An example of this is CS6 in Appendix A, where both agents with the relevant skill files flagged this, while Baseline and Orchestrator did not. Orchestrator's unique findings took a different form, including identifiability concerns that no other agent raised; see CS7 in Appendix A. We read this as evidence that a skill file's domain-specific instructions redirect an agent's attention toward a particular class of issue. An issue within that domain can produce a specific catch, as above, but this redirection can come at the expense of more basic, project-specific bugs outside that domain. This is illustrated by a case study for the Baseline agent (CS5) where a process-model bug was missed by every skill-equipped agent, but caught by the unconstrained Baseline agent. This is consistent with the figure's own construction, where its rows were derived by asking a separate AI instance to identify the most commonly recurring themes among each agent's unique findings, a methodology that by construction surfaces frequently-repeated patterns rather than rare, project-specific critical bugs.
+
+The trade-off is consistent with the Friedman test
+result: the skill files redirected the agent to a different category of
+points without increasing total overlap with the human-identified
+weaknesses. CourseGuided and MetaSkill are grouped together (and their
+totals averaged) in @fig-matrix because their qualitative
+finding patterns were nearly identical despite MetaSkill accumulating
+additional skill files throughout its sequential run. This similarity
+reflects a point of diminishing returns: beyond a certain point, adding
+context through skill files did not produce meaningfully different
+coverage. This coverage-level similarity concerns which categories of
+issue were flagged, not the rigor of the individual diagnosis:
+CS6 and CS3 in
+Appendix A shows the two agents flagging the same
+category of concern with markedly different rigor.
 
 # Discussion
 
-Our results showed that the AI reviewers exhibited a jagged capability profile in POMP peer review.
-The findings can be organized around three central observations.
+Our results showed that the AI reviewers exhibited a jagged capability
+profile in POMP peer review. The findings can be organized around three
+central observations.
 
 **1. AI and human reviewers largely detected different problems.**
 Across all four semesters and all agents, fewer than 40% of human-confirmed weaknesses were independently identified by any AI reviewer.
 The majority of AI findings were entirely absent from human reviews, while most human-identified issues went unaddressed by AI.
 This complementary structure held regardless of skill file configuration.
-AI reviewers can serve as a valuable supplement to human review precisely because they cover ground that human reviewers---who typically do not read and execute source code---would not otherwise check.
+AI reviewers can serve as a valuable supplement to human review precisely because they cover ground that human reviewers---who typically do not read and execute source code---would not otherwise check. Appendix A presents four such examples in detail: substantial bugs that we independently verified, each identified by all four agent configurations yet missed by the human reviewers (CS1--CS4)
 
 **2. The addition of skill files tuned jaggedness rather than resolving it.**
 When equipped with a domain-specific skill file, the agent's focus pivoted toward inference methodology within the context detailed therein---producing stronger coverage of benchmark comparisons, profile likelihoods, convergence diagnostics, and POMP-specific inference standards.
 The agent's assigned skills also affected the classification of a given issue as major or minor.
-However, the skills did not significantly affect the overlap with the human reviewers, and therefore did not fundamentally affect the jaggedness of the review. 
+However, the skills did not significantly affect the overlap with the human reviewers, and therefore did not fundamentally affect the jaggedness of the review. This suggests that scientific review may be in the class of tasks for which the performance of modern AI is relatively insensitive to the wording of the instructions @wang26. Beyond this aggregate pattern, CS6 in Appendix A shows this tuning effect at the level of a single finding. CourseGuided and MetaSkill both caught an invalid benchmark comparison that Baseline and Orchestrator missed entirely, but with markedly different rigor traceable to the specific content of each agent's skill file. This may help explain why the skills did not move the overlap with human reviewers. A skill file can help target a genuine issue and sharpen an agent's rigor within the specific domain it targets, but does not grant flexibility beyond its pre-specified domain.
 
 **3. The human-unique layer was characterized by judgment and context that the AI agents did not supply.**
-The five recurring categories of human-unique findings (statistical interpretation, argumentation, presentation quality, model improvement direction, and domain context) shared a common feature: they required integrating information across the project holistically, applying domain knowledge that went beyond the text, and exercising scientific judgment about what questions and answers are worthwhile.
-Across the different skill contexts, these AI agents did not raise these issues.
-For example, the AI reviewers could verify whether a profile likelihood was correctly computed, but not whether the interpretation of a flat profile was scientifically sound.
-A flat profile likelihood suggests a lack of marginal information about a parameter, and this could be problematic, or could be just a fact of marginal relevance if other interesting parameters show curvature in their respective profile likelihoods, or could suggest reparameterizing to look for a well-identified parameter combination.
-Some diligent human referees were able to address these interpretive issues.
-As another example, the AI agents could detect a missing benchmark comparison, but not whether the model class was fundamentally inappropriate for the scientific question.
+The five recurring categories of human-unique findings (statistical interpretation,
+argumentation, presentation quality, model improvement direction, and
+domain context) shared a common feature: they required integrating
+information across the project holistically, applying domain knowledge
+that went beyond the text, and exercising scientific judgment about what
+questions and answers are worthwhile. Across the different skill
+contexts, these AI agents did not raise these issues. For example, the
+AI reviewers could verify whether a profile likelihood was correctly
+computed, but not whether the interpretation of a flat profile was
+scientifically sound. A flat profile likelihood suggests a lack of
+marginal information about a parameter, and this could be problematic,
+or could be just a fact of marginal relevance if other interesting
+parameters show curvature in their respective profile likelihoods, or
+could suggest reparameterizing to look for a well-identified parameter
+combination. Some diligent human referees were able to address these
+interpretive issues. As another example, the AI agents could detect a
+missing benchmark comparison, but not whether the model class was
+fundamentally inappropriate for the scientific question.
 
-Our results cannot necessarily be extrapolated to other agent configurations or other foundation models. 
-The positive finding, that our AI review agents identified useful insights consistently missed by humans, is robust to this limitation. 
-The negative finding, that our AI review agents had significant limitations, could be reassessed by future research.
-Such limitations will exist as long as AI capabilities remain jagged, but the boundary of the limitations will change. 
-A game-theoretic analysis of jaggedness suggests that it places high value on understanding the specific capabilities and limitations of AI [@gans26], advocating for the value of benchmarking studies such as this.
-
+Our results cannot necessarily be extrapolated to other agent
+configurations or other foundation models. The positive finding, that
+our AI review agents identified useful insights consistently missed by
+humans, is robust to this limitation. The negative finding, that our AI
+review agents had significant limitations, could be reassessed by future
+research. Such limitations will exist as long as AI capabilities remain
+jagged, but the boundary of the limitations will change. A
+game-theoretic analysis of jaggedness suggests that it places high value
+on understanding the specific capabilities and limitations of AI [@gans26], advocating for the value of benchmarking studies such as this.
 
 # Conclusions
 
-We evaluated four Claude agents with varying skill file configurations on 72 POMP analysis projects, comparing their output to open-access human peer reviews.
-The central finding was that AI reviewers exhibited a jagged capability profile: they proficiently caught technical implementation errors and invalid inference methodology that human reviewers often overlooked, while consistently failing to match human standards in statistical interpretation, narrative coherence, model improvement direction, and domain-informed critique.
-The addition of domain-specific guidance, via skill file configurations, shifted the agent's focus without affecting jaggedness, leaving the overall proportion of human-confirmed weaknesses detected statistically unchanged across all four agent configurations.
+We evaluated four Claude agents with varying skill file configurations
+on 72 POMP analysis projects, comparing their output to open-access
+human peer reviews. The central finding was that AI reviewers exhibited
+a jagged capability profile: they proficiently caught technical
+implementation errors and invalid inference methodology that human
+reviewers often overlooked, while consistently failing to match human
+standards in statistical interpretation, narrative coherence, model
+improvement direction, and domain-informed critique. The addition of
+domain-specific guidance, via skill file configurations, shifted the
+agent's focus without substantially affecting jaggedness, leaving the overall
+proportion of human-confirmed weaknesses detected statistically
+indistinguishable across all four agent configurations.
 
-The complementarity between AI and human review, with each detecting a largely non-overlapping set of problems, suggests that AI review can currently serve as a valuable supplement to human review but not as a replacement for human judgement. 
-AI is particularly well-suited to catching implementation-layer errors that human reviewers may not have the time to identify.
-The use of AI to develop scientific data analysis will hasten the use of complex methodology that cannot readily be fully evaluated without AI assistance.
-Scientific journals will soon need to accept a role for AI in peer review.
+The complementarity between AI and human review, with each detecting a
+largely non-overlapping set of problems, suggests that AI review can
+currently serve as a valuable supplement to human review but not as a
+replacement for human judgment. AI is particularly well-suited to
+catching implementation-layer errors that human reviewers may not have
+the time to identify. The use of AI to develop scientific data analysis
+will hasten the use of complex methodology that cannot readily be fully
+evaluated without AI assistance. 
 
-We studied graduate student peer review of course final projects, which is a more controlled environment than journal peer review. 
-In particular, students were required to submit source code that reproduced the project report, using R markdown.
-The AI agents may have benefitted more than the humans from this high expectation for reproducibility. 
-Another difference is that final projects may have more mistakes, since they represent around two weeks of work.
-However, we postulate that mistakes made by statistics graduate students after taking an advanced course may be representative of mistakes made by practitioners using similar statistical methods for scientific investigations. 
+We studied graduate student peer review of course final projects, which
+is a more controlled environment than journal peer review. In
+particular, students were required to submit source code that reproduced
+the project report, using R markdown. The AI agents may have benefitted
+more than the humans from this high expectation for reproducibility.
+Another difference is that final projects may have more mistakes, since
+they represent around two weeks of work. However, we postulate that
+mistakes made by statistics graduate students after taking an advanced
+course may be representative of mistakes made by practitioners using
+similar statistical methods for scientific investigations.
+
+Improvements in AI technology, and/or improvements in implementation of the peer review agent instructions, will presumably lead to improvements in AI review capabilities.
+Our experiment documents AI capabilities at a particular time, at a particular task.
+If these results hold more generally, they would imply that scientific journals should accept a role for AI in peer review.
+
 
 
 ## Acknowledgments {.unnumbered}
@@ -551,14 +706,172 @@ The authors thank Aaron Abkemeier, Fred Feinberg and Bo Yang for helpful suggest
 
 **Use of AI**. AI tools were used as described in Materials and Methods. Claude Code Opus 4.7 and Chat GPT 5.5 were used to provide review of this manuscript, and we are grateful for their helpful suggestions.
 
-**Competing interests and funding**. The authors declare no competing interests or funding for this work.
+**Disclosure**. The authors declare no competing interests. This work was supported by National Science Foundation grant OAC-2607869.
+
+**Data availability** The data, source code, and results were archived on Zenodo in addition to the GitHub links provided in the text.
+The corresponding digital object identifiers are 
+\href{https://doi.org/10.5281/zenodo.22997697}{10.5281/zenodo.22997697} (for W21),
+\href{https://doi.org/10.5281/zenodo.22997783}{10.5281/zenodo.22997783} (for W22),
+\href{https://doi.org/10.5281/zenodo.22997878}{10.5281/zenodo.22997878} (for W24),
+\href{https://doi.org/10.5281/zenodo.22997892}{10.5281/zenodo.22997892} (for W25),
+\href{https://doi.org/10.5281/zenodo.22998009}{10.5281/zenodo.22998009} (for full records of the source code and results).
 
 ## Bibliography {.unnumbered}
 
 ::: {#refs}
 :::
 
-# Supplementary Material {#sec-supp}
+# Appendix A. Case Studies {#sec-appendix-cs}
+
+\label{appendix:cs}
+
+\footnotesize
+
+These vignettes illustrate the scientific and statistical issues arising in the project reports, human reviews and AI reviews, as well as the categorizations of these issues in our data analysis. Of necessity, we present only selected items from the full dataset available online.
+
+\label{cs:ai-major-issue}
+
+**CS1.** \textbf{An example where the Comparator agent determined that AI reviewer agents had found a major issue missed by the humans} \textbf{(W21, Project 1)}.
+All four review agents assessed that setting \texttt{H=I} in the measurement model was a major error.
+Here, \texttt{I} is a computational variable matching the model quantity $I(t)$, the continuous-time latent instantaneous number of infected individuals.
+\texttt{H} is a so-called accumulator variable linking \texttt{I} to observed data via the measurement model.
+Typically, \texttt{H} is set to be the number of new infections during a reporting interval, or perhaps equal to the number of removed infections if detected cases are quarantined.
+The measurement model also includes a reporting rate, and in this project it has a binomial specification, coded as \texttt{lik = dbinom(reports,H,rho,give\_log)}.
+The measurement model is only explicitly defined in the source code, since some code is suppressed for readability.
+The \texttt{H=I} error is apparent in both the report and its source code, but was missed by the human referees.
+The human review did notice some issues that resulted from the problem, e.g., human review point \#2 included the comment, “perhaps the noise modeling in the process and/or measurement model is a misfit,” but noticing evidence of a problem is less insightful than identifying the problem itself.
+The comparator assessed human point \#2 to be “human only” and the \texttt{H=I} issue as “AI only.”
+This is not an unreasonable decision, but it exemplifies the difficulty in making a binary decision about whether issues match each other.
+The human approach, suspecting a problem even if it is not identified, can be key to error-correcting on long and complex tasks.
+The phenomenon that humans make more errors, but are better at recovering after an error, has been proposed as a general explanation of the jagged intelligence phenomenon that current AI can be more accurate at individual tasks and yet show sub-human fragility at some complex tasks [@mineault26].
+
+\label{cs:dmeasure-rbinom-bug}
+
+**CS2.** \textbf{A fundamental measurement-model violation found independently by all four agents and missed by the humans} \textbf{(W22, Project 3)}.
+A POMP model has two parts: a hidden/latent process that is not observed directly, and a measurement model describing the actual data as a noisy or incomplete observation of the hidden process. The function \texttt{dmeasure} computes the density $p(y_n | x_n, \theta)$, using this to weight each simulated hypothetical trajectory of the hidden state by how well it explains the real data. This function should be deterministic, given its inputs. However, this project's \texttt{dmeasure} instead begins by drawing a fresh random value on every call, \texttt{Views = rbinom(N-S, 1-exp(-Beta*S/N))}. This same variable, \texttt{Views}, is used in constructing the mean and standard deviation of the reported likelihood. Since \texttt{Views} is being regenerated independently each time \texttt{dmeasure} is evaluated, the same state and parameters yield a different log-likelihood value on every call. This violation of the formal POMP model assumptions risks invalidating theoretical guarantees for POMP methods such as the particle filter. The severity of this violation is unclear, but it should be noted.
+
+\label{cs:dN_RS-wrong-compartment}
+
+**CS3.** \textbf{A process-model coding bug found independently by all four agents, where only two of four diagnosed a related flaw} \textbf{(W22, Project 4)}.
+A compartmental model is a POMP model describing a population for which each individual falls in one compartment.
+Such models are specified by the transitions rates between compartments.
+This project concerns an epidemiological compartment model for which the total rate of transition from a recovered state to a susceptible state (i.e., loss of immunity) was mathematically specified to depend on the number of recovered individuals.
+However, the code computes this transition as \texttt{dN\_RS = rbinom(I, 1-exp(-mu\_RS*dt))}, with a rate dependent on the infected compartment, $\mathrm{I}$.
+This coding error was discovered by all four AI agents.
+There is another related bug here, that only two of the four agents flagged: the transition equation \texttt{R += dN\_PR + dN\_IR} does not include the decrement for loss of immunity.
+Among other problems, this violates the conservation of the total population, as individuals added to \texttt{S} are not subtracted from \texttt{R}.
+The Baseline and CourseGuided agents both identified this second bug explicitly, alongside the first.
+The Orchestrator agent did not address the second issue and provided a fix for only the first issue, which would not preserve conservation.
+The MetaSkill agent proposed an incorrect solution: \texttt{R -= dN\_RS + dN\_PR + dN\_IR}.
+The Baseline agent saw deepest into the details of the code, perhaps because it was least burdened by additional instructions on how to conduct the review.
+The CourseGuided agent's finding, by contrast, maps directly onto a specific instruction in its \texttt{531\_references} skill file, which lists checking for a “Compartment model that violates conservation of individuals (compartments don't sum to population)” as a genuine review point.
+This finding is an example of how domain-specific skill files can sharpen an agent's rigor within their specific domain of coverage but confer little advantage outside it, as evidenced here by MetaSkill and Orchestrator, neither of which possessed \texttt{531\_references}.
+
+\label{cs:poor-mans-profile-likelihood}
+
+**CS4.** \textbf{Identification of a methodological error in profile likelihood calculation}
+\textbf{(W24, Project 16)}.
+All four AI review agents were concerned about confidence intervals that claimed to be constructed via profile likelihood. For example, according to the Baseline agent,
+“The figures presented for \texttt{Beta\_v}, \texttt{Beta\_u}, \texttt{mu\_IR\_v}, \texttt{mu\_IR\_u}, and the two ratios are produced by filtering the global search results and plotting the top values.
+A profile likelihood requires, for each fixed value of the parameter of interest, maximizing the likelihood over all other free parameters.
+The plots shown are ad hoc slices of the global search cloud, which gives a much wider and less informative picture than a true profile.
+Confidence intervals derived from these plots using the chi-squared cutoff are not statistically valid.”
+It is technically correct that the envelope of the scatterplot of Monte Carlo searches presented is not a profile likelihood.
+This graph always lies under the profile, approaching the profile as the number of Monte Carlo searches increases.
+The plot is sometimes called a “poor man's profile,” and it can be a useful preliminary approximation to a profile for exploratory analysis, since it can be considerable additional work to compute profile likelihoods for all parameters.
+The agents correctly identified the error in calling it a profile, though they overestimate the magnitude of the flaw.
+The humans, by contrast, failed to note the discrepancy.
+
+\label{cs:baseline-major-error}
+
+**CS5.** \textbf{A major error reported by the Baseline agent but not the other agents or the humans} \textbf{(W25, Project 5)}.
+This concerns the following technical comment made by the Baseline agent:
+
+\vspace{1.2mm}
+
+\hspace{4mm}\parbox{5.6in}{
+The code in chunk \texttt{setup-immi} updates the R objects \texttt{paramnames} and \texttt{rproc} in memory, and sets new coefficients on \texttt{seir\_spline\_model} via \texttt{coef(seir\_spline\_model) <- c(...)}.
+However, there is no second \texttt{pomp(...)} call that rebuilds the model with the new \texttt{rproc} (containing \texttt{immigration\_rate}) and updated \texttt{paramnames}.
+The original \texttt{seir\_spline\_model} was compiled against the old C-snippet and old \texttt{paramnames}.
+Setting coefficients does not recompile the process model.
+As a result, the "POMP Model with Immigration" local and global searches almost certainly ran using the original process model without immigration dynamics, invalidating the entire comparison between the two POMP models. This is the most serious technical error in the project.
+}
+
+\vspace{1.2mm}
+
+This AI review comment is supported by subsequent human investigation of the code, specifically by inspection of lines 425 and 565 of \texttt{blinded.Rmd}.
+In this case, the AI agent least burdened by additional instructions saw deepest into the details of the code.
+This is an example of how providing domain-specific skill files can sometimes confer little to no advantage.
+This finding illustrates the specific category in @fig-matrix where the code does not implement the model as written, one of the characteristic features associated with Baseline agent's unique findings.
+
+\label{cs:courseguided-metaskill-benchmark}
+
+**CS6.** \textbf{A finding raised by the CourseGuided and MetaSkill agents but not the Baseline or Orchestrator agents} \textbf{(W21, Project 8)}.
+This project fits three basic time series models (ARMA/ARIMA, GARCH, ARMA-GARCH) to provide benchmarks for comparison with the proposed mechanistic model.
+The benchmarks computed an exact Gaussian likelihood (or conditional likelihood, for GARCH) on the raw data scale. Later in the project, four POMP models (Gaussian HMM, Student-t HMM, Gaussian HMM AR(1), and Heston) were constructed and fitted.
+These have a stochastic hidden state that cannot be integrated out in closed form, so their likelihood was approximated via \texttt{pomp}'s particle filter.
+The project builds all seven models' log-likelihoods and AIC values into one combined table, and concludes from it that the Heston model yields the best performance in terms of likelihood.
+Both the CourseGuided and MetaSkill agents flagged this comparison as invalid, but with different lines of reasoning. CourseGuided identifies that the GARCH(1,1) model was fit on the demeaned series (\texttt{ts - mean(ts)}) while every other model in the table was fit on the raw series. It also flags that the \texttt{tseries} package's GARCH likelihood function reports non-standard values, which reflects an item documented in the course's own list of common errors (\texttt{531\_references}, Error 2.9).
+This is consistent with the same skill file's more general instruction that AIC comparisons across ARIMA and POMP models require verifying a common data representation and likelihood definition (Error 2.2), rather than being invalid by default and it warns against overgeneralizing this into a named misconception: claiming likelihoods from different model classes are not comparable (Error 1.14).
+MetaSkill reached a similar headline conclusion, writing that “the conclusion that the Heston model is the ‘best’ model based on the highest log-likelihood is valid only within the POMP-family models that share a comparable observation model structure.” This reasoning is not correct and is the same kind of overgeneralization that Error 1.14 warned against. This broad heuristic may be traced back to a skill file the MetaSkill agent generated for itself in an earlier run and reused here: \texttt{sarima-baseline-audit} states in its procedure: “if the observation models differ, flag the comparison as invalid.”
+Neither the Baseline nor the Orchestrator agent raised this concern.
+This project has an unusually brief human review that raises only one weakness and does not address this point.
+
+\label{cs:orchestrator-sigma-nu-boundary}
+
+**CS7.** \textbf{A finding raised only by the Orchestrator agent} \textbf{(W22, Project 1)}.
+This project models the growth rate of online game player counts as a financial asset return, fitting a stochastic-leverage volatility model.
+The latent process (G) evolves as a Gaussian random walk with standard deviation parameter \texttt{sigma\_nu}.
+The report's table of maximum likelihood parameters shows an estimate \texttt{sigma\_nu = 0}, for which the process becomes a fixed constant for the entire series and the leverage, $R_n = \tanh(G_n)$, is deterministic.
+The Orchestrator agent's review classifies this finding as an identifiability issue, recommending that a profile likelihood be computed across a range of \texttt{sigma\_nu} values to check whether the parameter is actually identifiable.
+The project's Conclusion section does not acknowledge this nor the implications for the model's core stochastic-leverage claim.
+The Baseline, CourseGuided, and MetaSkill agents did not identify this parameter collapse. No human review point flagged it.
+This finding is representative of the identifiability-related category that @fig-matrix associates with the Orchestrator agent's unique findings.
+
+\label{cs:domain-data-context}
+
+**CS8.** \textbf{Two human-only points categorized as “Domain/data context.”}
+\textbf{(i) W21, Project 10}. There is an erroneous instantaneous drop in susceptibles evident when this is plotted. It later becomes clear that this corresponds to a huge spike in cases. A referee noticed the following: “I try to search for the news about this abnormality but cannot get a clear answer. Instead, I find a piece of news that could help to explain it. According to FOX 5 Atlanta Digital Team, ‘The spike in cases is also a spike in reported tests. The Georgia Department of Public Health said about 12,000 of the cases reported today are all from one facility in metro Atlanta that is catching up on reporting its numbers for the week.’”
+\textbf{(ii) W24, Project 1}. The dataset must somehow determine whether an election is free and fair, since many autocracies claim to have a democratic mandate. A brief explanation would help the reader.
+
+\label{cs:statistical-interpretation}
+
+**CS9.** \textbf{Two human-only points categorized as “Statistical interpretation.”}
+\textbf{(i) W21, Project 7}.  The project report wrote, “Profile is flat, suggesting convergence issues or nonlinearity of the likelihood surface.” Neither of these is necessary for a flat profile. There can be a linear tradeoff between parameters, and perfect convergence, and a flat profile will result. An appropriate conclusion could be weak identifiability, or non-identifiability for a perfectly flat profile.
+\textbf{(ii) W22, Project 2}. The global search suggests a bimodality: a collection of searches seem to reach a different and inferior region of parameter space. This is not scientifically critical - the second mode has much lower likelihood - but may help to understand numerical issues.
+
+\label{cs:presentation-visualization}
+
+**CS10.** \textbf{Two human-only points categorized as “Presentation/visualization”}.
+\textbf{(i) W22, Project 4}. The plot titled “differenced data” is differenced log data, but the ACF next to it is unlogged data. None of this is apparent unless you study the source code.
+\textbf{(ii) W22, Project 18}. Where possible, numbers should not be hard-coded in the Rmd document. Rather, they should be referenced using inline R expressions.
+
+\label{cs:argument-narrative}
+
+**CS11.** \textbf{Two human-only points categorized as “Argumentation/Narrative.”}
+\textbf{(i) W22, Project 13}. For the introduction, it is better to include the background (epidemic situation) in the researched regions, California and Texas.
+\textbf{(ii) W24, Project 2}. The description of what is denoted by \texttt{peak\_rodent\_year} was a bit lacking. It was only described as, “Peak rodent year is scored as ‘yes’, otherwise ‘no’,” but it does not describe what is meant by that or how it is decided or when.
+
+\normalsize
+
+# Appendix B. Comparator Validation {#sec-appendix-validation}
+
+Table @tbl-validation-counts summarizes the findings of the Comparator validation exercise by agent and semester. 5 projects were selected at random from each semester, where each Comparator-match was manually read and scored as a "clear match," "disputable match," or "incorrect match." The selected projects were divided by AI agent among two independent co-authors. The proportion of incorrect matches was robust to this decision, as evident by the low frequency of incorrect matches across all agent-semester combinations.
+
+```{python}
+#| echo: false
+#| label: tbl-validation-counts
+#| tbl-cap: "Comparator match-decision score (Clear Match, Disputable Match, Incorrect Match) by agent and semester."
+
+_val_pivot = validation_df.groupby(['Semester', 'Agent'])[['Clear', 'Disputable', 'Incorrect']].sum().reset_index()
+_val_pivot['Semester'] = pd.Categorical(_val_pivot['Semester'], categories=semester_order, ordered=True)
+_val_pivot['Agent'] = pd.Categorical(_val_pivot['Agent'], categories=agent_order, ordered=True)
+_val_pivot = _val_pivot.sort_values(['Semester', 'Agent']).reset_index(drop=True)
+_val_pivot.columns = ['Semester', 'Agent', 'Clear Match', 'Disputable Match', 'Incorrect Match']
+_val_pivot.style.hide()
+```
+
+# Appendix C. Supplementary Material {#sec-supp}
 
 Tables @tbl-raw-counts and @tbl-themes summarize the full review output of the agents and humans.
 The complete experimental results are available online (see Materials and Methods).
