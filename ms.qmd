@@ -1,6 +1,5 @@
 ---
 title: "Jagged AI in Scientific Peer Review: Evidence from POMP Data Analysis"
-bibliography: bib-ai.bib
 format:
   pdf:
     include-in-header:
@@ -29,6 +28,8 @@ format:
         \usepackage{float}
         \newcounter{csnum}
         \renewcommand{\thecsnum}{CS\arabic{csnum}}
+bibliography: bib-ai.bib
+csl: https://www.zotero.org/styles/apa
 number-sections: true
 jupyter: python3
 ---
