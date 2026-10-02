@@ -24,10 +24,11 @@ format:
           afterskip=0.1em
         ]{subsubsection}
         \usepackage{fullpage}
-        \usepackage{enumitem}
         \usepackage{booktabs}
         \usepackage{caption}
         \usepackage{float}
+        \newcounter{csnum}
+        \renewcommand{\thecsnum}{CS\arabic{csnum}}
 number-sections: true
 jupyter: python3
 ---
@@ -201,7 +202,7 @@ pct_incorrect = round(_val_totals['Incorrect'] / _val_total_matches * 100, 1)
 pct_clear = round(_val_totals['Clear'] / _val_total_matches * 100)
 ```
 
-For the quantitative evaluation, we scored each match identified by the Comparator agent as “clear,” “disputable,” or “incorrect.” Disputable matches were ones where we could see valid logic supporting the decision, but also lines of reasoning that could lead to alternative decisions. We found few incorrect matches (`{python} f"{pct_incorrect}"`\%) and a majority of clearly correct matches (`{python} f"{pct_clear}"`\%). See Appendix~B for additional details.
+For the quantitative evaluation, we scored each match identified by the Comparator agent as “clear,” “disputable,” or “incorrect.” Disputable matches were ones where we could see valid logic supporting the decision, but also lines of reasoning that could lead to alternative decisions. We found few incorrect matches (`{python} f"{pct_incorrect}"`\%) and a majority of clearly correct matches (`{python} f"{pct_clear}"`\%). See Appendix B for additional details.
 
 
 Findings were matched to a human issue if they referred to
@@ -224,7 +225,7 @@ repeated units. The null hypothesis \(H_0\) is that the distribution of
 Human Overlap is the same across all agents, against the alternative
 \(H_a\) that at least one agent differs. Since the aggregated human
 reviews represent instructor-verified review points, Human Overlap
-measures the extent to which AI matches validated human assessment. High Human Overlap is not necessarily desirable if the human reviews are missing important points. We addressed this concern by examining Category A findings: major AI findings that no human reviewer raised (see Section~\ref{what-ai-caught-that-humans-missed}). Separately, the consensus misses at the end of each Comparator report were aggregated across all 72 projects into a single list.
+measures the extent to which AI matches validated human assessment. High Human Overlap is not necessarily desirable if the human reviews are missing important points. We addressed this concern by examining Category A findings: major AI findings that no human reviewer raised (see Section \ref{what-ai-caught-that-humans-missed}). Separately, the consensus misses at the end of each Comparator report were aggregated across all 72 projects into a single list.
 We looked for verbal descriptions summarizing the types of issues falling into each category. Frontier AI models can be effective at this topic modeling task [@mu24], and we took advantage of that capability. The full workflow is detailed in the \texttt{analysis} folder of our code repository.
 
 # Results
@@ -374,7 +375,7 @@ plt.show()
 \label{what-ai-caught-that-humans-missed}
 
 Despite low Human Overlap, AI agents generated a large and qualitatively
-consistent set of findings not raised by human reviewers (e.g., case studies CS1--7 in Appendix~A). The findings divided along the axis of skill file configuration. The Baseline agent's unique findings frequently required reading and executing code to evaluate, rather than assessing the statistical argument alone. This required the AI to understand particle filters, maximum likelihood via the iterated
+consistent set of findings not raised by human reviewers (e.g., case studies \ref{cs:ai-major-issue}--\ref{cs:orchestrator-sigma-nu-boundary} in Appendix A). The findings divided along the axis of skill file configuration. The Baseline agent's unique findings frequently required reading and executing code to evaluate, rather than assessing the statistical argument alone. This required the AI to understand particle filters, maximum likelihood via the iterated
 filtering (IF2) algorithm [@ionides15], and implementation via
 the pomp R package [@king16]. These technical
 issues fell into four recurring categories, described below.
@@ -460,14 +461,14 @@ plt.show()
 
 **Statistical and scientific interpretation (n = `{python} tc['Statistical interpretation']`, `{python} round(tc['Statistical interpretation']/theme_total*100)`%).**
 Human reviewers correctly diagnosed the meaning of statistical results in ways AI consistently failed to replicate.
-Examples included: identifying flat profile likelihoods as evidence of non-identifiability rather than optimization failure, recognizing that bimodal likelihood surfaces warrant investigation and scientific discussion, and catching logically inconsistent conclusions such as rejecting a null hypothesis and then drawing a positive inference from the same p-value. See case study CS9 in Appendix A
+Examples included: identifying flat profile likelihoods as evidence of non-identifiability rather than optimization failure, recognizing that bimodal likelihood surfaces warrant investigation and scientific discussion, and catching logically inconsistent conclusions such as rejecting a null hypothesis and then drawing a positive inference from the same p-value. See case study \ref{cs:statistical-interpretation} in Appendix A
 
 **Argumentation and narrative coherence (n = `{python} tc['Argumentation / narrative']`, `{python} round(tc['Argumentation / narrative']/theme_total*100)`%).**
 Human reviewers assessed whether the scientific argument was internally consistent, the research motivation was clearly stated, the model class was appropriate for the question posed, conclusions followed from the evidence presented, and the analysis contributed insight beyond prior work.
-The AI agents did not engage with these dimensions of review quality. See CS11
+The AI agents did not engage with these dimensions of review quality. See \ref{cs:argument-narrative}
 
 **Presentation and visualization quality (n = `{python} tc['Presentation / visualization']`, `{python} round(tc['Presentation / visualization']/theme_total*100)`%).**
-Human reviewers caught specific figure and table problems that required holistic visual assessment: uninformative or unpolished EDA plots, reversed time axes in figures, excessive significant figures in tables, missing captions and figure numbers, and inconsistent or undefined notation. See CS10
+Human reviewers caught specific figure and table problems that required holistic visual assessment: uninformative or unpolished EDA plots, reversed time axes in figures, excessive significant figures in tables, missing captions and figure numbers, and inconsistent or undefined notation. See \ref{cs:presentation-visualization}
 
 **Model improvement direction (n = `{python} tc['Model improvement direction']`, `{python} round(tc['Model improvement direction']/theme_total*100)`%).**
 Human reviewers identified the specific structural change that would resolve an observed problem.
@@ -586,13 +587,13 @@ plt.show()
 This trade-off was directional and category-specific. The Baseline agent
 focused on data, code, and reporting errors: particle filter object
 identity, silent computation corruption, text-code mismatches at the
-parameter level, and attribution failures. For example, see CS5 in Appendix A.
+parameter level, and attribution failures. For example, see \ref{cs:baseline-major-error} in Appendix A.
 The skill-equipped agents
 focused on inference-methodology completeness: benchmark comparison
 requirements, profile likelihood validity, global search initialization
 correctness, and model diagnostic outputs, following the context framed
 by the skill files.
-An example of this is CS6 in Appendix A, where both agents with the relevant skill files flagged this, while Baseline and Orchestrator did not. Orchestrator's unique findings took a different form, including identifiability concerns that no other agent raised; see CS7 in Appendix A. We read this as evidence that a skill file's domain-specific instructions redirect an agent's attention toward a particular class of issue. An issue within that domain can produce a specific catch, as above, but this redirection can come at the expense of more basic, project-specific bugs outside that domain. This is illustrated by a case study for the Baseline agent (CS5) where a process-model bug was missed by every skill-equipped agent, but caught by the unconstrained Baseline agent. This is consistent with the figure's own construction, where its rows were derived by asking a separate AI instance to identify the most commonly recurring themes among each agent's unique findings, a methodology that by construction surfaces frequently-repeated patterns rather than rare, project-specific critical bugs.
+An example of this is \ref{cs:courseguided-metaskill-benchmark} in Appendix A, where both agents with the relevant skill files flagged this, while Baseline and Orchestrator did not. Orchestrator's unique findings took a different form, including identifiability concerns that no other agent raised; see \ref{cs:orchestrator-sigma-nu-boundary} in Appendix A. We read this as evidence that a skill file's domain-specific instructions redirect an agent's attention toward a particular class of issue. An issue within that domain can produce a specific catch, as above, but this redirection can come at the expense of more basic, project-specific bugs outside that domain. This is illustrated by a case study for the Baseline agent (\ref{cs:baseline-major-error}) where a process-model bug was missed by every skill-equipped agent, but caught by the unconstrained Baseline agent. This is consistent with the figure's own construction, where its rows were derived by asking a separate AI instance to identify the most commonly recurring themes among each agent's unique findings, a methodology that by construction surfaces frequently-repeated patterns rather than rare, project-specific critical bugs.
 
 The trade-off is consistent with the Friedman test
 result: the skill files redirected the agent to a different category of
@@ -605,7 +606,7 @@ reflects a point of diminishing returns: beyond a certain point, adding
 context through skill files did not produce meaningfully different
 coverage. This coverage-level similarity concerns which categories of
 issue were flagged, not the rigor of the individual diagnosis:
-CS6 and CS3 in
+\ref{cs:courseguided-metaskill-benchmark} and \ref{cs:dN_RS-wrong-compartment} in
 Appendix A shows the two agents flagging the same
 category of concern with markedly different rigor.
 
@@ -619,12 +620,12 @@ central observations.
 Across all four semesters and all agents, fewer than 40% of human-confirmed weaknesses were independently identified by any AI reviewer.
 The majority of AI findings were entirely absent from human reviews, while most human-identified issues went unaddressed by AI.
 This complementary structure held regardless of skill file configuration.
-AI reviewers can serve as a valuable supplement to human review precisely because they cover ground that human reviewers---who typically do not read and execute source code---would not otherwise check. Appendix A presents four such examples in detail: substantial bugs that we independently verified, each identified by all four agent configurations yet missed by the human reviewers (CS1--CS4)
+AI reviewers can serve as a valuable supplement to human review precisely because they cover ground that human reviewers---who typically do not read and execute source code---would not otherwise check. Appendix A presents four such examples in detail: substantial bugs that we independently verified, each identified by all four agent configurations yet missed by the human reviewers (\ref{cs:ai-major-issue}--\ref{cs:poor-mans-profile-likelihood})
 
 **2. The addition of skill files tuned jaggedness rather than resolving it.**
 When equipped with a domain-specific skill file, the agent's focus pivoted toward inference methodology within the context detailed therein---producing stronger coverage of benchmark comparisons, profile likelihoods, convergence diagnostics, and POMP-specific inference standards.
 The agent's assigned skills also affected the classification of a given issue as major or minor.
-However, the skills did not significantly affect the overlap with the human reviewers, and therefore did not fundamentally affect the jaggedness of the review. This suggests that scientific review may be in the class of tasks for which the performance of modern AI is relatively insensitive to the wording of the instructions @wang26. Beyond this aggregate pattern, CS6 in Appendix A shows this tuning effect at the level of a single finding. CourseGuided and MetaSkill both caught an invalid benchmark comparison that Baseline and Orchestrator missed entirely, but with markedly different rigor traceable to the specific content of each agent's skill file. This may help explain why the skills did not move the overlap with human reviewers. A skill file can help target a genuine issue and sharpen an agent's rigor within the specific domain it targets, but does not grant flexibility beyond its pre-specified domain.
+However, the skills did not significantly affect the overlap with the human reviewers, and therefore did not fundamentally affect the jaggedness of the review. This suggests that scientific review may be in the class of tasks for which the performance of modern AI is relatively insensitive to the wording of the instructions @wang26. Beyond this aggregate pattern, \ref{cs:courseguided-metaskill-benchmark} in Appendix A shows this tuning effect at the level of a single finding. CourseGuided and MetaSkill both caught an invalid benchmark comparison that Baseline and Orchestrator missed entirely, but with markedly different rigor traceable to the specific content of each agent's skill file. This may help explain why the skills did not move the overlap with human reviewers. A skill file can help target a genuine issue and sharpen an agent's rigor within the specific domain it targets, but does not grant flexibility beyond its pre-specified domain.
 
 **3. The human-unique layer was characterized by judgment and context that the AI agents did not supply.**
 The five recurring categories of human-unique findings (statistical interpretation,
@@ -720,17 +721,15 @@ The corresponding digital object identifiers are
 ::: {#refs}
 :::
 
-# Appendix A. Case Studies {#sec-appendix-cs}
-
-\label{appendix:cs}
+# Appendix A. Case Studies {#sec-appendix-cs .unnumbered}
 
 \footnotesize
 
 These vignettes illustrate the scientific and statistical issues arising in the project reports, human reviews and AI reviews, as well as the categorizations of these issues in our data analysis. Of necessity, we present only selected items from the full dataset available online.
 
-\label{cs:ai-major-issue}
+\refstepcounter{csnum}\label{cs:ai-major-issue}
 
-**CS1.** **An example where the Comparator agent determined that AI reviewer agents had found a major issue missed by the humans** **(W21, Project 1)**.
+**CS\arabic{csnum}.** **An example where the Comparator agent determined that AI reviewer agents had found a major issue missed by the humans** **(W21, Project 1)**.
 All four review agents assessed that setting \texttt{H=I} in the measurement model was a major error.
 Here, \texttt{I} is a computational variable matching the model quantity $I(t)$, the continuous-time latent instantaneous number of infected individuals.
 \texttt{H} is a so-called accumulator variable linking \texttt{I} to observed data via the measurement model.
@@ -744,14 +743,14 @@ This is not an unreasonable decision, but it exemplifies the difficulty in makin
 The human approach, suspecting a problem even if it is not identified, can be key to error-correcting on long and complex tasks.
 The phenomenon that humans make more errors, but are better at recovering after an error, has been proposed as a general explanation of the jagged intelligence phenomenon that current AI can be more accurate at individual tasks and yet show sub-human fragility at some complex tasks [@mineault26].
 
-\label{cs:dmeasure-rbinom-bug}
+\refstepcounter{csnum}\label{cs:dmeasure-rbinom-bug}
 
-**CS2.** **A fundamental measurement-model violation found independently by all four agents and missed by the humans** **(W22, Project 3)**.
+**CS\arabic{csnum}.** **A fundamental measurement-model violation found independently by all four agents and missed by the humans** **(W22, Project 3)**.
 A POMP model has two parts: a hidden/latent process that is not observed directly, and a measurement model describing the actual data as a noisy or incomplete observation of the hidden process. The function \texttt{dmeasure} computes the density $p(y_n | x_n, \theta)$, using this to weight each simulated hypothetical trajectory of the hidden state by how well it explains the real data. This function should be deterministic, given its inputs. However, this project's \texttt{dmeasure} instead begins by drawing a fresh random value on every call, \texttt{Views = rbinom(N-S, 1-exp(-Beta*S/N))}. This same variable, \texttt{Views}, is used in constructing the mean and standard deviation of the reported likelihood. Since \texttt{Views} is being regenerated independently each time \texttt{dmeasure} is evaluated, the same state and parameters yield a different log-likelihood value on every call. This violation of the formal POMP model assumptions risks invalidating theoretical guarantees for POMP methods such as the particle filter. The severity of this violation is unclear, but it should be noted.
 
-\label{cs:dN_RS-wrong-compartment}
+\refstepcounter{csnum}\label{cs:dN_RS-wrong-compartment}
 
-**CS3.** **A process-model coding bug found independently by all four agents, where only two of four diagnosed a related flaw** **(W22, Project 4)**.
+**CS\arabic{csnum}.** **A process-model coding bug found independently by all four agents, where only two of four diagnosed a related flaw** **(W22, Project 4)**.
 A compartmental model is a POMP model describing a population for which each individual falls in one compartment.
 Such models are specified by the transitions rates between compartments.
 This project concerns an epidemiological compartment model for which the total rate of transition from a recovered state to a susceptible state (i.e., loss of immunity) was mathematically specified to depend on the number of recovered individuals.
@@ -766,9 +765,9 @@ The Baseline agent saw deepest into the details of the code, perhaps because it 
 The CourseGuided agent's finding, by contrast, maps directly onto a specific instruction in its \texttt{531\_references} skill file, which lists checking for a “Compartment model that violates conservation of individuals (compartments don't sum to population)” as a genuine review point.
 This finding is an example of how domain-specific skill files can sharpen an agent's rigor within their specific domain of coverage but confer little advantage outside it, as evidenced here by MetaSkill and Orchestrator, neither of which possessed \texttt{531\_references}.
 
-\label{cs:poor-mans-profile-likelihood}
+\refstepcounter{csnum}\label{cs:poor-mans-profile-likelihood}
 
-**CS4.** **Identification of a methodological error in profile likelihood calculation**
+**CS\arabic{csnum}.** **Identification of a methodological error in profile likelihood calculation**
 **(W24, Project 16)**.
 All four AI review agents were concerned about confidence intervals that claimed to be constructed via profile likelihood. For example, according to the Baseline agent,
 “The figures presented for \texttt{Beta\_v}, \texttt{Beta\_u}, \texttt{mu\_IR\_v}, \texttt{mu\_IR\_u}, and the two ratios are produced by filtering the global search results and plotting the top values.
@@ -781,9 +780,9 @@ The plot is sometimes called a “poor man's profile,” and it can be a useful 
 The agents correctly identified the error in calling it a profile, though they overestimate the magnitude of the flaw.
 The humans, by contrast, failed to note the discrepancy.
 
-\label{cs:baseline-major-error}
+\refstepcounter{csnum}\label{cs:baseline-major-error}
 
-**CS5.** **A major error reported by the Baseline agent but not the other agents or the humans** **(W25, Project 5)**.
+**CS\arabic{csnum}.** **A major error reported by the Baseline agent but not the other agents or the humans** **(W25, Project 5)**.
 This concerns the following technical comment made by the Baseline agent:
 
 \vspace{1.2mm}
@@ -803,9 +802,9 @@ In this case, the AI agent least burdened by additional instructions saw deepest
 This is an example of how providing domain-specific skill files can sometimes confer little to no advantage.
 This finding illustrates the specific category in @fig-matrix where the code does not implement the model as written, one of the characteristic features associated with Baseline agent's unique findings.
 
-\label{cs:courseguided-metaskill-benchmark}
+\refstepcounter{csnum}\label{cs:courseguided-metaskill-benchmark}
 
-**CS6.** **A finding raised by the CourseGuided and MetaSkill agents but not the Baseline or Orchestrator agents** **(W21, Project 8)**.
+**CS\arabic{csnum}.** **A finding raised by the CourseGuided and MetaSkill agents but not the Baseline or Orchestrator agents** **(W21, Project 8)**.
 This project fits three basic time series models (ARMA/ARIMA, GARCH, ARMA-GARCH) to provide benchmarks for comparison with the proposed mechanistic model.
 The benchmarks computed an exact Gaussian likelihood (or conditional likelihood, for GARCH) on the raw data scale. Later in the project, four POMP models (Gaussian HMM, Student-t HMM, Gaussian HMM AR(1), and Heston) were constructed and fitted.
 These have a stochastic hidden state that cannot be integrated out in closed form, so their likelihood was approximated via \texttt{pomp}'s particle filter.
@@ -816,9 +815,9 @@ MetaSkill reached a similar headline conclusion, writing that “the conclusion 
 Neither the Baseline nor the Orchestrator agent raised this concern.
 This project has an unusually brief human review that raises only one weakness and does not address this point.
 
-\label{cs:orchestrator-sigma-nu-boundary}
+\refstepcounter{csnum}\label{cs:orchestrator-sigma-nu-boundary}
 
-**CS7.** **A finding raised only by the Orchestrator agent** **(W22, Project 1)**.
+**CS\arabic{csnum}.** **A finding raised only by the Orchestrator agent** **(W22, Project 1)**.
 This project models the growth rate of online game player counts as a financial asset return, fitting a stochastic-leverage volatility model.
 The latent process (G) evolves as a Gaussian random walk with standard deviation parameter \texttt{sigma\_nu}.
 The report's table of maximum likelihood parameters shows an estimate \texttt{sigma\_nu = 0}, for which the process becomes a fixed constant for the entire series and the leverage, $R_n = \tanh(G_n)$, is deterministic.
@@ -827,33 +826,33 @@ The project's Conclusion section does not acknowledge this nor the implications 
 The Baseline, CourseGuided, and MetaSkill agents did not identify this parameter collapse. No human review point flagged it.
 This finding is representative of the identifiability-related category that @fig-matrix associates with the Orchestrator agent's unique findings.
 
-\label{cs:domain-data-context}
+\refstepcounter{csnum}\label{cs:domain-data-context}
 
-**CS8.** **Two human-only points categorized as “Domain/data context.”**
+**CS\arabic{csnum}.** **Two human-only points categorized as “Domain/data context.”**
 **(i) W21, Project 10**. There is an erroneous instantaneous drop in susceptibles evident when this is plotted. It later becomes clear that this corresponds to a huge spike in cases. A referee noticed the following: “I try to search for the news about this abnormality but cannot get a clear answer. Instead, I find a piece of news that could help to explain it. According to FOX 5 Atlanta Digital Team, ‘The spike in cases is also a spike in reported tests. The Georgia Department of Public Health said about 12,000 of the cases reported today are all from one facility in metro Atlanta that is catching up on reporting its numbers for the week.’”
 **(ii) W24, Project 1**. The dataset must somehow determine whether an election is free and fair, since many autocracies claim to have a democratic mandate. A brief explanation would help the reader.
 
-\label{cs:statistical-interpretation}
+\refstepcounter{csnum}\label{cs:statistical-interpretation}
 
-**CS9.** **Two human-only points categorized as “Statistical interpretation.”**
+**CS\arabic{csnum}.** **Two human-only points categorized as “Statistical interpretation.”**
 **(i) W21, Project 7**.  The project report wrote, “Profile is flat, suggesting convergence issues or nonlinearity of the likelihood surface.” Neither of these is necessary for a flat profile. There can be a linear tradeoff between parameters, and perfect convergence, and a flat profile will result. An appropriate conclusion could be weak identifiability, or non-identifiability for a perfectly flat profile.
 **(ii) W22, Project 2**. The global search suggests a bimodality: a collection of searches seem to reach a different and inferior region of parameter space. This is not scientifically critical - the second mode has much lower likelihood - but may help to understand numerical issues.
 
-\label{cs:presentation-visualization}
+\refstepcounter{csnum}\label{cs:presentation-visualization}
 
-**CS10.** **Two human-only points categorized as “Presentation/visualization”**.
+**CS\arabic{csnum}.** **Two human-only points categorized as “Presentation/visualization”**.
 **(i) W22, Project 4**. The plot titled “differenced data” is differenced log data, but the ACF next to it is unlogged data. None of this is apparent unless you study the source code.
 **(ii) W22, Project 18**. Where possible, numbers should not be hard-coded in the Rmd document. Rather, they should be referenced using inline R expressions.
 
-\label{cs:argument-narrative}
+\refstepcounter{csnum}\label{cs:argument-narrative}
 
-**CS11.** **Two human-only points categorized as “Argumentation/Narrative.”**
+**CS\arabic{csnum}.** **Two human-only points categorized as “Argumentation/Narrative.”**
 **(i) W22, Project 13**. For the introduction, it is better to include the background (epidemic situation) in the researched regions, California and Texas.
 **(ii) W24, Project 2**. The description of what is denoted by \texttt{peak\_rodent\_year} was a bit lacking. It was only described as, “Peak rodent year is scored as ‘yes’, otherwise ‘no’,” but it does not describe what is meant by that or how it is decided or when.
 
 \normalsize
 
-# Appendix B. Comparator Validation {#sec-appendix-validation}
+# Appendix B. Comparator Validation {#sec-appendix-validation .unnumbered}
 
 Table @tbl-validation-counts summarizes the findings of the Comparator validation exercise by agent and semester. 5 projects were selected at random from each semester, where each Comparator-match was manually read and scored as a "clear match," "disputable match," or "incorrect match." The selected projects were divided by AI agent among two independent co-authors. The proportion of incorrect matches was robust to this decision, as evident by the low frequency of incorrect matches across all agent-semester combinations.
 
@@ -870,7 +869,7 @@ _val_pivot.columns = ['Semester', 'Agent', 'Clear Match', 'Disputable Match', 'I
 _val_pivot.style.hide()
 ```
 
-# Appendix C. Supplementary Material {#sec-supp}
+# Appendix C. Supplementary Material {#sec-supp .unnumbered}
 
 Tables @tbl-raw-counts and @tbl-themes summarize the full review output of the agents and humans.
 The complete experimental results are available online (see Materials and Methods).
