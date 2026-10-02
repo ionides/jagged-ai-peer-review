@@ -207,7 +207,7 @@ For the quantitative evaluation, we scored each match identified by the Comparat
 
 Findings were matched to a human issue if they referred to
 substantially the same underlying concern, even if phrased differently.
-The major/minor distinction (A vs.~C, B vs.~D) was determined solely by
+The major/minor distinction (A vs C, B vs D) was determined solely by
 the AI reviewer's own label. Each human issue was counted exactly once.
 A peer review, carried out by human or AI, that finds some substantive issues can be helpful whether
 or not other points are correct, and so our conclusions should be
@@ -375,7 +375,7 @@ plt.show()
 \label{what-ai-caught-that-humans-missed}
 
 Despite low Human Overlap, AI agents generated a large and qualitatively
-consistent set of findings not raised by human reviewers (e.g., case studies \ref{cs:ai-major-issue}--\ref{cs:orchestrator-sigma-nu-boundary} in Appendix A). The findings divided along the axis of skill file configuration. The Baseline agent's unique findings frequently required reading and executing code to evaluate, rather than assessing the statistical argument alone. This required the AI to understand particle filters, maximum likelihood via the iterated
+consistent set of findings not raised by human reviewers (e.g., case studies \ref{cs:ai-major-issue}--7 in Appendix A). The findings divided along the axis of skill file configuration. The Baseline agent's unique findings frequently required reading and executing code to evaluate, rather than assessing the statistical argument alone. This required the AI to understand particle filters, maximum likelihood via the iterated
 filtering (IF2) algorithm [@ionides15], and implementation via
 the pomp R package [@king16]. These technical
 issues fell into four recurring categories, described below.
